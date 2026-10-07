@@ -14,7 +14,7 @@ export function ActionHost() {
     case 'newJob':
       return <NewJobModal open onClose={close} />;
     case 'inward':
-      return <InwardModal onClose={close} />;
+      return <InwardModal preset={action} onClose={close} />;
     case 'stage':
       return <StageModal key={action.jobNo + action.stage} stage={action.stage} jobNo={action.jobNo} onClose={close} />;
     case 'qc':

@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, ArrowDownToLine, Boxes, Layers, PackagePlus, Scale, Send } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { addInward, fifoLots, lotAvailableWeight, lotStatus, materialKey } from '../store/engine';
-import { MATERIAL_CATEGORIES, SUPPLIERS } from '../store/seed';
+import { SUPPLIERS } from '../store/seed';
+import { findMaterial, MATERIAL_FAMILIES, MATERIAL_MASTER, pieceWeightKg, STANDARD_OD_MM } from '../store/materials';
 import { Badge, Empty, Field, JobLink, Kpi, Modal, NumInput, PageHeader, Search, Tabs } from '../components/ui';
 import { fmtDate, fmtDateTime, fmtKg, fmtNum, matches, todayISO } from '../components/format';
 
@@ -286,39 +287,48 @@ export function RawInventoryPage() {
   );
 }
 
-export function InwardModal({ onClose }: { onClose: () => void }) {
-  const { state, run } = useStore();
-  const materials = [...new Set([...MATERIAL_CATEGORIES.map((c) => c.material), ...state.rawMaterials.map((l) => l.material)])];
-  const first = MATERIAL_CATEGORIES[0];
+export function InwardModal({ preset, onClose }: { preset?: { material?: string; od?: number }; onClose: () => void }) {
+  const { run } = useStore();
+  const first = findMaterial(preset?.material ?? '') ?? MATERIAL_MASTER[0];
   const [material, setMaterial] = useState(first.material);
-  const [type, setType] = useState(first.materialType);
-  const [od, setOd] = useState(String(first.od));
-  const [supplier, setSupplier] = useState(SUPPLIERS[0]);
+  const [od, setOd] = useState(String(preset?.od ?? first.defaultOd));
+  const [supplier, setSupplier] = useState('');
   const [date, setDate] = useState(todayISO());
-  const [qty, setQty] = useState('');
-  const [weight, setWeight] = useState('');
-  const [heatNo, setHeatNo] = useState('');
   const [invoice, setInvoice] = useState('');
+  const [heatNo, setHeatNo] = useState('');
+  const [qty, setQty] = useState('');
+  const [pieceLength, setPieceLength] = useState('');
+  const [weightOverride, setWeightOverride] = useState<string | null>(null);
 
+  const spec = findMaterial(material) ?? first;
   const qN = Number(qty);
+  const odN = Number(od);
+  const lenN = Number(pieceLength);
+  const perPiece = odN > 0 && lenN > 0 ? pieceWeightKg(odN, lenN, spec.density) : 0;
+  const theoretical = perPiece && qN > 0 ? Math.round(perPiece * qN * 1000) / 1000 : 0;
+  const weight = weightOverride ?? (theoretical ? String(theoretical) : '');
   const wN = Number(weight);
-  const valid = material.trim() && supplier.trim() && Number(od) > 0 && qN > 0 && Number.isInteger(qN) && wN > 0;
+
+  const errQty = qty !== '' && (!(qN > 0) || !Number.isInteger(qN)) ? 'Enter a whole number of pieces' : null;
+  const valid = !!supplier && odN > 0 && qN > 0 && Number.isInteger(qN) && wN > 0;
 
   const pickMaterial = (m: string) => {
     setMaterial(m);
-    const known = MATERIAL_CATEGORIES.find((c) => c.material === m) ?? state.rawMaterials.find((x) => x.material === m);
-    if (known) {
-      setType(known.materialType);
-      setOd(String(known.od));
-    }
+    const next = findMaterial(m);
+    if (next) setOd(String(next.defaultOd));
+    setWeightOverride(null);
   };
 
   const submit = () => {
     if (
-      run((d, ts) => addInward(d, { material, materialType: type, od: Number(od), supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: invoice }, ts), {
-        title: 'Raw material received',
-        message: `${qN} PCS (${wN} KG) of ${material} OD ${od}mm added to stock.`,
-      })
+      run(
+        (d, ts) =>
+          addInward(d, { material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: invoice }, ts),
+        {
+          title: 'Raw material received',
+          message: `${qN} PCS (${wN} KG) of ${material} OD ${od} mm added to stock.`,
+        },
+      )
     )
       onClose();
   };
@@ -342,45 +352,94 @@ export function InwardModal({ onClose }: { onClose: () => void }) {
         </>
       }
     >
+      <div className="section-label">Material</div>
+      <div className="form-grid three">
+        <Field label="Material" required>
+          <select value={material} onChange={(e) => pickMaterial(e.target.value)}>
+            {MATERIAL_FAMILIES.map((fam) => (
+              <optgroup key={fam} label={fam}>
+                {MATERIAL_MASTER.filter((m) => m.family === fam).map((m) => (
+                  <option key={m.material} value={m.material}>
+                    {m.material}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </Field>
+        <Field label="Grade / Specification" hint={`Density ${spec.density} g/cm³`}>
+          <input className="input" readOnly value={spec.grade} />
+        </Field>
+        <Field label="OD / Size" required hint="Standard bar diameters">
+          <select
+            value={od}
+            onChange={(e) => {
+              setOd(e.target.value);
+              setWeightOverride(null);
+            }}
+          >
+            {STANDARD_OD_MM.map((d) => (
+              <option key={d} value={String(d)}>
+                {d} mm
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      <div className="section-label">Receipt</div>
       <div className="form-grid">
-        <Field label="Material" required hint="Pick existing or type a new material">
-          <input className="input" list="mat-list" value={material} onChange={(e) => pickMaterial(e.target.value)} />
-          <datalist id="mat-list">
-            {materials.map((m) => (
-              <option key={m} value={m} />
-            ))}
-          </datalist>
-        </Field>
-        <Field label="Material Type / Grade">
-          <input className="input" value={type} onChange={(e) => setType(e.target.value)} placeholder="e.g. Brass CW614N" />
-        </Field>
-        <Field label="OD / Size" required>
-          <NumInput value={od} onChange={setOd} suffix="mm" step="any" />
-        </Field>
         <Field label="Supplier" required>
-          <input className="input" list="sup-list" value={supplier} onChange={(e) => setSupplier(e.target.value)} />
-          <datalist id="sup-list">
+          <select value={supplier} onChange={(e) => setSupplier(e.target.value)}>
+            <option value="">Select supplier…</option>
             {SUPPLIERS.map((m) => (
-              <option key={m} value={m} />
+              <option key={m}>{m}</option>
             ))}
-          </datalist>
+          </select>
         </Field>
         <Field label="Inward Date" required>
           <input className="input" type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <Field label="Supplier Invoice No.">
-          <input className="input mono" value={invoice} onChange={(e) => setInvoice(e.target.value)} placeholder="Auto if blank" />
+          <input className="input mono" value={invoice} onChange={(e) => setInvoice(e.target.value)} placeholder="e.g. INV/2026/0412" />
         </Field>
-        <Field label="Quantity" required>
-          <NumInput value={qty} onChange={setQty} autoFocus />
-        </Field>
-        <Field label="Weight" required hint={qN > 0 && wN > 0 ? `${(wN / qN).toFixed(3)} kg per piece` : undefined}>
-          <NumInput value={weight} onChange={setWeight} suffix="KG" step="any" />
-        </Field>
-        <Field label="Heat No. / Mill Cert" full>
-          <input className="input mono" value={heatNo} onChange={(e) => setHeatNo(e.target.value)} placeholder="Auto if blank" />
+        <Field label="Heat No. / Mill Cert">
+          <input className="input mono" value={heatNo} onChange={(e) => setHeatNo(e.target.value)} placeholder="As per mill test certificate" />
         </Field>
       </div>
+
+      <div className="section-label">Quantity &amp; weight</div>
+      <div className="form-grid three">
+        <Field label="Quantity" required error={errQty}>
+          <NumInput value={qty} onChange={(v) => { setQty(v); setWeightOverride(null); }} bad={!!errQty} autoFocus />
+        </Field>
+        <Field label="Piece Length" hint="Length of each bar / billet — used to calculate weight">
+          <NumInput value={pieceLength} onChange={(v) => { setPieceLength(v); setWeightOverride(null); }} suffix="mm" step="any" />
+        </Field>
+        <Field
+          label="Total Weight"
+          required
+          hint={
+            theoretical
+              ? weightOverride != null && Number(weightOverride) !== theoretical
+                ? `Theoretical ${theoretical} KG — using entered weight`
+                : `Auto: ${perPiece.toFixed(3)} kg/pc × ${qN} PCS`
+              : 'Enter piece length to auto-calculate, or type the weighed weight'
+          }
+        >
+          <NumInput value={weight} onChange={setWeightOverride} suffix="KG" step="any" />
+        </Field>
+      </div>
+
+      {valid && (
+        <div className="callout info">
+          <Layers size={16} />
+          <div>
+            Adds a new lot of <b>{qN} PCS</b> ({wN} KG, {(wN / qN).toFixed(3)} kg/pc) of <b>{material} · OD {od} mm</b> from {supplier}. It is issued after
+            any older lots of the same material and size (FIFO).
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

@@ -3,7 +3,7 @@ import { Info, Layers, PackagePlus } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { completeStage, createJob, fifoLots, materialKey, parseMaterialKey, startStage } from '../store/engine';
 import type { ERPState } from '../store/types';
-import { CUSTOMERS, MACHINES, MATERIAL_CATEGORIES, OPERATORS } from '../store/seed';
+import { CUSTOMERS, MACHINES, OPERATORS } from '../store/seed';
 import { Field, Modal, NumInput, QtyFlow } from './ui';
 import { fmtNum, todayISO } from './format';
 
@@ -76,13 +76,14 @@ export function NewJobModal({ open, onClose }: { open: boolean; onClose: () => v
 
   const materials = useMemo(() => {
     const m = new Map<string, number>();
-    for (const c of MATERIAL_CATEGORIES) m.set(materialKey(c.material, c.od), 0);
+    // every product's raw material is listed, even before it has stock
+    for (const p of state.products) m.set(materialKey(p.material, p.od), 0);
     for (const l of state.rawMaterials) {
       const k = materialKey(l.material, l.od);
       m.set(k, (m.get(k) ?? 0) + l.availableQty);
     }
     return [...m.entries()];
-  }, [state.rawMaterials]);
+  }, [state.rawMaterials, state.products]);
 
   const nextJobNo = `JOB-${new Date().getFullYear()}-${String(state.counters.job + 1).padStart(4, '0')}`;
   const avail = materials.find(([k]) => k === matKey)?.[1] ?? 0;
@@ -278,7 +279,7 @@ export function NewJobModal({ open, onClose }: { open: boolean; onClose: () => v
           <div style={{ flex: 1 }}>
             No stock of <b>{mat.material} OD {mat.od} mm</b>. Add a raw material inward first, then create the job.
           </div>
-          <button className="btn btn-sm btn-primary" onClick={() => openAction({ kind: 'inward' })}>
+          <button className="btn btn-sm btn-primary" onClick={() => openAction({ kind: 'inward', material: mat.material, od: mat.od })}>
             Add Raw Material Inward
           </button>
         </div>

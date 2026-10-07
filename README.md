@@ -24,9 +24,22 @@ The app starts with **master data only: no raw-material stock and no jobs**.
 - **Entered by you:** every raw-material inward, job, stage entry, QC result and dispatch.
 - **Clear all data** (bottom of the sidebar) deletes all stock and jobs. Masters are kept.
 
+## Raw material master
+
+The inward form uses dropdowns, so nobody has to type material names:
+
+- **Material** is grouped by family: Carbon Steel (EN8, EN9, EN3), Alloy Steel (EN19, EN24, 20MnCr5), Stainless Steel (SS304, SS316, SS410), Brass (CW614N, CW617N forging brass), Copper (ETP, OFHC) and Aluminium (6061, 6082, 2014).
+- **Grade / Specification** fills in automatically from the material.
+- **OD / Size** is chosen from standard bar diameters (12–120 mm).
+- **Supplier** is chosen from the supplier list.
+- **Total Weight** is calculated automatically from quantity × piece length × π/4·OD² × density. For example, a Ø50 steel bar works out at 15.41 kg per metre. You can overwrite it with the actual weighed weight.
+
+At each process stage, **Loss Reason** is chosen from standard forging defects (for example under-fill, lap / fold or quench crack). The Heat Treatment **Process** is also a dropdown.
+The master list is in `src/store/materials.ts`.
+
 ## Checking the flow and calculations (worked example)
 
-1. **Raw Inventory → Add Raw Material Inward**: EN8 Steel Round Bar (the grade and OD 50 fill in automatically), **600 PCS / 168 KG**. Add a second inward of **400 PCS / 112 KG**. EN8 stock is now **1,000**.
+1. **Raw Inventory → Add Raw Material Inward**: EN8 Steel Round Bar, OD 50, choose a supplier, **600 PCS / 168 KG**. Add a second inward of **400 PCS / 112 KG**. EN8 stock is now **1,000**.
 2. **Cutting → Create Cutting Order**: 9084 Flange, EN8 OD 50, planned **700**. Stock stays at 1,000 until cutting starts.
 3. **Start** the cutting order, enter loss **14** and complete. FIFO issues 600 PCS from the first lot and 100 from the second, so EN8 drops to **300**. The output is 700 − 14 = **686**.
 4. **Forging**: the input is locked at 686. Loss 6 → **680**.

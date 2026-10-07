@@ -16,6 +16,7 @@ import {
   startStage,
 } from '../src/store/engine';
 import { buildSeed } from '../src/store/seed';
+import { findMaterial, MATERIAL_MASTER, pieceWeightKg } from '../src/store/materials';
 
 let passed = 0;
 const t = (name: string, fn: () => void) => {
@@ -41,6 +42,18 @@ t('no raw material stock, no inward records, no activity', () => {
 t('product master kept', () => assert.equal(s.products.length, 4));
 t('a job cannot be created without stock', () =>
   throws(() => createJob(s, { productId: 'P-9084', customer: 'X', plannedQty: 1, materialKey: EN8, cuttingLength: 62, dueDate: '2026-12-01', priority: 'Normal' }, ts()), /only 0 PCS/));
+
+console.log('\nMaterial master');
+t('every product uses a material from the master', () => {
+  for (const p of s.products) assert.ok(findMaterial(p.material), p.material);
+});
+t('weight formula: Ø50 steel bar = 15.41 kg per metre (standard table value)', () => {
+  assert.equal(pieceWeightKg(50, 1000, findMaterial('EN8 Steel Round Bar')!.density).toFixed(2), '15.41');
+});
+t('weight formula: Ø30 aluminium bar = 1.91 kg per metre', () => {
+  assert.equal(pieceWeightKg(30, 1000, findMaterial('Aluminium Round Bar')!.density).toFixed(2), '1.91');
+});
+t(`${MATERIAL_MASTER.length} materials in the master`, () => assert.ok(MATERIAL_MASTER.length >= 12));
 
 console.log('\nRaw material inward (two EN8 lots)');
 addInward(s, { material: 'EN8 Steel Round Bar', materialType: 'Carbon Steel EN8', od: 50, supplier: 'Shree Steel Traders', inwardDate: '2026-09-01', qty: 600, weight: 168 }, ts());

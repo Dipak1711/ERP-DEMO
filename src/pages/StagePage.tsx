@@ -4,6 +4,7 @@ import { useStore } from '../store/StoreContext';
 import { completeStage, getJob, getProduct, parseMaterialKey, PROCESS_STAGES, STAGE_LABEL, startStage, stageRecords } from '../store/engine';
 import type { ProcessStage, StageRecord } from '../store/types';
 import { MACHINES, OPERATORS } from '../store/seed';
+import { HT_PROCESSES, LOSS_REASONS } from '../store/materials';
 import { Badge, Empty, Field, FLOW_STEPS, InlineQty, JobLink, Kpi, Modal, NumInput, PageHeader, QtyFlow, Search, Tabs } from '../components/ui';
 import { FifoPreview, tsFor } from '../components/NewJobModal';
 import { fmtDateTime, fmtNum, matches, todayISO } from '../components/format';
@@ -252,6 +253,7 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
   const [machine, setMachine] = useState(rec?.machine || MACHINES[stage][0]);
   const [operator, setOperator] = useState(rec?.operator || OPERATORS[PROCESS_STAGES.indexOf(stage)]);
   const [date, setDate] = useState(todayISO());
+  const [lossReason, setLossReason] = useState('');
   const [remarks, setRemarks] = useState('');
   const [params, setParams] = useState<Record<string, string | number>>(() => ({ ...(rec?.params ?? {}) }));
   const setParam = (k: string, v: string | number) => setParams((x) => ({ ...x, [k]: v }));
@@ -294,7 +296,7 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
           d,
           stage,
           jobNo,
-          { inputQty: editableInput ? inN : undefined, loss: lossN, machine, operator, remarks, params: cleanParams() },
+          { inputQty: editableInput ? inN : undefined, loss: lossN, machine, operator, remarks: [lossN > 0 ? lossReason : '', remarks.trim()].filter(Boolean).join(' — '), params: cleanParams() },
           tsFor(date, now),
         ),
       {
@@ -409,7 +411,11 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
               <NumInput value={params.soakMinutes ?? ''} onChange={(v) => setParam('soakMinutes', v)} suffix="min" />
             </Field>
             <Field label="Process">
-              <input className="input" value={params.process ?? ''} onChange={(e) => setParam('process', e.target.value)} />
+              <select value={params.process ?? ''} onChange={(e) => setParam('process', e.target.value)}>
+                {[...new Set([String(params.process ?? ''), ...HT_PROCESSES])].filter(Boolean).map((o) => (
+                  <option key={o}>{o}</option>
+                ))}
+              </select>
             </Field>
             <Field label="Cooling / Quench">
               <select value={params.quench ?? ''} onChange={(e) => setParam('quench', e.target.value)}>
@@ -437,8 +443,16 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
         <Field label="Process Date">
           <input className="input" type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
-        <Field label="Loss reason / Remarks" full>
-          <input className="input" value={remarks} placeholder="e.g. end-piece scrap, under-fill, crack" onChange={(e) => setRemarks(e.target.value)} />
+        <Field label="Loss Reason" hint={lossN > 0 ? 'Why the pieces were lost' : 'Only needed when there is a loss'}>
+          <select value={lossReason} onChange={(e) => setLossReason(e.target.value)} disabled={!(lossN > 0)}>
+            <option value="">{lossN > 0 ? 'Select reason…' : 'No loss'}</option>
+            {LOSS_REASONS[stage].map((r) => (
+              <option key={r}>{r}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Remarks">
+          <input className="input" value={remarks} placeholder="Optional notes" onChange={(e) => setRemarks(e.target.value)} />
         </Field>
       </div>
 

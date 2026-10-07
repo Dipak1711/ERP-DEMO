@@ -70,15 +70,7 @@ export const PRODUCTS: Product[] = [
   },
 ];
 
-/** Raw-material categories offered in the inward form and the cutting order. */
-export const MATERIAL_CATEGORIES: { material: string; materialType: string; od: number }[] = [
-  { material: 'EN8 Steel Round Bar', materialType: 'Carbon Steel EN8', od: 50 },
-  { material: 'Brass Round Bar', materialType: 'Brass CW614N', od: 45 },
-  { material: 'Copper Round Bar', materialType: 'Copper ETP C11000', od: 30 },
-  { material: 'Aluminium Round Bar', materialType: 'Aluminium 6061', od: 25 },
-];
-
-export const SUPPLIERS = ['ABC Metals', 'XYZ Metals', 'PQR Industries', 'Shree Steel Traders', 'Mahalaxmi Alloys'];
+export const SUPPLIERS = ['ABC Metals', 'XYZ Metals', 'PQR Industries', 'Shree Steel Traders', 'Mahalaxmi Alloys', 'Shakti Stainless Traders', 'Om Alloys & Metals'];
 export const CUSTOMERS = [
   'ABC Industries',
   'Sigma Valves Pvt. Ltd.',
