@@ -13,19 +13,30 @@ There is no backend: all data lives in the browser's `localStorage`.
 npm install
 npm run dev          # http://localhost:5173
 npm run build        # production build in dist/
-npm run test:engine  # headless checks of the quantity engine and seed data
+npm run test:engine  # headless checks of the quantity engine (runs the worked example below)
 ```
 
-## Suggested demo script (about 10 minutes)
+## Starting data
 
-1. **Dashboard**: KPI cards, the Raw → Dispatch flow with work-in-progress and loss at each stage, and eight jobs running in parallel at different stages.
-2. **Trace a job**: search `JOB-2026-0001` in the top bar. The timeline shows 100 PCS issued, then 98, 98, 97 and 95 PCS through the stages. At QC, 94 PCS are accepted and 94 PCS are dispatched on GJ05AB1234 in 10 bags. A reconciliation line at the bottom shows that the quantities balance.
-3. **Cutting → Create Cutting Order**: the job number is generated automatically. Choose **Start & Complete** and enter a loss of 2. The FIFO issue plan shows which raw lots are used, and the raw stock goes down.
-4. Take that job through **Forging → Trimming → Heat Treatment**. The input at each stage is locked to the previous stage's output. The Heat Treatment temperature comes from the product master.
-5. **QC**: accepted and rejected quantities always add up to the input, and a rejection needs a reason. The accepted quantity then appears in **Finished Goods**.
-6. **Dispatch**: enter the vehicle number and number of bags. The bag-level packing list is generated, and Finished Goods go down by the dispatched quantity.
-7. Refresh the browser. All the data is still there.
-8. **Reset demo data** (bottom of the sidebar) restores the original seeded plant data.
+The app starts with **master data only: no raw-material stock and no jobs**.
+
+- **Kept for the dropdowns:** the product master (9084 Flange, Brass Bush, Copper Component, Aluminium Forged Component) and the raw-material categories (EN8 Steel Round Bar OD 50, Brass Round Bar OD 45, Copper Round Bar OD 30, Aluminium Round Bar OD 25). Customer, supplier, machine, operator and inspector lists are also kept.
+- **Entered by you:** every raw-material inward, job, stage entry, QC result and dispatch.
+- **Clear all data** (bottom of the sidebar) deletes all stock and jobs. Masters are kept.
+
+## Checking the flow and calculations (worked example)
+
+1. **Raw Inventory → Add Raw Material Inward**: EN8 Steel Round Bar (the grade and OD 50 fill in automatically), **600 PCS / 168 KG**. Add a second inward of **400 PCS / 112 KG**. EN8 stock is now **1,000**.
+2. **Cutting → Create Cutting Order**: 9084 Flange, EN8 OD 50, planned **700**. Stock stays at 1,000 until cutting starts.
+3. **Start** the cutting order, enter loss **14** and complete. FIFO issues 600 PCS from the first lot and 100 from the second, so EN8 drops to **300**. The output is 700 − 14 = **686**.
+4. **Forging**: the input is locked at 686. Loss 6 → **680**.
+5. **Trimming**: 680 − 5 → **675**.
+6. **Heat Treatment** (850°C from the product): 675 − 3 → **672**.
+7. **QC**: 672 = **668 accepted** + 4 rejected. Finished Goods becomes **668**.
+8. **Dispatch** 668 with a vehicle number and bags. Finished Goods becomes **0**.
+9. Click the job number. The reconciliation line reads **700 issued = 28 process loss + 4 QC rejected + 668 finished goods** (balanced).
+
+If you try to create a job for a material with no stock, the form says so and offers **Add Raw Material Inward**.
 
 ## Making it easy to follow
 
@@ -40,7 +51,7 @@ npm run test:engine  # headless checks of the quantity engine and seed data
 | Path | Purpose |
 |---|---|
 | `src/store/engine.ts` | All quantity rules (pure functions). Output = Input − Loss; the next stage's input = the previous stage's output; FIFO raw issue; QC balance; FG reserve and dispatch |
-| `src/store/seed.ts` | Product master and about two weeks of plant history replayed through the engine, so the seed data follows the same rules |
+| `src/store/seed.ts` | Master lists only (products, raw-material categories, customers, suppliers, machines, operators); no stock, no jobs |
 | `src/store/storage.ts` | localStorage persistence, one key per collection (`forgeflow.v1.*`) |
 | `src/store/StoreContext.tsx` | React state, toasts and the trace drawer |
 | `src/pages/*` | Dashboard, Raw Inventory, one page shared by the four process stages, QC, Finished Goods, Dispatch, Traceability, Ledger, Product Master |

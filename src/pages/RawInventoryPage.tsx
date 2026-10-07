@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, ArrowDownToLine, Boxes, Layers, PackagePlus, Scale, Send } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { addInward, fifoLots, lotAvailableWeight, lotStatus, materialKey } from '../store/engine';
-import { SUPPLIERS } from '../store/seed';
+import { MATERIAL_CATEGORIES, SUPPLIERS } from '../store/seed';
 import { Badge, Empty, Field, JobLink, Kpi, Modal, NumInput, PageHeader, Search, Tabs } from '../components/ui';
 import { fmtDate, fmtDateTime, fmtKg, fmtNum, matches, todayISO } from '../components/format';
 
@@ -72,6 +72,18 @@ export function RawInventoryPage() {
           </div>
         </div>
         <div className="card-body">
+          {groups.length === 0 && (
+            <Empty
+              icon={Boxes}
+              title="No raw material in stock"
+              text="Record your first inward — material, OD / size, supplier, quantity and weight. Stock appears here by material and OD."
+              action={
+                <button className="btn btn-primary" onClick={() => openAction({ kind: 'inward' })}>
+                  <PackagePlus size={15} /> Add Raw Material Inward
+                </button>
+              }
+            />
+          )}
           <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
             {groups.map((g) => (
               <button
@@ -276,10 +288,11 @@ export function RawInventoryPage() {
 
 export function InwardModal({ onClose }: { onClose: () => void }) {
   const { state, run } = useStore();
-  const materials = [...new Set(state.rawMaterials.map((l) => l.material))];
-  const [material, setMaterial] = useState(materials[0] ?? '');
-  const [type, setType] = useState(state.rawMaterials.find((l) => l.material === materials[0])?.materialType ?? '');
-  const [od, setOd] = useState('45');
+  const materials = [...new Set([...MATERIAL_CATEGORIES.map((c) => c.material), ...state.rawMaterials.map((l) => l.material)])];
+  const first = MATERIAL_CATEGORIES[0];
+  const [material, setMaterial] = useState(first.material);
+  const [type, setType] = useState(first.materialType);
+  const [od, setOd] = useState(String(first.od));
   const [supplier, setSupplier] = useState(SUPPLIERS[0]);
   const [date, setDate] = useState(todayISO());
   const [qty, setQty] = useState('');
@@ -293,10 +306,10 @@ export function InwardModal({ onClose }: { onClose: () => void }) {
 
   const pickMaterial = (m: string) => {
     setMaterial(m);
-    const l = state.rawMaterials.find((x) => x.material === m);
-    if (l) {
-      setType(l.materialType);
-      setOd(String(l.od));
+    const known = MATERIAL_CATEGORIES.find((c) => c.material === m) ?? state.rawMaterials.find((x) => x.material === m);
+    if (known) {
+      setType(known.materialType);
+      setOd(String(known.od));
     }
   };
 

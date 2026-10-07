@@ -156,13 +156,13 @@ export function Layout({ route, children }: { route: string; children: ReactNode
           })}
         </nav>
         <div className="side-foot">
-          <div className="storage" title="Demo mode — data is saved in this browser">
+          <div className="storage" title="Data is saved in this browser">
             <span className="dot" />
-            <span className="t">Demo mode · saved in this browser</span>
+            <span className="t">Data saved in this browser</span>
           </div>
-          <button className="btn btn-sm btn-side" onClick={() => setConfirmReset(true)} title="Reset demo data">
+          <button className="btn btn-sm btn-side" onClick={() => setConfirmReset(true)} title="Clear all data">
             <RotateCcw size={14} />
-            <span className="t">Reset demo data</span>
+            <span className="t">Clear all data</span>
           </button>
         </div>
       </aside>
@@ -198,9 +198,9 @@ export function Layout({ route, children }: { route: string; children: ReactNode
 
       <Confirm
         open={confirmReset}
-        title="Reset demo data?"
-        message="All changes made during this demo will be cleared and the original seeded plant data (8 jobs across every stage) will be restored."
-        confirmLabel="Reset data"
+        title="Clear all data?"
+        message="All raw material inward and stock, and every production job, stage entry, QC result, finished good and dispatch will be deleted. Products, material categories and other masters are kept."
+        confirmLabel="Clear all data"
         tone="danger"
         onConfirm={reset}
         onClose={() => setConfirmReset(false)}

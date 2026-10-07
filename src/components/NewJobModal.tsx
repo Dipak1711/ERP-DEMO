@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Info, Layers } from 'lucide-react';
+import { Info, Layers, PackagePlus } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { completeStage, createJob, fifoLots, materialKey, parseMaterialKey, startStage } from '../store/engine';
 import type { ERPState } from '../store/types';
-import { CUSTOMERS, MACHINES, OPERATORS } from '../store/seed';
+import { CUSTOMERS, MACHINES, MATERIAL_CATEGORIES, OPERATORS } from '../store/seed';
 import { Field, Modal, NumInput, QtyFlow } from './ui';
 import { fmtNum, todayISO } from './format';
 
@@ -53,7 +53,7 @@ export const tsFor = (date: string, nowTs: string) => {
 type Mode = 'pending' | 'start' | 'complete';
 
 export function NewJobModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { state, run, openTrace } = useStore();
+  const { state, run, openTrace, openAction } = useStore();
   const p0 = state.products[0];
   const [productId, setProductId] = useState(p0.id);
   const product = state.products.find((p) => p.id === productId)!;
@@ -76,6 +76,7 @@ export function NewJobModal({ open, onClose }: { open: boolean; onClose: () => v
 
   const materials = useMemo(() => {
     const m = new Map<string, number>();
+    for (const c of MATERIAL_CATEGORIES) m.set(materialKey(c.material, c.od), 0);
     for (const l of state.rawMaterials) {
       const k = materialKey(l.material, l.od);
       m.set(k, (m.get(k) ?? 0) + l.availableQty);
@@ -271,7 +272,19 @@ export function NewJobModal({ open, onClose }: { open: boolean; onClose: () => v
           </div>
         </div>
       )}
-      <FifoPreview keyId={matKey} qty={actualN} />
+      {avail === 0 ? (
+        <div className="callout warn">
+          <PackagePlus size={16} />
+          <div style={{ flex: 1 }}>
+            No stock of <b>{mat.material} OD {mat.od} mm</b>. Add a raw material inward first, then create the job.
+          </div>
+          <button className="btn btn-sm btn-primary" onClick={() => openAction({ kind: 'inward' })}>
+            Add Raw Material Inward
+          </button>
+        </div>
+      ) : (
+        <FifoPreview keyId={matKey} qty={actualN} />
+      )}
     </Modal>
   );
 }

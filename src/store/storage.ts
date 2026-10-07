@@ -9,12 +9,15 @@
 //   forgeflow.v1.forging         forgeflow.v1.counters
 //   forgeflow.v1.trimming        forgeflow.v1.meta   ({ seededAt, version })
 //   forgeflow.v1.heatTreatment
+//
+// VERSION 3 starts with master data only — no raw stock and no jobs. A browser
+// still holding older data (demo jobs or opening stock) is reset automatically.
 // ---------------------------------------------------------------------------
 import { buildSeed, emptyState } from './seed';
 import type { CollectionKey, ERPState } from './types';
 
 const PREFIX = 'forgeflow.v1.';
-const VERSION = 1;
+const VERSION = 3;
 const KEYS = Object.keys(emptyState()) as CollectionKey[];
 
 function safeGet(key: string): string | null {
@@ -28,7 +31,7 @@ function safeSet(key: string, value: string) {
   try {
     localStorage.setItem(key, value);
   } catch {
-    /* quota / private mode — demo keeps working in memory */
+    /* quota / private mode — app keeps working in memory */
   }
 }
 
@@ -47,7 +50,7 @@ export function loadState(): ERPState {
         return s as unknown as ERPState;
       }
     } catch {
-      /* corrupted — fall through to reseed */
+      /* corrupted or older version — fall through to a fresh start */
     }
   }
   return resetState();

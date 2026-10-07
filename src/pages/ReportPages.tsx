@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Eye, Waypoints } from 'lucide-react';
+import { ArrowRight, Eye, ScrollText, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { jobSummary, PROCESS_STAGES, STAGE_LABEL } from '../store/engine';
 import { Badge, Empty, JobLink, PageHeader, Priority, Search, Stepper, Tabs } from '../components/ui';
@@ -143,7 +143,8 @@ export function LedgerPage() {
             {rows.length} movements
           </span>
         </div>
-        <div className="table-wrap">
+        {rows.length === 0 && <Empty icon={ScrollText} title="No quantity movements yet" text="Every inward, stage transfer, QC result and dispatch is recorded here." />}
+        <div className="table-wrap" hidden={rows.length === 0}>
           <table className="tbl">
             <thead>
               <tr>

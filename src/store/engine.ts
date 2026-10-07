@@ -2,8 +2,8 @@
 // Production engine — the single source of truth for quantity movement.
 //
 // Every function mutates the draft state it receives (the store hands in a
-// clone) and throws ERPError on invalid input. The UI and the seed script both
-// go through these functions, so seeded data obeys exactly the same rules:
+// clone) and throws ERPError on invalid input. Every screen (and the opening
+// stock seed) goes through these functions, so the same rules apply everywhere:
 //
 //     OUTPUT = INPUT − LOSS/REJECTION      (at every stage)
 //     next stage INPUT = previous stage OUTPUT  (never more)
@@ -283,9 +283,11 @@ export interface CompleteInput extends StartInput {
 
 export function completeStage(s: ERPState, stage: ProcessStage, jobNo: string, input: CompleteInput, ts: string) {
   const rec = openRecord(s, stage, jobNo);
-  if (rec.status === 'Pending') startStage(s, stage, jobNo, input, ts);
+  // validate before anything is issued or moved
   const loss = assertQty(input.loss, 'Loss / rejection', { allowZero: true });
-  if (loss > rec.input) fail(`Loss (${loss}) cannot exceed input quantity (${rec.input}).`);
+  const inputQty = rec.status === 'Pending' && stage === 'cutting' ? Number(input.inputQty ?? rec.input) : rec.input;
+  if (loss > inputQty) fail(`Loss (${loss}) cannot exceed input quantity (${inputQty}).`);
+  if (rec.status === 'Pending') startStage(s, stage, jobNo, input, ts);
 
   rec.loss = loss;
   rec.output = rec.input - loss;

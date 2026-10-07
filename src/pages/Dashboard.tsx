@@ -25,7 +25,7 @@ import {
 import { useStore } from '../store/StoreContext';
 import { fgAvailable, isToday, jobSummary, lotAvailableWeight, materialKey, PROCESS_STAGES, STAGE_LABEL, stageRecords } from '../store/engine';
 import type { Activity } from '../store/types';
-import { Badge, FLOW_STEPS, go, JobLink, Kpi, PageHeader, Priority, Stepper } from '../components/ui';
+import { Badge, Empty, FLOW_STEPS, go, JobLink, Kpi, PageHeader, Priority, Stepper } from '../components/ui';
 import { nextStep, pendingSteps } from '../components/workflow';
 import { fmtKg, fmtNum, timeAgo } from '../components/format';
 
@@ -281,54 +281,71 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
               </button>
             </div>
           </div>
-          <div className="table-wrap">
-            <table className="tbl compact">
-              <thead>
-                <tr>
-                  <th>Job Number</th>
-                  <th>Product</th>
-                  <th className="r">Planned Qty</th>
-                  <th>Current Stage</th>
-                  <th className="r">Current Qty</th>
-                  <th>Status</th>
-                  <th>Next Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jobs.map((j) => (
-                  <tr key={j.job.jobNo}>
-                    <td>
-                      <JobLink jobNo={j.job.jobNo} />
-                      {j.job.priority !== 'Normal' && (
-                        <div style={{ marginTop: 4 }}>
-                          <Priority p={j.job.priority} />
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <div className="strong nowrap">{j.product.name}</div>
-                      <div className="sub nowrap">{j.job.customer}</div>
-                    </td>
-                    <td className="r num">{fmtNum(j.job.plannedQty)}</td>
-                    <td>
-                      <div className="strong nowrap" style={{ marginBottom: 6 }}>{STAGE_LABEL[j.job.currentStage]}</div>
-                      <Stepper index={j.flowIndex} />
-                    </td>
-                    <td className="r qty-cell">
-                      {fmtNum(j.currentQty)}
-                      {j.totalLoss > 0 && <div className="sub loss">−{j.totalLoss} loss</div>}
-                    </td>
-                    <td>
-                      <Badge status={j.status} />
-                    </td>
-                    <td className="nowrap">
-                      <NextActionButton jobNo={j.job.jobNo} />
-                    </td>
+          {jobs.length === 0 ? (
+            <Empty
+              icon={Factory}
+              title={state.jobs.length ? 'No active jobs' : 'No production jobs yet'}
+              text={
+                state.jobs.length
+                  ? 'Every job has been dispatched. Create a new job to keep production moving.'
+                  : 'Raw material stock is ready. Create the first job and take it from Cutting to Dispatch.'
+              }
+              action={
+                <button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}>
+                  <Plus size={15} /> New Production Job
+                </button>
+              }
+            />
+          ) : (
+            <div className="table-wrap">
+              <table className="tbl compact">
+                <thead>
+                  <tr>
+                    <th>Job Number</th>
+                    <th>Product</th>
+                    <th className="r">Planned Qty</th>
+                    <th>Current Stage</th>
+                    <th className="r">Current Qty</th>
+                    <th>Status</th>
+                    <th>Next Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {jobs.map((j) => (
+                    <tr key={j.job.jobNo}>
+                      <td>
+                        <JobLink jobNo={j.job.jobNo} />
+                        {j.job.priority !== 'Normal' && (
+                          <div style={{ marginTop: 4 }}>
+                            <Priority p={j.job.priority} />
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <div className="strong nowrap">{j.product.name}</div>
+                        <div className="sub nowrap">{j.job.customer}</div>
+                      </td>
+                      <td className="r num">{fmtNum(j.job.plannedQty)}</td>
+                      <td>
+                        <div className="strong nowrap" style={{ marginBottom: 6 }}>{STAGE_LABEL[j.job.currentStage]}</div>
+                        <Stepper index={j.flowIndex} />
+                      </td>
+                      <td className="r qty-cell">
+                        {fmtNum(j.currentQty)}
+                        {j.totalLoss > 0 && <div className="sub loss">−{j.totalLoss} loss</div>}
+                      </td>
+                      <td>
+                        <Badge status={j.status} />
+                      </td>
+                      <td className="nowrap">
+                        <NextActionButton jobNo={j.job.jobNo} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
       </div>
@@ -345,6 +362,7 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
               <ActivityIcon size={16} className="muted" />
             </div>
           </div>
+          {state.activity.length === 0 && <Empty icon={ActivityIcon} title="No activity yet" text="Inward, production, QC and dispatch events will appear here." />}
           <ul className="feed">
             {state.activity.slice(0, 6).map((a) => {
               const I = FEED_ICON[a.kind];
@@ -381,26 +399,30 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
             </div>
           </div>
           <div className="card-body">
-            <div className="bars">
-              {lossRows.map((r) => {
-                const pct = r.input ? (r.loss / r.input) * 100 : 0;
-                return (
-                  <div className="bar-row" key={r.label}>
-                    <span className="strong">{r.label}</span>
-                    <div className="bar-track">
-                      <div className="bar-fill" style={{ width: `${(r.loss / maxLoss) * 100}%` }} />
+            {lossRows.every((r) => r.input === 0) ? (
+              <Empty icon={XCircle} title="No completed batches" text="Loss per stage appears here once batches are completed." />
+            ) : (
+              <div className="bars">
+                {lossRows.map((r) => {
+                  const pct = r.input ? (r.loss / r.input) * 100 : 0;
+                  return (
+                    <div className="bar-row" key={r.label}>
+                      <span className="strong">{r.label}</span>
+                      <div className="bar-track">
+                        <div className="bar-fill" style={{ width: `${(r.loss / maxLoss) * 100}%` }} />
+                      </div>
+                      <span className="val">
+                        {fmtNum(r.loss)} PCS
+                        <small>{pct.toFixed(2)}% of input</small>
+                      </span>
+                      <span className="tip">
+                        {r.label}: {r.loss} lost of {fmtNum(r.input)} processed ({pct.toFixed(2)}%)
+                      </span>
                     </div>
-                    <span className="val">
-                      {fmtNum(r.loss)} PCS
-                      <small>{pct.toFixed(2)}% of input</small>
-                    </span>
-                    <span className="tip">
-                      {r.label}: {r.loss} lost of {fmtNum(r.input)} processed ({pct.toFixed(2)}%)
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -416,6 +438,18 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
               </button>
             </div>
           </div>
+          {rawGroups.length === 0 && (
+            <Empty
+              icon={Boxes}
+              title="No raw material in stock"
+              text="Add a raw material inward to start."
+              action={
+                <button className="btn btn-sm btn-primary" onClick={() => openAction({ kind: 'inward' })}>
+                  <Plus size={14} /> Add Inward
+                </button>
+              }
+            />
+          )}
           <div className="stock-list">
             {rawGroups.map((g) => (
               <div className="stock-row" key={g.label + g.od}>

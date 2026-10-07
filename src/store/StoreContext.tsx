@@ -89,7 +89,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setState(resetState());
     setTraceJob(null);
     setAction(null);
-    toast({ kind: 'info', title: 'Demo data reset', message: 'Fresh seeded plant data has been loaded.' });
+    toast({ kind: 'info', title: 'All data cleared', message: 'Raw material stock and all jobs have been removed. Products and other masters are kept.' });
   }, [toast]);
 
   const value = useMemo(
