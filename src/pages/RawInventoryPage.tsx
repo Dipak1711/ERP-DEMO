@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowDownToLine, Boxes, Layers, PackagePlus, Send } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
-import { addInward, fifoLots, lotAvailableWeight, lotStatus, materialKey } from '../store/engine';
+import { addInward, lotAvailableWeight, lotStatus, materialKey } from '../store/engine';
 import { SUPPLIERS } from '../store/seed';
 import { findMaterial, MATERIAL_FAMILIES, MATERIAL_MASTER, pieceWeightKg, STANDARD_OD_MM } from '../store/materials';
 import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, Search, SummaryLine, Tabs } from '../components/ui';
@@ -22,27 +22,24 @@ export function RawInventoryPage() {
   const issuedQty = issues.reduce((t, m) => t + m.qty, 0);
   const low = lots.filter((l) => lotStatus(l) === 'Low Stock');
 
-  // Summary per material + OD, and which lot is next in FIFO order
+  // Summary per material + OD
   const groups = useMemo(() => {
-    const m = new Map<string, { key: string; material: string; od: number; type: string; avail: number; inward: number; kg: number; next?: string }>();
+    const m = new Map<string, { key: string; material: string; od: number; avail: number; inward: number; kg: number }>();
     for (const l of lots) {
       const key = materialKey(l.material, l.od);
-      const g = m.get(key) ?? { key, material: l.material, od: l.od, type: l.materialType, avail: 0, inward: 0, kg: 0 };
+      const g = m.get(key) ?? { key, material: l.material, od: l.od, avail: 0, inward: 0, kg: 0 };
       g.avail += l.availableQty;
       g.inward += l.inwardQty;
       g.kg += lotAvailableWeight(l);
       m.set(key, g);
     }
-    for (const g of m.values()) g.next = fifoLots(state, g.key)[0]?.id;
     return [...m.values()];
-  }, [lots, state]);
-  const nextLots = new Set(groups.map((g) => g.next));
-
+  }, [lots]);
   const stockRows = lots
     .filter((l) => !matF || materialKey(l.material, l.od) === matF)
     .filter((l) => matches(q, l.id, l.material, l.materialType, l.supplier, l.heatNo, `${l.od}`))
     .slice()
-    .sort((a, b) => a.material.localeCompare(b.material) || a.od - b.od || a.inwardDate.localeCompare(b.inwardDate));
+    .sort((a, b) => a.inwardDate.localeCompare(b.inwardDate) || a.id.localeCompare(b.id));
 
   return (
     <>
@@ -105,14 +102,12 @@ export function RawInventoryPage() {
                   {fmtNum(g.avail)}
                   <small>PCS</small>
                 </div>
-                <div className="kpi-hint">
-                  {fmtKg(Math.round(g.kg * 1000) / 1000)} · {g.type}
-                </div>
+                <div className="kpi-hint">{fmtKg(Math.round(g.kg * 1000) / 1000)}</div>
                 <div style={{ height: 6, background: 'var(--neutral-bg)', borderRadius: 3, marginTop: 10, overflow: 'hidden' }}>
                   <div style={{ width: `${g.inward ? (g.avail / g.inward) * 100 : 0}%`, height: '100%', background: '#2a78d6', borderRadius: 3 }} />
                 </div>
                 <div className="kpi-hint">
-                  {fmtNum(g.avail)} of {fmtNum(g.inward)} PCS received remain{g.next ? ` · next FIFO lot ${g.next}` : ''}
+                  {fmtNum(g.avail)} of {fmtNum(g.inward)} PCS received
                 </div>
               </button>
             ))}
@@ -172,16 +167,7 @@ export function RawInventoryPage() {
                         <div className="mono strong nowrap">{l.id}</div>
                         <div className="sub">Heat {l.heatNo}</div>
                       </td>
-                      <td className="strong">
-                        {l.material}
-                        {nextLots.has(l.id) && (
-                          <div>
-                            <span className="chip chip-high" style={{ marginTop: 4 }}>
-                              FIFO · next to issue
-                            </span>
-                          </div>
-                        )}
-                      </td>
+                      <td className="strong">{l.material}</td>
                       <td>{l.materialType}</td>
                       <td className="nowrap">OD {l.od} mm</td>
                       <td>{l.supplier}</td>
