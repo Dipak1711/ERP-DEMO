@@ -103,7 +103,20 @@ t('dispatch cannot exceed Finished Goods', () =>
 const dn = createDispatch(s, { fgId: fg.id, customer: 'C', qty: 300, vehicleNo: '', date: '2026-10-07', bagCount: 30, weight: 74.07, status: 'Ready for Dispatch' }, ts());
 t('packing 300 reserves them: available 668 − 300 = 368', () => assert.deepEqual([fg.reservedQty, fgAvailable(fg)], [300, 368]));
 markDispatched(s, dn, 'GJ05AB1234', ts());
-createDispatch(s, { fgId: fg.id, customer: 'C', qty: 368, vehicleNo: 'GJ05AB5678', date: '2026-10-07', bagCount: 37, weight: 90.86, status: 'Dispatched' }, ts());
+// bag-wise packing as written on the route card (qty + weighed weight per bag)
+const cardBags = [
+  { qty: 100, weight: 24.69 }, { qty: 110, weight: 27.23 }, { qty: 110, weight: 27.24 },
+];
+const dn2 = createDispatch(s, { fgId: fg.id, vehicleNo: 'GJ13AX3059', date: '2026-10-07', status: 'Dispatched', bags: cardBags }, ts());
+t('bag-wise dispatch: qty = 100 + 110 + 110 = 320, weight = sum of bags, customer from job', () => {
+  const d = s.dispatches.find((x) => x.dispatchNo === dn2)!;
+  assert.deepEqual([d.qty, d.weight, d.bags.length, d.customer], [320, 79.16, 3, 'ABC Industries']);
+  assert.equal(fgAvailable(fg), 48);
+});
+t('bag with blank weight is calculated from the product weight', () => {
+  const dn3 = createDispatch(s, { fgId: fg.id, vehicleNo: 'GJ13AX3059', date: '2026-10-07', status: 'Dispatched', bags: [{ qty: 48, weight: 0 }] }, ts());
+  assert.equal(s.dispatches.find((x) => x.dispatchNo === dn3)!.bags[0].weight, Math.round(48 * s.products[0].finishedWeight * 1000) / 1000);
+});
 t('all 668 dispatched; FG 0; job Dispatched', () => {
   assert.deepEqual([fg.dispatchedQty, fgAvailable(fg)], [668, 0]);
   assert.equal(jobSummary(s, jobNo).status, 'Dispatched');

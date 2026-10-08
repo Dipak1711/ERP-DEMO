@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Eye, Info, Layers, Play, Plus, Waypoints } from 'lucide-react';
+import { CheckCircle2, Eye, PenLine, Play, Plus, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
-import { completeStage, getJob, getProduct, parseMaterialKey, PROCESS_STAGES, STAGE_LABEL, startStage, stageRecords } from '../store/engine';
+import { completeStage, getJob, getProduct, parseMaterialKey, PROCESS_STAGES, STAGE_LABEL, stageRecords } from '../store/engine';
 import type { ProcessStage, StageRecord } from '../store/types';
-import { MACHINES, OPERATORS } from '../store/seed';
-import { HT_PROCESSES, LOSS_REASONS } from '../store/materials';
+import { OPERATORS } from '../store/seed';
 import { Badge, Empty, Field, FLOW_STEPS, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, Search, SummaryLine, Tabs } from '../components/ui';
 import { FifoPreview, tsFor } from '../components/NewJobModal';
 import { nextStep } from '../components/workflow';
@@ -33,7 +32,7 @@ const CFG: Record<ProcessStage, { title: string; from: string; to: string }> = {
   },
 };
 
-type Filter = 'all' | 'Pending' | 'In Progress' | 'Completed';
+type Filter = 'all' | 'Pending' | 'Completed';
 
 export function StagePage({ stage }: { stage: ProcessStage }) {
   const { state, openAction } = useStore();
@@ -44,8 +43,8 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
   const [q, setQ] = useState('');
   const [productF, setProductF] = useState('');
 
-  const pending = recs.filter((r) => r.status === 'Pending');
-  const inProg = recs.filter((r) => r.status === 'In Progress');
+  // started-but-not-finished records (older data) count as pending: the card has no separate step
+  const pending = recs.filter((r) => r.status !== 'Completed');
   const done = recs.filter((r) => r.status === 'Completed');
   const totIn = done.reduce((t, r) => t + r.input, 0);
   const totLoss = done.reduce((t, r) => t + r.loss, 0);
@@ -54,7 +53,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
   const rows = useMemo(() => {
     const order = { 'In Progress': 0, Pending: 1, Completed: 2 } as const;
     return recs
-      .filter((r) => filter === 'all' || r.status === filter)
+      .filter((r) => filter === 'all' || (filter === 'Completed' ? r.status === 'Completed' : r.status !== 'Completed'))
       .filter((r) => {
         const job = getJob(state, r.jobNo);
         const p = getProduct(state, job.productId);
@@ -76,7 +75,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
         actions={
           stage === 'cutting' && (
             <button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}>
-              <Plus size={16} /> Create Cutting Order
+              <Plus size={16} /> New Job Card
             </button>
           )
         }
@@ -91,8 +90,8 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
             <div className="right">
               <SummaryLine
                 items={[
-                  { label: `PCS sent to ${cfg.to}`, value: fmtNum(totOut), tone: 'good' },
-                  { label: `PCS loss (${((totLoss / totIn) * 100).toFixed(2)}%)`, value: fmtNum(totLoss), tone: 'bad' },
+                  { label: `PCS OK sent to ${cfg.to}`, value: fmtNum(totOut), tone: 'good' },
+                  { label: `PCS rejection (${((totLoss / totIn) * 100).toFixed(2)}%)`, value: fmtNum(totLoss), tone: 'bad' },
                 ]}
               />
             </div>
@@ -105,7 +104,6 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
             items={[
               { value: 'all', label: 'All', count: recs.length },
               { value: 'Pending', label: 'Pending', count: pending.length },
-              { value: 'In Progress', label: 'In Progress', count: inProg.length },
               { value: 'Completed', label: 'Completed', count: done.length },
             ]}
           />
@@ -128,20 +126,20 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
                   ? 'No matching jobs'
                   : `No ${filter.toLowerCase()} ${STAGE_LABEL[stage]} jobs`
             }
-            text={stage === 'cutting' ? 'Create a cutting order to start a new production job.' : `Jobs appear here automatically once ${cfg.from} is completed.`}
-            action={stage === 'cutting' && <button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}><Plus size={15} /> Create Cutting Order</button>}
+            text={stage === 'cutting' ? 'Create a job card to start production.' : `Jobs appear here automatically once ${cfg.from} is completed.`}
+            action={stage === 'cutting' && <button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}><Plus size={15} /> New Job Card</button>}
           />
         ) : (
           <div className="table-wrap">
             <table className="tbl compact">
               <thead>
                 <tr>
-                  <th>Job No.</th>
-                  <th>Product</th>
-                  {stage === 'cutting' && <th>Raw Material</th>}
+                  <th>Job Card No.</th>
+                  <th>Item</th>
+                  {stage === 'cutting' && <th>Material</th>}
                   {stage === 'heatTreatment' && <th className="r">Temp.</th>}
-                  <th>Quantity (In → Loss → Out)</th>
-                  <th>Machine / Operator</th>
+                  <th>Received → Rejection → OK</th>
+                  <th>Checked By</th>
                   <th>Status</th>
                   <th className="r">Action</th>
                 </tr>
@@ -172,53 +170,37 @@ function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
       <td>
         <JobLink jobNo={r.jobNo} />
       </td>
-      <td>
-        <div className="strong nowrap">{p.name}</div>
-        <div className="sub nowrap">{job.customer}</div>
-      </td>
+      <td className="strong nowrap">{p.name}</td>
       {r.stage === 'cutting' && (
         <td>
           <div className="nowrap">{mat.material}</div>
           <div className="sub">
-            OD {mat.od} mm · cut {r.params.cuttingLength} mm
+            Ø{mat.od} · {r.params.cuttingLength} mm{job.pieceWeightG ? ` · ${job.pieceWeightG} g` : ''}
           </div>
         </td>
       )}
       {r.stage === 'heatTreatment' && <td className="r strong nowrap">{r.params.temperature}°C</td>}
       <td>
-        {r.status === 'Completed' ? (
+        {r.params.skipped ? (
+          <span className="chip">Not required — skipped</span>
+        ) : r.status === 'Completed' ? (
           <InlineQty input={r.input} loss={r.loss} output={r.output} />
         ) : (
           <span className="inline-q">
-            {fmtNum(r.input)} <span className="muted" style={{ fontWeight: 500 }}>PCS {r.status === 'Pending' ? 'waiting' : 'on machine'}</span>
+            {fmtNum(r.input)} <span className="muted" style={{ fontWeight: 500 }}>PCS {r.stage === 'cutting' ? 'to cut' : 'received'}</span>
           </span>
         )}
       </td>
+      <td>{r.operator || <span className="muted">—</span>}</td>
       <td>
-        {r.machine ? (
-          <>
-            <div>{r.machine}</div>
-            <div className="sub">{r.operator}</div>
-          </>
-        ) : (
-          <span className="muted">Not assigned</span>
-        )}
-      </td>
-      <td>
-        <Badge status={r.status} />
+        <Badge status={r.status === 'Completed' ? 'Completed' : 'Pending'} />
       </td>
       <td className="r nowrap">
-        {r.status === 'Pending' && (
+        {r.status !== 'Completed' && (
           <button className="btn btn-sm btn-primary" onClick={onProcess}>
-            <Play size={13} /> Start
+            <PenLine size={13} /> Enter Qty
           </button>
         )}
-        {r.status === 'In Progress' && (
-          <button className="btn btn-sm btn-success" onClick={onProcess}>
-            <CheckCircle2 size={13} /> Complete
-          </button>
-        )}
-        {r.status === 'Completed' && <span className="muted">Moved on</span>}
         <button className="icon-btn" style={{ display: 'inline-grid', verticalAlign: 'middle', marginLeft: 4 }} title="View traceability" onClick={() => openTrace(r.jobNo)}>
           <Eye size={16} />
         </button>
@@ -228,71 +210,57 @@ function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
 }
 
 // ---------------------------------------------------------------------------
+/** One row of the route card: Inward Date, Received Qty, Rejection Qty, OK Qty, Checked By. */
 export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; jobNo: string; onClose: () => void }) {
   const { state, run } = useStore();
   const rec = stageRecords(state, stage).find((r) => r.jobNo === jobNo && r.status !== 'Completed');
   const job = getJob(state, jobNo);
   const p = getProduct(state, job.productId);
   const cfg = CFG[stage];
-  const isPending = rec?.status === 'Pending';
 
-  const [inputQty, setInputQty] = useState(String(rec?.input ?? 0));
-  const [loss, setLoss] = useState('0');
-  const [machine, setMachine] = useState(rec?.machine || MACHINES[stage][0]);
-  const [operator, setOperator] = useState(rec?.operator || OPERATORS[PROCESS_STAGES.indexOf(stage)]);
+  const [received, setReceived] = useState(String(rec?.input ?? 0));
+  const [rejection, setRejection] = useState('0');
+  const [checkedBy, setCheckedBy] = useState(rec?.operator ?? '');
   const [date, setDate] = useState(todayISO());
-  const [lossReason, setLossReason] = useState('');
-  const [remarks, setRemarks] = useState('');
-  const [params, setParams] = useState<Record<string, string | number>>(() => ({ ...(rec?.params ?? {}) }));
-  const setParam = (k: string, v: string | number) => setParams((x) => ({ ...x, [k]: v }));
+  const [temperature, setTemperature] = useState(String(rec?.params.temperature ?? p.htTemperature));
+  const [skip, setSkip] = useState(false);
 
   if (!rec) return null;
-  const mat = parseMaterialKey(job.materialKey);
-  const editableInput = stage === 'cutting' && isPending;
-  const inN = editableInput ? Number(inputQty) : rec.input;
-  const lossN = Number(loss);
-  const out = inN - lossN;
-  const prevRec = stage === 'cutting' ? null : stageRecords(state, PROCESS_STAGES[PROCESS_STAGES.indexOf(stage) - 1]).find((r) => r.jobNo === jobNo);
+  // Cutting: the received qty is the cut qty, issued from raw stock (editable until issued)
+  const editableInput = stage === 'cutting' && rec.status === 'Pending';
+  const inN = editableInput ? Number(received) : rec.input;
+  const rejN = skip ? 0 : Number(rejection);
+  const ok = inN - rejN;
   const rawAvail = state.rawMaterials.filter((l) => `${l.material}|${l.od}` === job.materialKey).reduce((t, l) => t + l.availableQty, 0);
 
   const errIn = editableInput ? (!(inN > 0) || !Number.isInteger(inN) ? 'Enter a whole quantity' : inN > rawAvail ? `Only ${rawAvail} PCS in raw stock` : null) : null;
-  const errLoss = loss === '' || lossN < 0 || !Number.isInteger(lossN) ? 'Whole number ≥ 0' : lossN > inN ? `Cannot exceed input (${inN})` : null;
-  const errTemp = stage === 'heatTreatment' && !(Number(params.temperature) > 0) ? 'Enter temperature' : null;
+  const errRej = rejection === '' || rejN < 0 || !Number.isInteger(rejN) ? 'Whole number' : rejN > inN ? `Cannot exceed ${inN}` : null;
+  const errTemp = stage === 'heatTreatment' && !(Number(temperature) > 0) ? 'Enter temperature' : null;
+  const invalid = !!errIn || !!errRej || !!errTemp;
 
-  const cleanParams = () => {
-    const o: Record<string, string | number> = {};
-    for (const [k, v] of Object.entries(params)) o[k] = typeof v === 'string' && v !== '' && !isNaN(Number(v)) && k !== 'dieNo' && k !== 'trimDie' ? Number(v) : v;
-    return o;
-  };
-
-  const doStart = () => {
-    if (errIn || errTemp) return;
-    const ok = run(
-      (d, now) => startStage(d, stage, jobNo, { inputQty: editableInput ? inN : undefined, machine, operator, params: cleanParams() }, tsFor(date, now)),
-      {
-        title: `${STAGE_LABEL[stage]} started — not yet moved to ${cfg.to}`,
-        message: `${jobNo}: ${stage === 'cutting' ? `${inN} PCS issued from raw inventory (FIFO). ` : `${rec.input} PCS in progress. `}Click "Complete" when the batch is finished to send it to ${cfg.to}.`,
-      },
-    );
-    if (ok) onClose();
-  };
-  const doComplete = () => {
-    if (errIn || errLoss || errTemp) return;
-    const ok = run(
+  const save = () => {
+    if (invalid) return;
+    const done = run(
       (d, now) =>
         completeStage(
           d,
           stage,
           jobNo,
-          { inputQty: editableInput ? inN : undefined, loss: lossN, machine, operator, remarks: [lossN > 0 ? lossReason : '', remarks.trim()].filter(Boolean).join(' — '), params: cleanParams() },
+          {
+            inputQty: editableInput ? inN : undefined,
+            loss: rejN,
+            operator: checkedBy,
+            remarks: skip ? 'Not required — skipped' : undefined,
+            params: stage === 'heatTreatment' ? { temperature: Number(temperature) } : skip ? { skipped: 1 } : undefined,
+          },
           tsFor(date, now),
         ),
       {
-        title: `${STAGE_LABEL[stage]} completed`,
-        message: out > 0 ? `${jobNo}: ${inN} in − ${lossN} loss = ${out} PCS moved to ${cfg.to}.` : `${jobNo}: entire batch rejected.`,
+        title: skip ? `${STAGE_LABEL[stage]} skipped` : `${STAGE_LABEL[stage]} saved`,
+        message: ok > 0 ? `${jobNo}: ${inN} received − ${rejN} rejected = ${ok} OK, sent to ${cfg.to}.` : `${jobNo}: entire batch rejected.`,
       },
     );
-    if (ok) onClose();
+    if (done) onClose();
   };
 
   return (
@@ -301,179 +269,57 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
       onClose={onClose}
       size="lg"
       icon={FLOW_STEPS.find((f) => f.key === stage)!.icon}
-      title={`${isPending ? 'Start' : 'Complete'} ${STAGE_LABEL[stage]} — ${jobNo}`}
-      subtitle={`${p.name} · ${job.customer}`}
+      title={`${STAGE_LABEL[stage]} — ${jobNo}`}
+      subtitle={`${p.name} · ${parseMaterialKey(job.materialKey).material} Ø${parseMaterialKey(job.materialKey).od}`}
       footer={
         <>
-          <span className="left">Output = Input − Loss / Rejection</span>
           <button className="btn" onClick={onClose}>
             Cancel
           </button>
-          {isPending && (
-            <button className="btn" disabled={!!errIn || !!errTemp} onClick={doStart}>
-              <Play size={14} /> Start only — stays at {STAGE_LABEL[stage]}
-            </button>
-          )}
-          <button className="btn btn-success" disabled={!!errIn || !!errLoss || !!errTemp} onClick={doComplete}>
-            <CheckCircle2 size={15} /> Complete &amp; move to {cfg.to}
+          <button className="btn btn-success" disabled={invalid} onClick={save}>
+            <CheckCircle2 size={15} /> Save &amp; send {ok > 0 ? `${fmtNum(ok)} PCS ` : ''}to {cfg.to}
           </button>
         </>
       }
     >
-      <div className="info-strip">
-        <div>
-          <div className="l">Job No.</div>
-          <div className="v mono">{jobNo}</div>
-        </div>
-        <div>
-          <div className="l">Product</div>
-          <div className="v">{p.name}</div>
-        </div>
-        <div>
-          <div className="l">Received from</div>
-          <div className="v">{cfg.from}</div>
-        </div>
-        <div>
-          <div className="l">{stage === 'cutting' ? 'Planned Qty' : 'Received Qty'}</div>
-          <div className="v">{fmtNum(stage === 'cutting' ? job.plannedQty : rec.input)} PCS</div>
-        </div>
-        <div>
-          <div className="l">Status</div>
-          <div className="v">
-            <Badge status={rec.status} />
-          </div>
-        </div>
-      </div>
-
+      {stage === 'trimming' && (
+        <label className={`check ${skip ? 'on' : ''}`} style={{ marginBottom: 16 }}>
+          <input type="checkbox" checked={skip} onChange={(e) => setSkip(e.target.checked)} />
+          Trimming not required for this job (send all {fmtNum(rec.input)} PCS to Heat Treatment)
+        </label>
+      )}
       <div className="form-grid three">
-        {stage === 'cutting' && (
-          <>
-            <Field label="Raw Material">
-              <input className="input" readOnly value={mat.material} />
-            </Field>
-            <Field label="Raw Material OD">
-              <NumInput value={mat.od} readOnly suffix="mm" />
-            </Field>
-            <Field label="Cutting Length" hint={`Standard: ${p.cuttingLength} mm`}>
-              <NumInput value={params.cuttingLength ?? ''} onChange={(v) => setParam('cuttingLength', v)} suffix="mm" step="any" />
-            </Field>
-          </>
-        )}
-        <Field
-          label={stage === 'cutting' ? 'Actual Input Quantity' : 'Input Quantity'}
-          required
-          error={errIn}
-          hint={
-            editableInput
-              ? `${fmtNum(rawAvail)} PCS in raw stock`
-              : stage === 'cutting'
-                ? 'Issued from raw stock'
-                : `= ${cfg.from} output${prevRec ? ` (${prevRec.input} − ${prevRec.loss})` : ''} · locked`
-          }
-        >
-          <NumInput value={editableInput ? inputQty : rec.input} onChange={setInputQty} readOnly={!editableInput} bad={!!errIn} />
+        <Field label="Inward Date">
+          <input className="input" type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
-        <Field label="Loss / Rejection" required error={errLoss} hint="Enter on completion">
-          <NumInput value={loss} onChange={setLoss} bad={!!errLoss} autoFocus={!isPending} />
+        <Field label="Received Qty" required error={errIn} hint={editableInput ? `Cut qty · ${fmtNum(rawAvail)} PCS in raw stock` : `OK qty from ${cfg.from}`}>
+          <NumInput value={editableInput ? received : rec.input} onChange={setReceived} readOnly={!editableInput} bad={!!errIn} />
         </Field>
-        <Field label="Output Quantity" hint="Auto-calculated">
-          <NumInput value={Number.isFinite(out) && out >= 0 ? out : ''} readOnly />
+        <Field label="Rejection Qty" required error={skip ? null : errRej}>
+          <NumInput value={skip ? '0' : rejection} onChange={setRejection} readOnly={skip} bad={!skip && !!errRej} autoFocus={!editableInput} />
         </Field>
-
-        {stage === 'forging' && (
-          <Field label="Die No." hint="Linked to Die & Tool Management (Phase 2)">
-            <input className="input mono" value={params.dieNo ?? ''} onChange={(e) => setParam('dieNo', e.target.value)} />
-          </Field>
-        )}
-        {stage === 'trimming' && (
-          <Field label="Trim Die No.">
-            <input className="input mono" value={params.trimDie ?? ''} onChange={(e) => setParam('trimDie', e.target.value)} />
-          </Field>
-        )}
-        {stage === 'heatTreatment' && (
-          <>
-            <Field label="Heat Treatment Temperature" required error={errTemp} hint={`${p.name} standard: ${p.htTemperature}°C`}>
-              <NumInput value={params.temperature ?? ''} onChange={(v) => setParam('temperature', v)} suffix="°C" />
-            </Field>
-            <Field label="Soak Time" hint={`Standard: ${p.htSoakMinutes} min`}>
-              <NumInput value={params.soakMinutes ?? ''} onChange={(v) => setParam('soakMinutes', v)} suffix="min" />
-            </Field>
-            <Field label="Process">
-              <select value={params.process ?? ''} onChange={(e) => setParam('process', e.target.value)}>
-                {[...new Set([String(params.process ?? ''), ...HT_PROCESSES])].filter(Boolean).map((o) => (
-                  <option key={o}>{o}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Cooling / Quench">
-              <select value={params.quench ?? ''} onChange={(e) => setParam('quench', e.target.value)}>
-                {['Still air', 'Forced air', 'Oil quench', 'Water quench', 'Furnace cool'].map((o) => (
-                  <option key={o}>{o}</option>
-                ))}
-              </select>
-            </Field>
-          </>
-        )}
-        <Field label={stage === 'heatTreatment' ? 'Furnace' : 'Machine'}>
-          <select value={machine} onChange={(e) => setMachine(e.target.value)}>
-            {MACHINES[stage].map((m) => (
-              <option key={m}>{m}</option>
-            ))}
-          </select>
+        <Field label="OK Qty" hint="Received − Rejection">
+          <NumInput value={Number.isFinite(ok) && ok >= 0 ? ok : ''} readOnly />
         </Field>
-        <Field label="Operator">
-          <select value={operator} onChange={(e) => setOperator(e.target.value)}>
+        <Field label="Checked By">
+          <select value={checkedBy} onChange={(e) => setCheckedBy(e.target.value)}>
+            <option value="">Select…</option>
             {OPERATORS.map((m) => (
               <option key={m}>{m}</option>
             ))}
           </select>
         </Field>
-        <Field label="Process Date">
-          <input className="input" type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
-        </Field>
-        <Field label="Loss Reason" hint={lossN > 0 ? 'Why the pieces were lost' : 'Only needed when there is a loss'}>
-          <select value={lossReason} onChange={(e) => setLossReason(e.target.value)} disabled={!(lossN > 0)}>
-            <option value="">{lossN > 0 ? 'Select reason…' : 'No loss'}</option>
-            {LOSS_REASONS[stage].map((r) => (
-              <option key={r}>{r}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Remarks">
-          <input className="input" value={remarks} placeholder="Optional notes" onChange={(e) => setRemarks(e.target.value)} />
-        </Field>
+        {stage === 'heatTreatment' && (
+          <Field label="Temperature" required error={errTemp} hint={`${p.name} standard: ${p.htTemperature}°C`}>
+            <NumInput value={temperature} onChange={setTemperature} suffix="°C" />
+          </Field>
+        )}
       </div>
 
       <div style={{ marginTop: 18 }}>
-        <QtyFlow input={Number.isFinite(inN) ? inN : 0} loss={Number.isFinite(lossN) ? lossN : 0} output={Number.isFinite(out) && out >= 0 ? out : '—'} />
+        <QtyFlow input={Number.isFinite(inN) ? inN : 0} loss={Number.isFinite(rejN) ? rejN : 0} output={Number.isFinite(ok) && ok >= 0 ? ok : '—'} />
       </div>
-      {editableInput ? (
-        <FifoPreview keyId={job.materialKey} qty={inN} />
-      ) : (
-        stage === 'cutting' && (
-          <div className="callout info">
-            <Layers size={16} />
-            <div>
-              Issued via FIFO: {job.issues.map((i) => `${i.lotId} (${i.qty} PCS)`).join(' + ')}
-            </div>
-          </div>
-        )
-      )}
-      {!errLoss && out >= 0 && (
-        <div className={`callout ${out === 0 ? 'err' : 'ok'}`}>
-          <Info size={16} />
-          <div>
-            {out === 0 ? (
-              <>Entire batch will be marked as rejected — nothing moves forward.</>
-            ) : (
-              <>
-                On completion, <b>{fmtNum(out)} PCS</b> move to <b>{cfg.to}</b> under the same job number <span className="mono">{jobNo}</span>
-                {stage === 'heatTreatment' ? ' for inspection.' : '.'} The next stage cannot receive more than this.
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {editableInput && <FifoPreview keyId={job.materialKey} qty={inN} />}
     </Modal>
   );
 }
@@ -518,7 +364,7 @@ function UpstreamJobs({ jobNos }: { jobNos: string[] }) {
                   <td className="strong nowrap">{getProduct(state, job.productId).name}</td>
                   <td className="strong">{STAGE_LABEL[st]}</td>
                   <td className="r qty-cell">{fmtNum(rec?.input ?? 0)}</td>
-                  <td>{rec && <Badge status={rec.status} />}</td>
+                  <td>{rec && <Badge status="Pending" />}</td>
                   <td className="r nowrap">
                     {n?.action && (
                       <button className={`btn btn-sm ${rec?.status === 'In Progress' ? 'btn-success' : 'btn-primary'}`} onClick={() => openAction(n.action!)}>

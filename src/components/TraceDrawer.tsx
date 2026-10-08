@@ -3,7 +3,7 @@ import { ArrowRight, CheckCircle2, ChevronRight, Printer, Scale, X } from 'lucid
 import { useStore } from '../store/StoreContext';
 import { fgAvailable, fgStatus, jobSummary, parseMaterialKey, PROCESS_STAGES, STAGE_LABEL, type JobSummary } from '../store/engine';
 import type { ProcessStage, StageRecord } from '../store/types';
-import { Badge, FLOW_STEPS, go, Priority, QtyFlow } from './ui';
+import { Badge, FLOW_STEPS, go, QtyFlow } from './ui';
 import { nextStep } from './workflow';
 import { fmtDate, fmtDateTime, fmtKg, fmtNum } from './format';
 
@@ -41,7 +41,7 @@ function stageParams(r: StageRecord) {
     if (p.quench) items.push(['Cooling', p.quench]);
   }
   if (r.machine) items.push(['Machine', r.machine]);
-  if (r.operator) items.push(['Operator', r.operator]);
+  if (r.operator) items.push(['Checked by', r.operator]);
   return items;
 }
 
@@ -202,22 +202,22 @@ export function TraceDrawer() {
               <div className="v">{STAGE_LABEL[job.currentStage]}</div>
             </div>
             <div>
-              <div className="l">Planned Qty</div>
+              <div className="l">Qty to Cut</div>
               <div className="v">{fmtNum(job.plannedQty)} PCS</div>
             </div>
             <div>
-              <div className="l">Priority</div>
+              <div className="l">Length · Weight</div>
               <div className="v">
-                <Priority p={job.priority} />
+                {j.records.cutting?.params.cuttingLength ?? product.cuttingLength} mm{job.pieceWeightG ? ` · ${job.pieceWeightG} g` : ''}
               </div>
             </div>
             <div>
-              <div className="l">Created</div>
-              <div className="v">{fmtDate(job.createdAt)}</div>
+              <div className="l">Die No.</div>
+              <div className="v mono">{job.dieNo || product.dieNo || '—'}</div>
             </div>
             <div>
-              <div className="l">Due</div>
-              <div className="v">{fmtDate(job.dueDate)}</div>
+              <div className="l">Machine No.</div>
+              <div className="v">{job.machineNo || '—'}</div>
             </div>
           </div>
 
@@ -339,8 +339,7 @@ export function TraceDrawer() {
                     </div>
                     <Meta
                       items={[
-                        ['Inspector', j.qc.inspector],
-                        ['Checks', Object.entries(j.qc.checks).filter(([, v]) => v).map(([k]) => k[0].toUpperCase() + k.slice(1)).join(', ') || '—'],
+                        ['Checked by', j.qc.inspector || '—'],
                         ...(j.qc.rejectionReason ? ([['Rejection reason', j.qc.rejectionReason]] as [string, ReactNode][]) : []),
                       ]}
                     />

@@ -10,6 +10,7 @@
 // ---------------------------------------------------------------------------
 import type {
   Activity,
+  Bag,
   Dispatch,
   DispatchStatus,
   ERPState,
@@ -177,12 +178,15 @@ export function addInward(s: ERPState, input: InwardInput, ts: string): string {
 // ---------------------------------------------------------------- jobs ---
 export interface JobInput {
   productId: string;
-  customer: string;
   plannedQty: number;
   materialKey: string;
   cuttingLength: number;
-  dueDate: string;
-  priority: Job['priority'];
+  customer?: string; // defaults to the product's customer
+  dueDate?: string;
+  priority?: Job['priority'];
+  pieceWeightG?: number;
+  dieNo?: string;
+  machineNo?: string;
 }
 
 /** Creates the production job (auto Job No.) and its Cutting order in "Pending". */
@@ -199,14 +203,17 @@ export function createJob(s: ERPState, input: JobInput, ts: string): string {
   s.jobs.push({
     jobNo,
     productId: product.id,
-    customer: input.customer.trim() || product.defaultCustomer,
+    customer: input.customer?.trim() || product.defaultCustomer,
     plannedQty: planned,
     materialKey: input.materialKey,
     createdAt: ts,
-    dueDate: input.dueDate,
-    priority: input.priority,
+    dueDate: input.dueDate ?? '',
+    priority: input.priority ?? 'Normal',
     currentStage: 'cutting',
     issues: [],
+    pieceWeightG: input.pieceWeightG && input.pieceWeightG > 0 ? input.pieceWeightG : undefined,
+    dieNo: input.dieNo?.trim() || undefined,
+    machineNo: input.machineNo?.trim() || undefined,
   });
   s.cutting.push({
     id: nextId(s, 'CUT'),
@@ -338,7 +345,7 @@ export function completeStage(s: ERPState, stage: ProcessStage, jobNo: string, i
 
   const params: Record<string, string | number> =
     next === 'forging'
-      ? { dieNo: product.dieNo }
+      ? { dieNo: job.dieNo || product.dieNo }
       : next === 'trimming'
         ? { trimDie: product.dieNo.replace('D-', 'T-') }
         : next === 'heatTreatment'
@@ -384,7 +391,6 @@ export function completeQC(s: ERPState, jobNo: string, input: QCInput, ts: strin
   const rejected = assertQty(input.rejected, 'Rejected quantity', { allowZero: true });
   if (accepted + rejected !== rec.input)
     fail(`Accepted (${accepted}) + Rejected (${rejected}) must equal QC input (${rec.input}).`);
-  if (rejected > 0 && !input.rejectionReason?.trim()) fail('Enter a rejection reason for the rejected quantity.');
 
   Object.assign(rec, {
     accepted,
@@ -445,15 +451,17 @@ function syncJobAfterDispatch(s: ERPState, jobNo: string) {
 // ------------------------------------------------------------- dispatch ---
 export interface DispatchInput {
   fgId: string;
-  customer: string;
-  qty: number;
   vehicleNo: string;
+  date: string;
+  status: DispatchStatus;
+  /** Bag-wise packing as written on the route card; when given, qty and weight are the bag totals. */
+  bags?: { qty: number; weight: number }[];
+  qty?: number;
+  bagCount?: number;
+  weight?: number;
+  customer?: string; // defaults to the job's customer
   driver?: string;
   invoiceNo?: string;
-  date: string;
-  bagCount: number;
-  weight: number;
-  status: DispatchStatus;
 }
 
 /** Splits a quantity into bags as evenly as possible (e.g. 94 in 10 bags → 9×10 + 1×4). */
@@ -472,15 +480,29 @@ export function planBags(qty: number, bagCount: number, totalWeight: number) {
 
 export function createDispatch(s: ERPState, input: DispatchInput, ts: string): string {
   const fg = s.finishedGoods.find((f) => f.id === input.fgId) ?? fail('Select a finished goods lot.');
-  const qty = assertQty(input.qty, 'Dispatch quantity');
+  const unitKg = getProduct(s, fg.productId).finishedWeight;
+  let bags: Bag[];
+  if (input.bags) {
+    if (!input.bags.length) fail('Add at least one bag.');
+    bags = input.bags.map((b, i) => {
+      const q = assertQty(b.qty, `Bag ${i + 1} quantity`);
+      const w = Number(b.weight) > 0 ? round3(Number(b.weight)) : round3(q * unitKg);
+      return { no: i + 1, qty: q, weight: w };
+    });
+  } else {
+    const q = assertQty(input.qty, 'Dispatch quantity');
+    const n = assertQty(input.bagCount, 'Number of bags');
+    if (n > q) fail('Number of bags cannot exceed dispatch quantity.');
+    const w = Number(input.weight);
+    if (!(w > 0)) fail('Total weight must be greater than zero.');
+    bags = planBags(q, n, w);
+  }
+  const qty = bags.reduce((t, b) => t + b.qty, 0);
+  const weight = round3(bags.reduce((t, b) => t + b.weight, 0));
   const available = fgAvailable(fg);
   if (qty > available) fail(`Dispatch quantity (${qty}) exceeds available finished goods (${available} PCS).`);
-  if (!input.customer?.trim()) fail('Customer is required.');
-  const bagCount = assertQty(input.bagCount, 'Number of bags');
-  if (bagCount > qty) fail('Number of bags cannot exceed dispatch quantity.');
+  const customer = input.customer?.trim() || getJob(s, fg.jobNo).customer;
   if (input.status === 'Dispatched' && !input.vehicleNo?.trim()) fail('Vehicle number is required to dispatch.');
-  const weight = Number(input.weight);
-  if (!(weight > 0)) fail('Total weight must be greater than zero.');
 
   s.counters.dispatch += 1;
   const dispatchNo = `DSP-${yearOf(ts)}-${pad(s.counters.dispatch, 4)}`;
@@ -489,14 +511,14 @@ export function createDispatch(s: ERPState, input: DispatchInput, ts: string): s
     fgId: fg.id,
     jobNo: fg.jobNo,
     productId: fg.productId,
-    customer: input.customer.trim(),
+    customer,
     qty,
     vehicleNo: input.vehicleNo.trim().toUpperCase(),
     driver: input.driver?.trim() ?? '',
     invoiceNo: input.invoiceNo?.trim() || `INV-${yearOf(ts)}-${pad(s.counters.dispatch + 410, 4)}`,
     date: input.date,
-    bags: planBags(qty, bagCount, weight),
-    weight: round3(weight),
+    bags,
+    weight,
     status: input.status,
     createdAt: ts,
     dispatchedAt: input.status === 'Dispatched' ? ts : undefined,

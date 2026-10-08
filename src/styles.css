@@ -565,6 +565,12 @@ select.filter { height: 40px; border: 1px solid var(--border); border-radius: 12
 .mini-tbl tr:last-child td { border-bottom: 0; }
 .mini-tbl .r { text-align: right; }
 .loss-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; color: var(--crit); background: var(--crit-bg); border-radius: 7px; padding: 3px 9px; }
+.bag-tbl { width: 100%; border-collapse: collapse; }
+.bag-tbl th { text-align: left; font-size: 11.5px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 8px 8px; }
+.bag-tbl td { padding: 4px 8px; vertical-align: middle; }
+.bag-tbl td:first-child { width: 120px; }
+.bag-tbl td:last-child { width: 44px; }
+.bag-tbl tfoot td { padding-top: 12px; border-top: 1px solid var(--border); }
 .bags { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 6px; margin-top: 10px; }
 .bag { border: 1px solid var(--border); border-radius: 10px; padding: 7px 9px; font-size: 11.5px; background: var(--surface-2); }
 .bag b { display: block; font-size: 12.5px; }

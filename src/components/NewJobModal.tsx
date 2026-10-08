@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Info, Layers, PackagePlus } from 'lucide-react';
+import { Layers, PackagePlus, Scissors } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
-import { completeStage, createJob, fifoLots, materialKey, parseMaterialKey, startStage } from '../store/engine';
+import { createJob, fifoLots, materialKey, parseMaterialKey } from '../store/engine';
 import type { ERPState } from '../store/types';
-import { CUSTOMERS, MACHINES, OPERATORS } from '../store/seed';
-import { Field, Modal, NumInput, QtyFlow } from './ui';
+import { MACHINES } from '../store/seed';
+import { findMaterial, pieceWeightKg } from '../store/materials';
+import { Field, Modal, NumInput } from './ui';
 import { fmtNum, todayISO } from './format';
 
 /** FIFO allocation preview (read-only) */
@@ -50,29 +51,19 @@ export const tsFor = (date: string, nowTs: string) => {
   return d > n ? nowTs : d.toISOString();
 };
 
-type Mode = 'pending' | 'start' | 'complete';
-
+/** New Job Card — the same header fields as the client's paper Process Route Card. */
 export function NewJobModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { state, run, openTrace, openAction } = useStore();
   const p0 = state.products[0];
   const [productId, setProductId] = useState(p0.id);
   const product = state.products.find((p) => p.id === productId)!;
-  const [customer, setCustomer] = useState(p0.defaultCustomer);
   const [matKey, setMatKey] = useState(materialKey(p0.material, p0.od));
   const [cutLen, setCutLen] = useState(String(p0.cuttingLength));
-  const [planned, setPlanned] = useState('100');
-  const [actual, setActual] = useState('100');
-  const [loss, setLoss] = useState('0');
+  const [weightG, setWeightG] = useState<string | null>(null);
+  const [planned, setPlanned] = useState('');
+  const [dieNo, setDieNo] = useState(p0.dieNo);
+  const [machineNo, setMachineNo] = useState('');
   const [date, setDate] = useState(todayISO());
-  const [due, setDue] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 14);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  });
-  const [priority, setPriority] = useState<'Normal' | 'High' | 'Urgent'>('Normal');
-  const [machine, setMachine] = useState(MACHINES.cutting[0]);
-  const [operator, setOperator] = useState(OPERATORS[0]);
-  const [mode, setMode] = useState<Mode>('pending');
 
   const materials = useMemo(() => {
     const m = new Map<string, number>();
@@ -87,47 +78,34 @@ export function NewJobModal({ open, onClose }: { open: boolean; onClose: () => v
 
   const nextJobNo = `JOB-${new Date().getFullYear()}-${String(state.counters.job + 1).padStart(4, '0')}`;
   const avail = materials.find(([k]) => k === matKey)?.[1] ?? 0;
-  const plannedN = Number(planned);
-  const actualN = mode === 'pending' ? plannedN : Number(actual);
-  const lossN = Number(loss);
-  const outputN = actualN - lossN;
   const mat = parseMaterialKey(matKey);
-
-  const errPlanned = !(plannedN > 0) || !Number.isInteger(plannedN) ? 'Enter a whole quantity' : plannedN > avail ? `Only ${avail} PCS in stock` : null;
-  const errActual = mode !== 'pending' && (!(actualN > 0) ? 'Enter actual input' : actualN > avail ? `Only ${avail} PCS in stock` : null);
-  const errLoss = mode === 'complete' && (lossN < 0 || !Number.isInteger(lossN) ? 'Whole number ≥ 0' : lossN > actualN ? 'Loss cannot exceed input' : null);
+  const spec = findMaterial(mat.material);
+  const autoWeightG = spec && Number(cutLen) > 0 ? Math.round(pieceWeightKg(mat.od, Number(cutLen), spec.density) * 1000) : 0;
+  const weightShown = weightG ?? (autoWeightG ? String(autoWeightG) : '');
+  const plannedN = Number(planned);
+  const errPlanned = planned === '' ? null : !(plannedN > 0) || !Number.isInteger(plannedN) ? 'Enter a whole quantity' : plannedN > avail ? `Only ${avail} PCS in stock` : null;
+  const invalid = planned === '' || !!errPlanned || !(Number(cutLen) > 0);
 
   const pickProduct = (id: string) => {
     const p = state.products.find((x) => x.id === id)!;
     setProductId(id);
-    setCustomer(p.defaultCustomer);
     setMatKey(materialKey(p.material, p.od));
     setCutLen(String(p.cuttingLength));
+    setDieNo(p.dieNo);
+    setWeightG(null);
   };
 
   const submit = () => {
     let created = '';
     const ok = run(
       (d, now) => {
-        const ts = tsFor(date, now);
         created = createJob(
           d,
-          { productId, customer, plannedQty: plannedN, materialKey: matKey, cuttingLength: Number(cutLen), dueDate: due, priority },
-          ts,
+          { productId, plannedQty: plannedN, materialKey: matKey, cuttingLength: Number(cutLen), pieceWeightG: Number(weightShown) || undefined, dieNo, machineNo },
+          tsFor(date, now),
         );
-        if (mode === 'start') startStage(d, 'cutting', created, { inputQty: actualN, machine, operator, params: { cuttingLength: Number(cutLen) } }, ts);
-        if (mode === 'complete')
-          completeStage(d, 'cutting', created, { inputQty: actualN, loss: lossN, machine, operator, params: { cuttingLength: Number(cutLen) } }, ts);
       },
-      {
-        title: 'Cutting order created',
-        message:
-          mode === 'complete'
-            ? `${nextJobNo}: ${actualN} in − ${lossN} loss = ${outputN} PCS moved to Forging.`
-            : mode === 'start'
-              ? `${nextJobNo}: ${actualN} PCS issued from raw stock (FIFO). Cutting in progress — click Complete on the Cutting page to send it to Forging.`
-              : `${nextJobNo} released to Cutting as Pending.`,
-      },
+      { title: 'Job card created', message: `${nextJobNo}: ${plannedN} PCS of ${product.name} to cut. Enter the cutting result on the Cutting page.` },
     );
     if (ok) {
       onClose();
@@ -135,35 +113,33 @@ export function NewJobModal({ open, onClose }: { open: boolean; onClose: () => v
     }
   };
 
-  const invalid = !!errPlanned || !!errActual || !!errLoss;
-
   return (
     <Modal
       open={open}
       onClose={onClose}
       size="lg"
-      title="Create Cutting Order"
-      subtitle="Creates a new production job. The same Job No. follows the material through every stage up to Dispatch."
+      icon={Scissors}
+      title="New Job Card"
+      subtitle="Same fields as the Process Route Card. The Job Card No. stays with the material up to Dispatch."
       footer={
         <>
-          <span className="left">
-            <Info size={13} style={{ verticalAlign: -2 }} /> Raw stock reduces when cutting starts.
-          </span>
           <button className="btn" onClick={onClose}>
             Cancel
           </button>
           <button className="btn btn-primary" disabled={invalid} onClick={submit}>
-            {mode === 'pending' ? 'Create Order' : mode === 'start' ? 'Create & Start Cutting' : 'Create & Complete Cutting'}
+            Create Job Card
           </button>
         </>
       }
     >
-      <div className="section-label">Production Order</div>
       <div className="form-grid three">
-        <Field label="Job Number" hint="Auto-generated">
+        <Field label="Job Card No." hint="Auto-generated">
           <input className="input mono" readOnly value={nextJobNo} />
         </Field>
-        <Field label="Product" required>
+        <Field label="Date">
+          <input className="input" type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <Field label="Item Name" required>
           <select value={productId} onChange={(e) => pickProduct(e.target.value)}>
             {state.products.map((p) => (
               <option key={p.id} value={p.id}>
@@ -172,126 +148,63 @@ export function NewJobModal({ open, onClose }: { open: boolean; onClose: () => v
             ))}
           </select>
         </Field>
-        <Field label="Customer" required>
-          <select value={customer} onChange={(e) => setCustomer(e.target.value)}>
-            {CUSTOMERS.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Raw Material" required hint={`${fmtNum(avail)} PCS available`}>
-          <select value={matKey} onChange={(e) => setMatKey(e.target.value)}>
+        <Field label="Material / Bar OD" required hint={`${fmtNum(avail)} PCS in stock`}>
+          <select
+            value={matKey}
+            onChange={(e) => {
+              setMatKey(e.target.value);
+              setWeightG(null);
+            }}
+          >
             {materials.map(([k, a]) => (
               <option key={k} value={k}>
-                {k.split('|')[0]} — OD {k.split('|')[1]} mm ({a} PCS)
+                {k.split('|')[0]} — Ø{k.split('|')[1]} ({a} PCS)
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Raw Material OD">
-          <NumInput value={mat.od} readOnly suffix="mm" />
+        <Field label="Length" required>
+          <NumInput
+            value={cutLen}
+            onChange={(v) => {
+              setCutLen(v);
+              setWeightG(null);
+            }}
+            suffix="mm"
+            step="any"
+          />
         </Field>
-        <Field label="Cutting Length" required hint={`Product standard: ${product.cuttingLength} mm`}>
-          <NumInput value={cutLen} onChange={setCutLen} suffix="mm" step="any" />
+        <Field label="Weight per piece" hint={autoWeightG ? `Auto from Ø${mat.od} × ${cutLen} mm` : undefined}>
+          <NumInput value={weightShown} onChange={setWeightG} suffix="g" />
         </Field>
-        <Field label="Planned Quantity" required error={errPlanned}>
-          <NumInput value={planned} onChange={(v) => { setPlanned(v); setActual(v); }} bad={!!errPlanned} />
+        <Field label="Qty to Cut" required error={errPlanned}>
+          <NumInput value={planned} onChange={setPlanned} bad={!!errPlanned} autoFocus />
         </Field>
-        <Field label="Due Date">
-          <input className="input" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+        <Field label="Die No.">
+          <input className="input mono" value={dieNo} onChange={(e) => setDieNo(e.target.value)} placeholder="Optional" />
         </Field>
-        <Field label="Priority">
-          <select value={priority} onChange={(e) => setPriority(e.target.value as typeof priority)}>
-            <option>Normal</option>
-            <option>High</option>
-            <option>Urgent</option>
+        <Field label="Machine No.">
+          <select value={machineNo} onChange={(e) => setMachineNo(e.target.value)}>
+            <option value="">Optional</option>
+            {[...MACHINES.cutting, ...MACHINES.forging, ...MACHINES.trimming].map((m) => (
+              <option key={m}>{m}</option>
+            ))}
           </select>
         </Field>
       </div>
 
-      <div className="section-label">Cutting Execution</div>
-      <div className="seg" style={{ marginBottom: 14 }}>
-        <button className={mode === 'pending' ? 'on' : ''} onClick={() => setMode('pending')}>
-          Release as Pending
-        </button>
-        <button className={mode === 'start' ? 'on' : ''} onClick={() => setMode('start')}>
-          Start Now
-        </button>
-        <button className={mode === 'complete' ? 'on' : ''} onClick={() => setMode('complete')}>
-          Start &amp; Complete
-        </button>
-      </div>
-      <div className="hint muted" style={{ fontSize: 12.5, margin: '-6px 0 14px' }}>
-        {mode === 'pending'
-          ? 'Job waits at Cutting as Pending. No raw material is issued yet.'
-          : mode === 'start'
-            ? 'Raw material is issued now and the job stays at Cutting (In Progress). Complete it later to send it to Forging.'
-            : 'Raw material is issued and cutting is completed now — the output moves straight to Forging.'}
-      </div>
-
-      {mode !== 'pending' && (
-        <div className="form-grid three">
-          <Field label="Actual Input Quantity" required error={errActual || null} hint="Issued from raw stock">
-            <NumInput value={actual} onChange={setActual} bad={!!errActual} />
-          </Field>
-          {mode === 'complete' ? (
-            <Field label="Loss / Rejection" required error={errLoss || null}>
-              <NumInput value={loss} onChange={setLoss} bad={!!errLoss} />
-            </Field>
-          ) : (
-            <Field label="Machine">
-              <select value={machine} onChange={(e) => setMachine(e.target.value)}>
-                {MACHINES.cutting.map((m) => (
-                  <option key={m}>{m}</option>
-                ))}
-              </select>
-            </Field>
-          )}
-          <Field label="Date">
-            <input className="input" type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
-          </Field>
-          {mode === 'complete' && (
-            <Field label="Machine">
-              <select value={machine} onChange={(e) => setMachine(e.target.value)}>
-                {MACHINES.cutting.map((m) => (
-                  <option key={m}>{m}</option>
-                ))}
-              </select>
-            </Field>
-          )}
-          <Field label="Operator">
-            <select value={operator} onChange={(e) => setOperator(e.target.value)}>
-              {OPERATORS.map((m) => (
-                <option key={m}>{m}</option>
-              ))}
-            </select>
-          </Field>
-        </div>
-      )}
-
-      {mode === 'complete' && (
-        <div style={{ marginTop: 16 }}>
-          <QtyFlow input={actualN || 0} loss={lossN || 0} output={Number.isFinite(outputN) && outputN >= 0 ? outputN : '—'} />
-          <div className="callout ok">
-            <Info size={16} />
-            <div>
-              Output = Input − Loss → <b>{outputN >= 0 ? outputN : '—'} PCS</b> will move to <b>Forging</b>.
-            </div>
-          </div>
-        </div>
-      )}
       {avail === 0 ? (
         <div className="callout warn">
           <PackagePlus size={16} />
           <div style={{ flex: 1 }}>
-            No stock of <b>{mat.material} OD {mat.od} mm</b>. Add a raw material inward first, then create the job.
+            No stock of <b>{mat.material} Ø{mat.od} mm</b>. Add a raw material inward first.
           </div>
           <button className="btn btn-sm btn-primary" onClick={() => openAction({ kind: 'inward', material: mat.material, od: mat.od })}>
             Add Raw Material Inward
           </button>
         </div>
       ) : (
-        <FifoPreview keyId={matKey} qty={actualN} />
+        <FifoPreview keyId={matKey} qty={plannedN} />
       )}
     </Modal>
   );

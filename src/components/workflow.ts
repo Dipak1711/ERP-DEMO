@@ -23,18 +23,17 @@ export function nextStep(s: ERPState, jobNo: string): NextStep | null {
   if (st === 'cutting' || st === 'forging' || st === 'trimming' || st === 'heatTreatment') {
     const r = stageRecords(s, st).find((x) => x.jobNo === jobNo && x.status !== 'Completed');
     if (!r) return null;
-    const pending = r.status === 'Pending';
     return {
       jobNo,
-      label: `${pending ? 'Start' : 'Complete'} ${STAGE_LABEL[st]}`,
-      detail: pending ? `${r.input} PCS waiting at ${STAGE_LABEL[st]}` : `${r.input} PCS in progress`,
+      label: `Enter ${STAGE_LABEL[st]}`,
+      detail: `${r.input} PCS received at ${STAGE_LABEL[st]}`,
       stageKey: st,
       action: { kind: 'stage', stage: st, jobNo },
     };
   }
   if (st === 'qc') {
     const r = s.qc.find((x) => x.jobNo === jobNo && x.status === 'QC Pending');
-    return r ? { jobNo, label: 'Inspect at QC', detail: `${r.input} PCS awaiting inspection`, stageKey: 'qc', action: { kind: 'qc', jobNo } } : null;
+    return r ? { jobNo, label: 'Enter QC', detail: `${r.input} PCS awaiting inspection`, stageKey: 'qc', action: { kind: 'qc', jobNo } } : null;
   }
   if (st === 'finishedGoods') {
     const lots = s.finishedGoods.filter((f) => f.jobNo === jobNo);

@@ -50,22 +50,3 @@ export function pieceWeightKg(odMm: number, lengthMm: number, density: number) {
   const volumeCm3 = (Math.PI / 4) * (odMm / 10) ** 2 * (lengthMm / 10);
   return (volumeCm3 * density) / 1000;
 }
-
-/** Standard loss / rejection reasons per process stage. */
-export const LOSS_REASONS: Record<'cutting' | 'forging' | 'trimming' | 'heatTreatment', string[]> = {
-  cutting: ['Bar end / end-piece scrap', 'Short length piece', 'Angular cut / burr', 'Bar defect (seam / lap)', 'Weight out of tolerance'],
-  forging: ['Under-fill', 'Lap / fold', 'Forging crack', 'Die shift / mismatch', 'Overheating / burning', 'Scale pit'],
-  trimming: ['Excess flash / burr left', 'Trim crack', 'Dent / deformation', 'Off-centre piercing'],
-  heatTreatment: ['Hardness out of range', 'Distortion / warpage', 'Quench crack', 'Decarburisation', 'Heavy scale / oxidation'],
-};
-
-/** Heat-treatment processes offered at the Heat Treatment stage. */
-export const HT_PROCESSES = [
-  'Normalising',
-  'Annealing',
-  'Stress-relief annealing',
-  'Hardening & tempering',
-  'Quench & temper',
-  'Case carburising',
-  'Solution treatment (T6)',
-];

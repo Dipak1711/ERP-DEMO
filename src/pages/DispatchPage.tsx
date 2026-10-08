@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Eye, FileText, Info, PackageOpen, Plus, Printer, Truck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Eye, FileText, PackageOpen, Plus, Printer, Truck, X } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
-import { createDispatch, fgAvailable, getJob, getProduct, isToday, markDispatched, planBags, round3 } from '../store/engine';
+import { createDispatch, fgAvailable, getProduct, isToday, markDispatched, round3 } from '../store/engine';
 import type { Dispatch } from '../store/types';
-import { CUSTOMERS } from '../store/seed';
-import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, Search, SummaryLine, Tabs } from '../components/ui';
+import { Badge, Empty, Field, JobLink, Modal, PageHeader, Search, SummaryLine, Tabs } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
 import { fmtDate, fmtKg, fmtNum, matches, todayISO } from '../components/format';
 
@@ -70,7 +69,7 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
             onChange={setFilter}
             items={[
               { value: 'all', label: 'All', count: ds.length },
-              { value: 'Ready for Dispatch', label: 'Ready for Dispatch', count: ready.length },
+              ...(ready.length ? [{ value: 'Ready for Dispatch' as const, label: 'Ready for Dispatch', count: ready.length }] : []),
               { value: 'Dispatched', label: 'Dispatched', count: shipped.length },
               { value: 'today', label: 'Today', count: today.length },
             ]}
@@ -151,6 +150,7 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
   );
 }
 
+/** Packing / dispatch as on the route card: Vehicle No. and one row per bag (qty + weight). */
 export function NewDispatchModal({ fgId: initial, onClose }: { fgId: string; onClose: () => void }) {
   const { state, run } = useStore();
   const lots = state.finishedGoods.filter((f) => fgAvailable(f) > 0);
@@ -158,47 +158,33 @@ export function NewDispatchModal({ fgId: initial, onClose }: { fgId: string; onC
   const fg = lots.find((f) => f.id === fgId);
   const product = fg ? getProduct(state, fg.productId) : null;
   const avail = fg ? fgAvailable(fg) : 0;
-  const [customer, setCustomer] = useState(fg ? getJob(state, fg.jobNo).customer : CUSTOMERS[0]);
-  const [qty, setQty] = useState(String(avail));
   const [vehicle, setVehicle] = useState('');
-  const [driver, setDriver] = useState('');
   const [date, setDate] = useState(todayISO());
-  const [bagCount, setBagCount] = useState(String(Math.max(1, Math.ceil(avail / 10))));
-  const [weightOverride, setWeightOverride] = useState<string | null>(null);
-  const [mode, setMode] = useState<'Dispatched' | 'Ready for Dispatch'>('Dispatched');
+  const [bags, setBags] = useState<{ qty: string; weight: string }[]>([{ qty: '', weight: '' }]);
 
-  const qN = Number(qty);
-  const bN = Number(bagCount);
-  const autoWeight = product ? round3(qN * product.finishedWeight) : 0;
-  const weight = weightOverride ?? String(autoWeight);
-  const bags = useMemo(() => (qN > 0 && bN > 0 && bN <= qN ? planBags(qN, bN, Number(weight)) : []), [qN, bN, weight]);
+  const unitKg = product?.finishedWeight ?? 0;
+  const rows = bags.map((b) => {
+    const q = Number(b.qty);
+    const autoKg = q > 0 ? round3(q * unitKg) : 0;
+    return { q, kg: Number(b.weight) > 0 ? Number(b.weight) : autoKg, autoKg, bad: b.qty !== '' && (!(q > 0) || !Number.isInteger(q)) };
+  });
+  const totalQty = rows.reduce((t, r) => t + (r.q > 0 ? r.q : 0), 0);
+  const totalKg = round3(rows.reduce((t, r) => t + r.kg, 0));
   const nextNo = `DSP-${new Date().getFullYear()}-${String(state.counters.dispatch + 1).padStart(4, '0')}`;
+  const over = totalQty > avail;
+  const invalid = !fg || !vehicle.trim() || totalQty === 0 || over || rows.some((r) => r.bad || !(r.q > 0));
 
-  const errQty = !(qN > 0) || !Number.isInteger(qN) ? 'Enter a whole quantity' : qN > avail ? `Only ${avail} PCS available in FG` : null;
-  const errBags = !(bN > 0) || !Number.isInteger(bN) ? 'Enter bag count' : bN > qN ? 'More bags than pieces' : null;
-  const errVeh = mode === 'Dispatched' && !vehicle.trim() ? 'Vehicle number is required' : null;
-  const invalid = !fg || !!errQty || !!errBags || !!errVeh || !(Number(weight) > 0);
-
-  const pickLot = (id: string) => {
-    const f = lots.find((x) => x.id === id)!;
-    setFgId(id);
-    setCustomer(getJob(state, f.jobNo).customer);
-    setQty(String(fgAvailable(f)));
-    setBagCount(String(Math.max(1, Math.ceil(fgAvailable(f) / 10))));
-    setWeightOverride(null);
-  };
+  const setBag = (i: number, k: 'qty' | 'weight', v: string) => setBags((list) => list.map((b, j) => (j === i ? { ...b, [k]: v } : b)));
 
   const submit = () => {
     const ok = run(
       (d, now) =>
-        createDispatch(d, { fgId, customer, qty: qN, vehicleNo: vehicle, driver, date, bagCount: bN, weight: Number(weight), status: mode }, tsFor(date, now)),
-      {
-        title: mode === 'Dispatched' ? 'Goods dispatched' : 'Packed — ready for dispatch',
-        message:
-          mode === 'Dispatched'
-            ? `${nextNo}: ${qN} PCS on ${vehicle.toUpperCase()}. Finished Goods reduced by ${qN} PCS.`
-            : `${nextNo}: ${qN} PCS packed in ${bN} bags and reserved in Finished Goods.`,
-      },
+        createDispatch(
+          d,
+          { fgId, vehicleNo: vehicle, date, status: 'Dispatched', bags: rows.map((r) => ({ qty: r.q, weight: r.kg })) },
+          tsFor(date, now),
+        ),
+      { title: 'Goods dispatched', message: `${nextNo}: ${totalQty} PCS in ${bags.length} bag${bags.length === 1 ? '' : 's'} on ${vehicle.toUpperCase()}.` },
     );
     if (ok) onClose();
   };
@@ -209,15 +195,15 @@ export function NewDispatchModal({ fgId: initial, onClose }: { fgId: string; onC
       onClose={onClose}
       size="lg"
       icon={Truck}
-      title="New Dispatch"
-      subtitle="Dispatch quantity cannot exceed the available finished goods of the selected job."
+      title="Dispatch"
+      subtitle="Bag-wise packing, as on the route card."
       footer={
         <>
           <button className="btn" onClick={onClose}>
             Cancel
           </button>
           <button className="btn btn-success" disabled={invalid} onClick={submit}>
-            <Truck size={15} /> {mode === 'Dispatched' ? 'Confirm Dispatch' : 'Save as Ready for Dispatch'}
+            <Truck size={15} /> Dispatch {totalQty > 0 ? `${fmtNum(totalQty)} PCS` : ''}
           </button>
         </>
       }
@@ -227,87 +213,68 @@ export function NewDispatchModal({ fgId: initial, onClose }: { fgId: string; onC
       ) : (
         <>
           <div className="form-grid three">
-            <Field label="Dispatch Number" hint="Auto-generated">
-              <input className="input mono" readOnly value={nextNo} />
-            </Field>
-            <Field label="Job / FG Lot" required full={false}>
-              <select value={fgId} onChange={(e) => pickLot(e.target.value)}>
+            <Field label="Job Card No." required hint={product ? `${product.name} · ${fmtNum(avail)} PCS available` : undefined}>
+              <select value={fgId} onChange={(e) => setFgId(e.target.value)}>
                 {lots.map((f) => (
                   <option key={f.id} value={f.id}>
-                    {f.jobNo} · {getProduct(state, f.productId).name} ({fgAvailable(f)} PCS)
+                    {f.jobNo} · {getProduct(state, f.productId).name}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Customer" required>
-              <select value={customer} onChange={(e) => setCustomer(e.target.value)}>
-                {CUSTOMERS.map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Product">
-              <input className="input" readOnly value={product?.name ?? ''} />
-            </Field>
-            <Field label="Available FG Quantity">
-              <NumInput value={avail} readOnly />
-            </Field>
-            <Field label="Dispatch Quantity" required error={errQty}>
-              <NumInput value={qty} onChange={(v) => { setQty(v); setWeightOverride(null); }} bad={!!errQty} autoFocus />
-            </Field>
-            <Field label="Vehicle Number" required={mode === 'Dispatched'} error={errVeh}>
-              <input className={`input mono ${errVeh ? 'bad' : ''}`} placeholder="GJ05AB1234" value={vehicle} onChange={(e) => setVehicle(e.target.value.toUpperCase())} />
-            </Field>
-            <Field label="Driver">
-              <input className="input" placeholder="Driver name" value={driver} onChange={(e) => setDriver(e.target.value)} />
-            </Field>
-            <Field label="Dispatch Date">
+            <Field label="Date">
               <input className="input" type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
-            <Field label="Packing / Bags" required error={errBags}>
-              <NumInput value={bagCount} onChange={setBagCount} suffix="bags" bad={!!errBags} />
-            </Field>
-            <Field label="Pieces per Bag" hint="Auto-calculated">
-              <NumInput value={bags[0]?.qty ?? ''} readOnly suffix="PCS" />
-            </Field>
-            <Field label="Total Weight" hint={product ? `${product.finishedWeight} kg/pc × qty` : ''}>
-              <NumInput value={weight} onChange={setWeightOverride} suffix="KG" step="any" />
+            <Field label="Vehicle No." required>
+              <input className="input mono" placeholder="GJ13AX3059" value={vehicle} onChange={(e) => setVehicle(e.target.value.toUpperCase())} />
             </Field>
           </div>
 
-          <div className="section-label">Status</div>
-          <div className="seg">
-            <button className={mode === 'Dispatched' ? 'on' : ''} onClick={() => setMode('Dispatched')}>
-              Dispatch now
-            </button>
-            <button className={mode === 'Ready for Dispatch' ? 'on' : ''} onClick={() => setMode('Ready for Dispatch')}>
-              Pack only (Ready for Dispatch)
-            </button>
-          </div>
-
-          {bags.length > 0 && (
-            <>
-              <div className="section-label">Bag-level packing</div>
-              <div className="bags">
-                {bags.map((b) => (
-                  <div className="bag" key={b.no}>
-                    <span className="muted">Bag {b.no}</span>
-                    <b>{b.qty} PCS</b>
-                    {b.weight.toFixed(3)} kg
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-          {fg && !errQty && (
-            <div className="callout info">
-              <Info size={16} />
-              <div>
-                Finished Goods for <span className="mono">{fg.jobNo}</span>: {avail} available → <b>{avail - qN} after this dispatch</b>
-                {mode === 'Ready for Dispatch' ? ' (reserved until the vehicle leaves)' : ''}.
-              </div>
-            </div>
-          )}
+          <div className="section-label">Bags</div>
+          <table className="bag-tbl">
+            <thead>
+              <tr>
+                <th>Bag</th>
+                <th>Qty (PCS)</th>
+                <th>Weight (KG)</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {bags.map((b, i) => (
+                <tr key={i}>
+                  <td className="muted">{i + 1}</td>
+                  <td>
+                    <input className={`input num ${rows[i].bad ? 'bad' : ''}`} type="number" min={1} value={b.qty} autoFocus={i === bags.length - 1 && i > 0} onChange={(e) => setBag(i, 'qty', e.target.value)} />
+                  </td>
+                  <td>
+                    <input className="input num" type="number" min={0} step="any" value={b.weight} placeholder={rows[i].autoKg ? String(rows[i].autoKg) : ''} onChange={(e) => setBag(i, 'weight', e.target.value)} />
+                  </td>
+                  <td>
+                    {bags.length > 1 && (
+                      <button className="icon-btn" title="Remove bag" onClick={() => setBags((list) => list.filter((_, j) => j !== i))}>
+                        <X size={15} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>
+                  <button className="btn btn-sm btn-soft" onClick={() => setBags((list) => [...list, { qty: list[list.length - 1]?.qty ?? '', weight: '' }])}>
+                    <Plus size={14} /> Add bag
+                  </button>
+                </td>
+                <td className={`strong num ${over ? 'loss' : ''}`}>{fmtNum(totalQty)} PCS</td>
+                <td className="strong num">{totalKg.toFixed(3)} KG</td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+          {over && <div className="callout err">Total {fmtNum(totalQty)} PCS is more than the {fmtNum(avail)} PCS available for this job.</div>}
+          {!over && totalQty > 0 && <div className="hint muted" style={{ marginTop: 10, fontSize: 12.5 }}>Weight left blank is calculated from {unitKg} kg per piece.</div>}
         </>
       )}
     </Modal>

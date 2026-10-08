@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, ClipboardCheck, Eye, Info, PackageCheck, ShieldCheck } from 'lucide-react';
+import { ClipboardCheck, Eye, PackageCheck, ShieldCheck } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
-import { completeQC, getJob, getProduct, qcStatusFor, stageRecords } from '../store/engine';
+import { completeQC, getJob, getProduct } from '../store/engine';
 import { INSPECTORS } from '../store/seed';
-import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, QtyFlow, Search, SummaryLine, Tabs } from '../components/ui';
+import { Badge, Empty, Field, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, Search, SummaryLine, Tabs } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
-import { fmtDateTime, fmtNum, matches, todayISO } from '../components/format';
+import { fmtNum, matches, todayISO } from '../components/format';
 
 type Filter = 'QC Pending' | 'inspected' | 'Rejections' | 'all';
 
@@ -77,17 +77,13 @@ export function QCPage() {
           <Empty icon={ShieldCheck} title="Nothing to inspect" text="Jobs appear here automatically once Heat Treatment is completed." />
         ) : (
           <div className="table-wrap">
-            <table className="tbl">
+            <table className="tbl compact">
               <thead>
                 <tr>
-                  <th>Job No.</th>
-                  <th>Product</th>
-                  <th>HT Temp.</th>
-                  <th>Received</th>
-                  <th className="r">Input</th>
-                  <th className="r">Accepted</th>
-                  <th className="r">Rejected</th>
-                  <th>Inspector / Reason</th>
+                  <th>Job Card No.</th>
+                  <th>Item</th>
+                  <th>Received → Rejection → OK</th>
+                  <th>Checked By</th>
                   <th>QC Status</th>
                   <th className="r">Action</th>
                 </tr>
@@ -96,39 +92,30 @@ export function QCPage() {
                 {rows.map((r) => {
                   const job = getJob(state, r.jobNo);
                   const p = getProduct(state, job.productId);
-                  const ht = stageRecords(state, 'heatTreatment').find((x) => x.jobNo === r.jobNo);
                   const done = r.status !== 'QC Pending';
                   return (
                     <tr key={r.id}>
                       <td>
                         <JobLink jobNo={r.jobNo} />
                       </td>
-                      <td>
-                        <div className="strong">{p.name}</div>
-                        <div className="sub">{job.customer}</div>
-                      </td>
-                      <td className="nowrap">{ht?.params.temperature}°C</td>
-                      <td className="nowrap">{fmtDateTime(r.receivedAt)}</td>
-                      <td className="r qty-cell">{fmtNum(r.input)}</td>
-                      <td className="r">{done ? <span className="gain">{fmtNum(r.accepted)}</span> : <span className="muted">—</span>}</td>
-                      <td className="r">{done ? r.rejected ? <span className="loss">{fmtNum(r.rejected)}</span> : <span className="muted">0</span> : <span className="muted">—</span>}</td>
+                      <td className="strong nowrap">{p.name}</td>
                       <td>
                         {done ? (
-                          <>
-                            <div>{r.inspector}</div>
-                            {r.rejectionReason && <div className="sub" style={{ color: 'var(--crit)' }}>{r.rejectionReason}</div>}
-                          </>
+                          <InlineQty input={r.input} loss={r.rejected} output={r.accepted} />
                         ) : (
-                          <span className="muted">—</span>
+                          <span className="inline-q">
+                            {fmtNum(r.input)} <span className="muted" style={{ fontWeight: 500 }}>PCS received</span>
+                          </span>
                         )}
                       </td>
+                      <td>{done && r.inspector ? r.inspector : <span className="muted">—</span>}</td>
                       <td>
                         <Badge status={r.status} />
                       </td>
                       <td className="r nowrap">
                         {!done && (
                           <button className="btn btn-sm btn-primary" onClick={() => openAction({ kind: 'qc', jobNo: r.jobNo })}>
-                            <ClipboardCheck size={13} /> Inspect
+                            <ClipboardCheck size={13} /> Enter Qty
                           </button>
                         )}
                         <button className="icon-btn" style={{ display: 'inline-grid', verticalAlign: 'middle', marginLeft: 4 }} title="View traceability" onClick={() => openTrace(r.jobNo)}>
@@ -147,45 +134,29 @@ export function QCPage() {
   );
 }
 
+/** QC row of the route card: Inward Date, Received Qty, Rejection Qty, OK Qty, Checked By. */
 export function InspectModal({ jobNo, onClose }: { jobNo: string; onClose: () => void }) {
   const { state, run } = useStore();
   const rec = state.qc.find((r) => r.jobNo === jobNo && r.status === 'QC Pending');
   const job = getJob(state, jobNo);
   const p = getProduct(state, job.productId);
-  const ht = stageRecords(state, 'heatTreatment').find((x) => x.jobNo === jobNo);
-  const [accepted, setAccepted] = useState(String(rec?.input ?? 0));
   const [rejected, setRejected] = useState('0');
-  const [inspector, setInspector] = useState(INSPECTORS[0]);
-  const [reason, setReason] = useState('');
-  const [remarks, setRemarks] = useState('');
+  const [checkedBy, setCheckedBy] = useState('');
   const [date, setDate] = useState(todayISO());
-  const [checks, setChecks] = useState({ dimensional: true, visual: true, hardness: true });
   if (!rec) return null;
 
-  const a = Number(accepted);
   const r = Number(rejected);
-  const sum = a + r;
-  const bad = !Number.isInteger(a) || !Number.isInteger(r) || a < 0 || r < 0 || sum !== rec.input;
-  const status = !bad ? qcStatusFor(rec.input, a) : null;
-  const needReason = r > 0 && !reason.trim();
-
-  // Keep the two numbers balanced to the input as the inspector types
-  const onAccepted = (v: string) => {
-    setAccepted(v);
-    const n = Number(v);
-    if (Number.isInteger(n) && n >= 0 && n <= rec.input) setRejected(String(rec.input - n));
-  };
-  const onRejected = (v: string) => {
-    setRejected(v);
-    const n = Number(v);
-    if (Number.isInteger(n) && n >= 0 && n <= rec.input) setAccepted(String(rec.input - n));
-  };
+  const a = rec.input - r;
+  const bad = rejected === '' || !Number.isInteger(r) || r < 0 || r > rec.input;
 
   const submit = () => {
-    const ok = run((d, now) => completeQC(d, jobNo, { accepted: a, rejected: r, inspector, rejectionReason: reason, remarks, checks }, tsFor(date, now)), {
-      title: `QC ${status?.toLowerCase()}`,
-      message: a > 0 ? `${jobNo}: ${a} PCS moved to Finished Goods${r ? `, ${r} PCS rejected` : ''}.` : `${jobNo}: all ${r} PCS rejected.`,
-    });
+    const ok = run(
+      (d, now) => completeQC(d, jobNo, { accepted: a, rejected: r, inspector: checkedBy, checks: { dimensional: true, visual: true, hardness: true } }, tsFor(date, now)),
+      {
+        title: 'QC saved',
+        message: a > 0 ? `${jobNo}: ${a} OK PCS moved to Finished Goods${r ? `, ${r} PCS rejected` : ''}.` : `${jobNo}: all ${r} PCS rejected.`,
+      },
+    );
     if (ok) onClose();
   };
 
@@ -196,107 +167,43 @@ export function InspectModal({ jobNo, onClose }: { jobNo: string; onClose: () =>
       size="lg"
       icon={ShieldCheck}
       title={`QC Inspection — ${jobNo}`}
-      subtitle={`${p.name} · ${job.customer}`}
+      subtitle={p.name}
       footer={
         <>
-          <span className="left">Accepted + Rejected must equal Input</span>
           <button className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn btn-success" disabled={bad || needReason} onClick={submit}>
-            <PackageCheck size={15} /> Submit QC {status ? `· ${status}` : ''}
+          <button className="btn btn-success" disabled={bad} onClick={submit}>
+            <PackageCheck size={15} /> Save &amp; send {!bad && a > 0 ? `${fmtNum(a)} PCS ` : ''}to Finished Goods
           </button>
         </>
       }
     >
-      <div className="info-strip">
-        <div>
-          <div className="l">Job No.</div>
-          <div className="v mono">{jobNo}</div>
-        </div>
-        <div>
-          <div className="l">Product</div>
-          <div className="v">{p.name}</div>
-        </div>
-        <div>
-          <div className="l">HT Temperature</div>
-          <div className="v">{ht?.params.temperature}°C</div>
-        </div>
-        <div>
-          <div className="l">Received from HT</div>
-          <div className="v">{fmtNum(rec.input)} PCS</div>
-        </div>
-      </div>
-
       <div className="form-grid three">
-        <Field label="Input Quantity" hint="= Heat Treatment output · locked">
+        <Field label="Inward Date">
+          <input className="input" type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <Field label="Received Qty" hint="OK qty from Heat Treatment">
           <NumInput value={rec.input} readOnly />
         </Field>
-        <Field label="Accepted Quantity" required>
-          <NumInput value={accepted} onChange={onAccepted} bad={bad} autoFocus />
+        <Field label="Rejection Qty" required error={bad ? `0 to ${rec.input}` : null}>
+          <NumInput value={rejected} onChange={setRejected} bad={bad} autoFocus />
         </Field>
-        <Field label="Rejected Quantity" required error={bad ? `Must total ${rec.input}` : null}>
-          <NumInput value={rejected} onChange={onRejected} bad={bad} />
+        <Field label="OK Qty" hint="Received − Rejection">
+          <NumInput value={bad ? '' : a} readOnly />
         </Field>
-        <Field label="Inspector">
-          <select value={inspector} onChange={(e) => setInspector(e.target.value)}>
+        <Field label="Checked By">
+          <select value={checkedBy} onChange={(e) => setCheckedBy(e.target.value)}>
+            <option value="">Select…</option>
             {INSPECTORS.map((i) => (
               <option key={i}>{i}</option>
             ))}
           </select>
         </Field>
-        <Field label="Inspection Date">
-          <input className="input" type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
-        </Field>
-        <Field label="QC Status" hint="Derived from quantities">
-          <div style={{ paddingTop: 8 }}>{status ? <Badge status={status} /> : <span className="muted">—</span>}</div>
-        </Field>
-        <Field label="Rejection Reason" required={r > 0} full error={needReason ? 'Required when quantity is rejected' : null}>
-          <select value={reason} onChange={(e) => setReason(e.target.value)} disabled={r === 0}>
-            <option value="">{r === 0 ? 'No rejection' : 'Select reason…'}</option>
-            {['Dimension out of tolerance', 'Surface crack', 'Under-filled / incomplete forging', 'Hardness out of range', 'Flash / burr not removed', 'Scale / pitting'].map((o) => (
-              <option key={o}>{o}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Inspection Checks" full>
-          <div className="check-row">
-            {(['dimensional', 'visual', 'hardness'] as const).map((k) => (
-              <label key={k} className={`check ${checks[k] ? 'on' : ''}`}>
-                <input type="checkbox" checked={checks[k]} onChange={(e) => setChecks((c) => ({ ...c, [k]: e.target.checked }))} />
-                {k === 'dimensional' ? 'Dimensional check' : k === 'visual' ? 'Visual / surface' : 'Hardness test'}
-              </label>
-            ))}
-          </div>
-        </Field>
-        <Field label="Remarks" full>
-          <input className="input" value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional inspection remarks" />
-        </Field>
       </div>
-
       <div style={{ marginTop: 18 }}>
-        <QtyFlow input={rec.input} loss={Number.isFinite(r) ? r : 0} output={Number.isFinite(a) ? a : 0} labels={['QC Input', 'Rejected', 'Accepted → FG']} />
+        <QtyFlow input={rec.input} loss={bad ? 0 : r} output={bad ? '—' : a} />
       </div>
-      {!bad && (
-        <div className={`callout ${a === 0 ? 'err' : r > 0 ? 'warn' : 'ok'}`}>
-          {a === 0 ? <AlertTriangle size={16} /> : <Info size={16} />}
-          <div>
-            {a > 0 ? (
-              <>
-                <b>{fmtNum(a)} PCS</b> will be added to Finished Goods inventory.
-                {r > 0 && (
-                  <>
-                    {' '}
-                    <b>{r} PCS</b> recorded as QC rejection.
-                  </>
-                )}
-              </>
-            ) : (
-              <>Entire batch rejected — nothing moves to Finished Goods.</>
-            )}
-          </div>
-        </div>
-      )}
     </Modal>
   );
 }

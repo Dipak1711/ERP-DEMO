@@ -78,6 +78,10 @@ export interface Job {
   priority: 'Normal' | 'High' | 'Urgent';
   currentStage: JobStage;
   issues: MaterialIssue[]; // raw lots consumed (filled when Cutting starts)
+  // Job (route) card header — as on the client's paper Process Route Card
+  pieceWeightG?: number; // cut weight per piece, grams
+  dieNo?: string;
+  machineNo?: string;
 }
 
 /** Generic record for Cutting, Forging, Trimming and Heat Treatment. */

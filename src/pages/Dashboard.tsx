@@ -139,7 +139,7 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
               <ActivityIcon size={15} /> Live data synced
             </span>
             <button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}>
-              <Plus size={16} /> New Production Job
+              <Plus size={16} /> New Job Card
             </button>
           </>
         }
@@ -218,7 +218,7 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
               }
               action={
                 <button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}>
-                  <Plus size={15} /> New Production Job
+                  <Plus size={15} /> New Job Card
                 </button>
               }
             />

@@ -199,7 +199,7 @@ export function QtyFlow({
   input,
   loss,
   output,
-  labels = ['Input', 'Loss / Rejection', 'Output'],
+  labels = ['Received Qty', 'Rejection Qty', 'OK Qty'],
   small,
 }: {
   input: number | string;

@@ -37,19 +37,25 @@ The inward form uses dropdowns, so nobody has to type material names:
 At each process stage, **Loss Reason** is chosen from standard forging defects (for example under-fill, lap / fold or quench crack). The Heat Treatment **Process** is also a dropdown.
 The master list is in `src/store/materials.ts`.
 
+## Screens follow the paper Process Route Card
+
+Every form uses only the fields the client already fills on the paper route card:
+
+- **New Job Card:** Job Card No. (auto), Date, Item, Material / Bar OD, Length, Weight per piece (auto from OD × length × density), Qty to Cut, Die No., Machine No.
+- **Cutting, Forging, Trimming, Heat Treatment, QC:** one row each, with Inward Date, Received Qty, Rejection Qty, OK Qty (auto = Received − Rejection) and Checked By. Heat Treatment also has its Temperature. Trimming has a **"Not required"** tick for jobs that skip it.
+- **Dispatch:** Job Card No., Date, Vehicle No., and one row per bag (qty + weighed weight; a blank weight is calculated).
+
 ## Checking the flow and calculations (worked example)
 
-1. **Raw Inventory → Add Raw Material Inward**: EN8 Steel Round Bar, OD 50, choose a supplier, **600 PCS / 168 KG**. Add a second inward of **400 PCS / 112 KG**. EN8 stock is now **1,000**.
-2. **Cutting → Create Cutting Order**: 9084 Flange, EN8 OD 50, planned **700**. Stock stays at 1,000 until cutting starts.
-3. **Start** the cutting order, enter loss **14** and complete. FIFO issues 600 PCS from the first lot and 100 from the second, so EN8 drops to **300**. The output is 700 − 14 = **686**.
-4. **Forging**: the input is locked at 686. Loss 6 → **680**.
-5. **Trimming**: 680 − 5 → **675**.
+1. **Raw Inventory → Add Raw Material Inward**: EN8 Steel Round Bar, OD 50, choose a supplier, **600 PCS / 168 KG**. Add a second inward of **400 PCS**. EN8 stock is now **1,000**.
+2. **Cutting → New Job Card**: 9084 Flange, EN8 Ø50, Length 62 mm (weight per piece fills in at 956 g), Qty to Cut **700**. Stock stays at 1,000.
+3. **Cutting → Enter Qty**: Received 700, Rejection **14** → OK **686**. FIFO issues 600 PCS from the first lot and 100 from the second, so stock drops to **300**.
+4. **Forging**: Received 686 (locked), Rejection 6 → **680**.
+5. **Trimming**: 680 − 5 → **675** (or tick "Not required" to pass all pieces on).
 6. **Heat Treatment** (850°C from the product): 675 − 3 → **672**.
-7. **QC**: 672 = **668 accepted** + 4 rejected. Finished Goods becomes **668**.
-8. **Dispatch** 668 with a vehicle number and bags. Finished Goods becomes **0**.
+7. **QC**: 672 − 4 → **668** OK, which goes to Finished Goods.
+8. **Dispatch**: vehicle number and bags (e.g. 300 + 368). Finished Goods becomes **0**.
 9. Click the job number. The reconciliation line reads **700 issued = 28 process loss + 4 QC rejected + 668 finished goods** (balanced).
-
-If you try to create a job for a material with no stock, the form says so and offers **Add Raw Material Inward**.
 
 ## Making it easy to follow
 
