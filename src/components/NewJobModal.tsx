@@ -125,7 +125,7 @@ export function NewJobModal({ open, onClose }: { open: boolean; onClose: () => v
           mode === 'complete'
             ? `${nextJobNo}: ${actualN} in − ${lossN} loss = ${outputN} PCS moved to Forging.`
             : mode === 'start'
-              ? `${nextJobNo}: ${actualN} PCS issued from raw stock (FIFO). Cutting in progress.`
+              ? `${nextJobNo}: ${actualN} PCS issued from raw stock (FIFO). Cutting in progress — click Complete on the Cutting page to send it to Forging.`
               : `${nextJobNo} released to Cutting as Pending.`,
       },
     );
@@ -220,6 +220,13 @@ export function NewJobModal({ open, onClose }: { open: boolean; onClose: () => v
         <button className={mode === 'complete' ? 'on' : ''} onClick={() => setMode('complete')}>
           Start &amp; Complete
         </button>
+      </div>
+      <div className="hint muted" style={{ fontSize: 12.5, margin: '-6px 0 14px' }}>
+        {mode === 'pending'
+          ? 'Job waits at Cutting as Pending. No raw material is issued yet.'
+          : mode === 'start'
+            ? 'Raw material is issued now and the job stays at Cutting (In Progress). Complete it later to send it to Forging.'
+            : 'Raw material is issued and cutting is completed now — the output moves straight to Forging.'}
       </div>
 
       {mode !== 'pending' && (

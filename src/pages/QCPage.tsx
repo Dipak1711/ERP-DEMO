@@ -5,13 +5,13 @@ import { completeQC, getJob, getProduct, qcStatusFor, stageRecords } from '../st
 import { INSPECTORS } from '../store/seed';
 import { Badge, Empty, Field, JobLink, Kpi, Modal, NumInput, PageHeader, QtyFlow, Search, Tabs } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
-import { fmtDateTime, fmtNum, matches, todayISO } from '../components/format';
+import { fmtDateTime, fmtNum, matches, plural, todayISO } from '../components/format';
 
 type Filter = 'QC Pending' | 'inspected' | 'Rejections' | 'all';
 
 export function QCPage() {
   const { state, openTrace, openAction } = useStore();
-  const [filter, setFilter] = useState<Filter>('QC Pending');
+  const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
 
   const recs = state.qc;
@@ -44,11 +44,11 @@ export function QCPage() {
         subtitle="Final inspection of heat-treated parts. Accepted quantity moves to Finished Goods; rejected quantity is recorded separately with its reason."
         flow="qc"
       />
-      <div className="kpis">
+      <div className="kpis compact">
         <Kpi label="QC Pending" value={pending.length} unit="jobs" hint={`${fmtNum(pending.reduce((t, r) => t + r.input, 0))} PCS awaiting inspection`} icon={ClipboardCheck} tone="amber" onClick={() => setFilter('QC Pending')} />
         <Kpi label="Inspected" value={inspected.length} unit="jobs" hint={`${fmtNum(total)} PCS inspected`} icon={ShieldCheck} tone="blue" onClick={() => setFilter('inspected')} />
         <Kpi label="Accepted → FG" value={accepted} unit="PCS" hint={total ? `${((accepted / total) * 100).toFixed(1)}% first-pass yield` : '—'} icon={CheckCircle2} tone="green" />
-        <Kpi label="QC Rejected" value={rejected} unit="PCS" hint={`${withRej.length} jobs with rejections`} icon={XCircle} tone="red" onClick={() => setFilter('Rejections')} />
+        <Kpi label="QC Rejected" value={rejected} unit="PCS" hint={`${plural(withRej.length, 'job')} with rejections`} icon={XCircle} tone="red" onClick={() => setFilter('Rejections')} />
       </div>
 
       <div className="card">
@@ -63,10 +63,10 @@ export function QCPage() {
             value={filter}
             onChange={setFilter}
             items={[
+              { value: 'all', label: 'All', count: recs.length },
               { value: 'QC Pending', label: 'Pending', count: pending.length },
               { value: 'inspected', label: 'Inspected', count: inspected.length },
-              { value: 'Rejections', label: 'Rejections', count: withRej.length },
-              { value: 'all', label: 'All', count: recs.length },
+              { value: 'Rejections', label: 'With Rejections', count: withRej.length },
             ]}
           />
           <Search value={q} onChange={setQ} placeholder="Search job, product, inspector…" />

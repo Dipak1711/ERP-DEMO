@@ -9,7 +9,7 @@ type Filter = 'stock' | 'dispatched' | 'all';
 
 export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void }) {
   const { state, openTrace } = useStore();
-  const [filter, setFilter] = useState<Filter>('stock');
+  const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
   const fgs = state.finishedGoods;
 
@@ -53,7 +53,7 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
           </button>
         }
       />
-      <div className="kpis">
+      <div className="kpis compact">
         <Kpi label="Available Finished Goods" value={avail} unit="PCS" hint={`${fmtKg(availKg)} ready to sell`} icon={PackageCheck} tone="green" />
         <Kpi label="Packed / Reserved" value={reserved} unit="PCS" hint="Ready for dispatch" icon={PackageOpen} tone="violet" />
         <Kpi label="Total Received from QC" value={total} unit="PCS" hint={`${fgs.length} FG lots`} icon={Archive} tone="blue" />
@@ -106,9 +106,9 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
             value={filter}
             onChange={setFilter}
             items={[
+              { value: 'all', label: 'All', count: fgs.length },
               { value: 'stock', label: 'In Stock', count: inStock.length },
               { value: 'dispatched', label: 'Fully Dispatched', count: fgs.length - inStock.length },
-              { value: 'all', label: 'All', count: fgs.length },
             ]}
           />
           <Search value={q} onChange={setQ} placeholder="Search lot, job, product…" />

@@ -227,7 +227,7 @@ function ActionBell() {
         <div className="pop">
           <div className="pop-head">
             <b>Pending actions</b>
-            <div>{steps.length ? `${steps.length} jobs are waiting for the next step` : 'All jobs are up to date'}</div>
+            <div>{steps.length ? `${steps.length === 1 ? '1 job is' : `${steps.length} jobs are`} waiting for the next step` : 'All jobs are up to date'}</div>
           </div>
           <div className="pop-list">
             {steps.map((n) => {

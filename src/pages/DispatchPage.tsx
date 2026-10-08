@@ -48,8 +48,8 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
           </button>
         }
       />
-      <div className="kpis">
-        <Kpi label="Today's Dispatch" value={today.reduce((t, d) => t + d.qty, 0)} unit="PCS" hint={`${today.length} dispatch${today.length === 1 ? '' : 'es'} · ${new Set(today.map((d) => d.vehicleNo)).size} vehicles`} icon={CalendarCheck} tone="teal" onClick={() => setFilter('today')} />
+      <div className="kpis compact">
+        <Kpi label="Today's Dispatch" value={today.reduce((t, d) => t + d.qty, 0)} unit="PCS" hint={`${today.length} dispatch${today.length === 1 ? '' : 'es'} · ${new Set(today.map((d) => d.vehicleNo)).size} vehicle${new Set(today.map((d) => d.vehicleNo)).size === 1 ? '' : 's'}`} icon={CalendarCheck} tone="teal" onClick={() => setFilter('today')} />
         <Kpi label="Ready for Dispatch" value={ready.reduce((t, d) => t + d.qty, 0)} unit="PCS" hint={`${ready.length} packed, awaiting vehicle`} icon={PackageOpen} tone="violet" onClick={() => setFilter('Ready for Dispatch')} />
         <Kpi label="Total Dispatched" value={shipped.reduce((t, d) => t + d.qty, 0)} unit="PCS" hint={fmtKg(round3(shipped.reduce((t, d) => t + d.weight, 0)))} icon={Truck} tone="blue" onClick={() => setFilter('Dispatched')} />
         <Kpi label="FG Available to Dispatch" value={fgAvail} unit="PCS" hint="From Finished Goods" icon={Info} tone="green" />
@@ -68,7 +68,7 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
             onChange={setFilter}
             items={[
               { value: 'all', label: 'All', count: ds.length },
-              { value: 'Ready for Dispatch', label: 'Ready', count: ready.length },
+              { value: 'Ready for Dispatch', label: 'Ready for Dispatch', count: ready.length },
               { value: 'Dispatched', label: 'Dispatched', count: shipped.length },
               { value: 'today', label: 'Today', count: today.length },
             ]}

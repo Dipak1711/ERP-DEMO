@@ -7,6 +7,7 @@ import { MACHINES, OPERATORS } from '../store/seed';
 import { HT_PROCESSES, LOSS_REASONS } from '../store/materials';
 import { Badge, Empty, Field, FLOW_STEPS, InlineQty, JobLink, Kpi, Modal, NumInput, PageHeader, QtyFlow, Search, Tabs } from '../components/ui';
 import { FifoPreview, tsFor } from '../components/NewJobModal';
+import { nextStep } from '../components/workflow';
 import { fmtDateTime, fmtNum, matches, todayISO } from '../components/format';
 
 const CFG: Record<ProcessStage, { title: string; desc: string; from: string; to: string }> = {
@@ -36,14 +37,14 @@ const CFG: Record<ProcessStage, { title: string; desc: string; from: string; to:
   },
 };
 
-type Filter = 'active' | 'Pending' | 'In Progress' | 'Completed' | 'all';
+type Filter = 'all' | 'Pending' | 'In Progress' | 'Completed';
 
 export function StagePage({ stage }: { stage: ProcessStage }) {
   const { state, openAction } = useStore();
   const cfg = CFG[stage];
   const step = FLOW_STEPS.find((s) => s.key === stage)!;
   const recs = stageRecords(state, stage);
-  const [filter, setFilter] = useState<Filter>('active');
+  const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
   const [productF, setProductF] = useState('');
 
@@ -57,7 +58,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
   const rows = useMemo(() => {
     const order = { 'In Progress': 0, Pending: 1, Completed: 2 } as const;
     return recs
-      .filter((r) => (filter === 'all' ? true : filter === 'active' ? r.status !== 'Completed' : r.status === filter))
+      .filter((r) => filter === 'all' || r.status === filter)
       .filter((r) => {
         const job = getJob(state, r.jobNo);
         const p = getProduct(state, job.productId);
@@ -86,7 +87,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
         }
       />
 
-      <div className="kpis">
+      <div className="kpis compact">
         <Kpi label={`Pending ${stage === 'cutting' ? 'Cutting' : STAGE_LABEL[stage]}`} value={pending.length} unit="jobs" hint={`${fmtNum(pending.reduce((t, r) => t + r.input, 0))} PCS waiting`} icon={Clock} tone="amber" onClick={() => setFilter('Pending')} />
         <Kpi label="In Progress" value={inProg.length} unit="jobs" hint={`${fmtNum(inProg.reduce((t, r) => t + r.input, 0))} PCS on machines`} icon={Play} tone="blue" onClick={() => setFilter('In Progress')} />
         <Kpi label="Completed" value={done.length} unit="jobs" hint={`${fmtNum(totIn)} PCS processed`} icon={CheckCircle2} tone="green" onClick={() => setFilter('Completed')} />
@@ -108,11 +109,10 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
             value={filter}
             onChange={setFilter}
             items={[
-              { value: 'active', label: 'Open', count: pending.length + inProg.length },
+              { value: 'all', label: 'All', count: recs.length },
               { value: 'Pending', label: 'Pending', count: pending.length },
               { value: 'In Progress', label: 'In Progress', count: inProg.length },
               { value: 'Completed', label: 'Completed', count: done.length },
-              { value: 'all', label: 'All', count: recs.length },
             ]}
           />
           <Search value={q} onChange={setQ} placeholder="Search job, product, customer, machine…" />
@@ -127,13 +127,19 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
         </div>
         {rows.length === 0 ? (
           <Empty
-            title={filter === 'active' ? `No open ${STAGE_LABEL[stage]} jobs` : 'No matching jobs'}
+            title={
+              filter === 'all' && !q && !productF
+                ? `No ${STAGE_LABEL[stage]} jobs yet`
+                : filter === 'all'
+                  ? 'No matching jobs'
+                  : `No ${filter.toLowerCase()} ${STAGE_LABEL[stage]} jobs`
+            }
             text={stage === 'cutting' ? 'Create a cutting order to start a new production job.' : `Jobs appear here automatically once ${cfg.from} is completed.`}
             action={stage === 'cutting' && <button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}><Plus size={15} /> Create Cutting Order</button>}
           />
         ) : (
           <div className="table-wrap">
-            <table className="tbl">
+            <table className="tbl compact">
               <thead>
                 <tr>
                   <th>Job No.</th>
@@ -141,9 +147,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
                   {stage === 'cutting' && <th>Raw Material</th>}
                   {stage === 'heatTreatment' && <th className="r">Temp.</th>}
                   <th>Received</th>
-                  <th className="r">Input</th>
-                  <th className="r">Loss</th>
-                  <th className="r">Output</th>
+                  <th>Quantity (In → Loss → Out)</th>
                   <th>Machine / Operator</th>
                   <th>Status</th>
                   <th className="r">Action</th>
@@ -159,21 +163,20 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
         )}
       </div>
 
-      {upstream.length > 0 && (
-        <div className="callout info" style={{ marginTop: 14 }}>
-          <Waypoints size={16} />
+      {inProg.length > 0 && (
+        <div className="callout warn" style={{ marginTop: 14 }}>
+          <Info size={16} />
           <div>
-            <b>Upstream pipeline — not yet available for {STAGE_LABEL[stage]}:</b>{' '}
-            {upstream.map((j, i) => (
-              <span key={j.jobNo}>
-                {i > 0 && ', '}
-                <span className="mono">{j.jobNo}</span> (at {STAGE_LABEL[j.currentStage]})
-              </span>
-            ))}
-            . These jobs arrive here automatically when their current stage is completed.
+            <b>
+              {inProg.length} job{inProg.length === 1 ? ' is' : 's are'} in progress at {STAGE_LABEL[stage]}:
+            </b>{' '}
+            {inProg.map((r) => r.jobNo).join(', ')}. Click <b>Complete</b> when the batch is finished and enter the loss — only completed jobs move on to{' '}
+            {cfg.to}.
           </div>
         </div>
       )}
+
+      {upstream.length > 0 && <UpstreamJobs stage={stage} jobNos={upstream.map((j) => j.jobNo)} />}
 
     </>
   );
@@ -190,12 +193,12 @@ function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
         <JobLink jobNo={r.jobNo} />
       </td>
       <td>
-        <div className="strong">{p.name}</div>
-        <div className="sub">{job.customer}</div>
+        <div className="strong nowrap">{p.name}</div>
+        <div className="sub nowrap">{job.customer}</div>
       </td>
       {r.stage === 'cutting' && (
         <td>
-          <div>{mat.material}</div>
+          <div className="nowrap">{mat.material}</div>
           <div className="sub">
             OD {mat.od} mm · cut {r.params.cuttingLength} mm
           </div>
@@ -203,9 +206,15 @@ function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
       )}
       {r.stage === 'heatTreatment' && <td className="r strong nowrap">{r.params.temperature}°C</td>}
       <td className="nowrap">{fmtDateTime(r.receivedAt)}</td>
-      <td className="r qty-cell">{fmtNum(r.input)}</td>
-      <td className="r">{r.status === 'Completed' ? r.loss ? <span className="loss">−{r.loss}</span> : <span className="muted">0</span> : <span className="muted">—</span>}</td>
-      <td className="r">{r.status === 'Completed' ? <span className="gain">{fmtNum(r.output)}</span> : <span className="muted">—</span>}</td>
+      <td>
+        {r.status === 'Completed' ? (
+          <InlineQty input={r.input} loss={r.loss} output={r.output} />
+        ) : (
+          <span className="inline-q">
+            {fmtNum(r.input)} <span className="muted" style={{ fontWeight: 500 }}>PCS {r.status === 'Pending' ? 'waiting' : 'on machine'}</span>
+          </span>
+        )}
+      </td>
       <td>
         {r.machine ? (
           <>
@@ -230,7 +239,7 @@ function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
             <CheckCircle2 size={13} /> Complete
           </button>
         )}
-        {r.status === 'Completed' && <InlineQty input={r.input} loss={r.loss} output={r.output} />}
+        {r.status === 'Completed' && <span className="muted">Moved on</span>}
         <button className="icon-btn" style={{ display: 'inline-grid', verticalAlign: 'middle', marginLeft: 4 }} title="View traceability" onClick={() => openTrace(r.jobNo)}>
           <Eye size={16} />
         </button>
@@ -282,8 +291,8 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
     const ok = run(
       (d, now) => startStage(d, stage, jobNo, { inputQty: editableInput ? inN : undefined, machine, operator, params: cleanParams() }, tsFor(date, now)),
       {
-        title: `${STAGE_LABEL[stage]} started`,
-        message: stage === 'cutting' ? `${jobNo}: ${inN} PCS issued from raw inventory (FIFO).` : `${jobNo}: ${rec.input} PCS now in progress.`,
+        title: `${STAGE_LABEL[stage]} started — not yet moved to ${cfg.to}`,
+        message: `${jobNo}: ${stage === 'cutting' ? `${inN} PCS issued from raw inventory (FIFO). ` : `${rec.input} PCS in progress. `}Click "Complete" when the batch is finished to send it to ${cfg.to}.`,
       },
     );
     if (ok) onClose();
@@ -323,7 +332,7 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
           </button>
           {isPending && (
             <button className="btn" disabled={!!errIn || !!errTemp} onClick={doStart}>
-              <Play size={14} /> Start only (In Progress)
+              <Play size={14} /> Start only — stays at {STAGE_LABEL[stage]}
             </button>
           )}
           <button className="btn btn-success" disabled={!!errIn || !!errLoss || !!errTemp} onClick={doComplete}>
@@ -487,5 +496,68 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
         </div>
       )}
     </Modal>
+  );
+}
+
+/** Jobs still at an earlier stage — shows why they are not here yet and lets the user finish that step. */
+function UpstreamJobs({ stage, jobNos }: { stage: ProcessStage; jobNos: string[] }) {
+  const { state, openAction, openTrace } = useStore();
+  return (
+    <div className="card" style={{ marginTop: 18 }}>
+      <div className="card-head">
+        <div>
+          <h3>Coming from earlier stages</h3>
+          <div className="sub">
+            These jobs reach {STAGE_LABEL[stage]} automatically once their current stage is <b>completed</b>. A job that is only started stays where it is.
+          </div>
+        </div>
+        <div className="right">
+          <Waypoints size={18} className="muted" />
+        </div>
+      </div>
+      <div className="table-wrap">
+        <table className="tbl compact">
+          <thead>
+            <tr>
+              <th>Job No.</th>
+              <th>Product</th>
+              <th>Now at</th>
+              <th className="r">Qty</th>
+              <th>Status</th>
+              <th className="r">To move it forward</th>
+            </tr>
+          </thead>
+          <tbody>
+            {jobNos.map((jobNo) => {
+              const job = getJob(state, jobNo);
+              const st = job.currentStage as ProcessStage;
+              const rec = stageRecords(state, st).find((r) => r.jobNo === jobNo && r.status !== 'Completed');
+              const n = nextStep(state, jobNo);
+              return (
+                <tr key={jobNo}>
+                  <td>
+                    <JobLink jobNo={jobNo} />
+                  </td>
+                  <td className="strong nowrap">{getProduct(state, job.productId).name}</td>
+                  <td className="strong">{STAGE_LABEL[st]}</td>
+                  <td className="r qty-cell">{fmtNum(rec?.input ?? 0)}</td>
+                  <td>{rec && <Badge status={rec.status} />}</td>
+                  <td className="r nowrap">
+                    {n?.action && (
+                      <button className={`btn btn-sm ${rec?.status === 'In Progress' ? 'btn-success' : 'btn-primary'}`} onClick={() => openAction(n.action!)}>
+                        {rec?.status === 'In Progress' ? <CheckCircle2 size={13} /> : <Play size={13} />} {n.label}
+                      </button>
+                    )}
+                    <button className="icon-btn" style={{ display: 'inline-grid', verticalAlign: 'middle', marginLeft: 4 }} title="View traceability" onClick={() => openTrace(jobNo)}>
+                      <Eye size={16} />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

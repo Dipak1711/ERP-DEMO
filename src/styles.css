@@ -214,21 +214,14 @@ a { color: var(--primary); text-decoration: none; }
 .page-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .live { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; color: var(--good); background: var(--surface); border: 1px solid var(--border); padding: 9px 16px; border-radius: 999px; box-shadow: var(--shadow-sm); white-space: nowrap; }
 
-/* workflow stepper shown on every flow page */
-.wf { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; margin-bottom: 24px; box-shadow: var(--shadow-sm); }
-.wf-step { position: relative; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 12px; border: 0; background: none; cursor: pointer; text-align: left; min-width: 0; color: var(--text-2); }
-.wf-step:hover { background: var(--surface-3); }
-.wf-step .n { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--surface-3); color: var(--text-3); flex-shrink: 0; position: relative; }
-.wf-step .n em { position: absolute; top: -6px; right: -7px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; font-style: normal; display: grid; place-items: center; border: 2px solid var(--surface); }
-.wf-step .tx { min-width: 0; }
-.wf-step .tx b { display: block; font-size: 12.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.wf-step .tx span { display: block; font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.wf-step:not(:last-child)::after { content: ''; position: absolute; right: -7px; top: 50%; width: 6px; height: 2px; background: var(--border-strong); }
-.wf-step.busy .n { background: var(--primary-50); color: var(--primary); }
-.wf-step.cur { background: var(--primary); box-shadow: var(--primary-glow); }
-.wf-step.cur .n { background: rgba(255, 255, 255, 0.2); color: #fff; }
-.wf-step.cur .n em { border-color: var(--primary); }
-.wf-step.cur .tx b, .wf-step.cur .tx span { color: #fff; }
+/* previous / next stage buttons under the page title */
+.step-nav { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.step-link { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px 8px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; text-align: left; color: var(--text); box-shadow: var(--shadow-sm); transition: border-color 0.12s, background 0.12s; }
+.step-link.next { padding: 8px 10px 8px 14px; }
+.step-link:hover { border-color: var(--primary-100); background: var(--primary-50); }
+.step-link svg { color: var(--primary); }
+.step-link span { display: flex; flex-direction: column; font-weight: 650; font-size: 13.5px; line-height: 1.25; }
+.step-link small { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
 
 /* =============================================================== buttons */
 .btn {
@@ -285,6 +278,26 @@ button.kpi:hover { border-color: var(--primary-100); box-shadow: var(--shadow); 
 .kpis.k5 .kpi-value { font-size: 26px; margin-top: 14px; }
 .kpis.k5 .kpi-label { font-size: 14px; }
 .kpis.k5 .kpi-trend { top: 18px; right: 16px; }
+/* compact stat cards on module pages: icon + label on top, number below, soft tinted background */
+.kpis.compact { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+.kpis.compact .kpi {
+  display: grid; grid-template-columns: 36px minmax(0, 1fr); grid-template-areas: 'icon label' 'value value' 'hint hint';
+  column-gap: 10px; align-items: center; padding: 14px 16px;
+  background: linear-gradient(135deg, var(--tone-bg, var(--surface-2)) 0%, var(--surface) 65%);
+  border-left: 4px solid var(--tone, var(--border-strong));
+}
+.kpis.compact .kpi-icon { grid-area: icon; width: 36px; height: 36px; border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.kpis.compact .kpi-icon svg { width: 18px; height: 18px; }
+.kpis.compact .kpi-label { grid-area: label; margin-top: 0; font-size: 13px; color: var(--text-2); line-height: 1.25; }
+.kpis.compact .kpi-value { grid-area: value; margin-top: 10px; font-size: 26px; }
+.kpis.compact .kpi-hint { grid-area: hint; margin-top: 3px; font-size: 12px; }
+.kpis.compact .kpi-trend { top: 10px; right: 10px; }
+.tone-blue { --tone: var(--primary); --tone-bg: var(--primary-50); }
+.tone-amber { --tone: var(--accent); --tone-bg: var(--accent-50); }
+.tone-green { --tone: var(--good); --tone-bg: var(--good-bg); }
+.tone-red { --tone: var(--crit); --tone-bg: var(--crit-bg); }
+.tone-violet { --tone: var(--violet); --tone-bg: var(--violet-bg); }
+.tone-teal { --tone: var(--teal); --tone-bg: var(--teal-bg); }
 .tone-blue .kpi-icon { background: var(--primary-50); color: var(--primary); }
 .tone-amber .kpi-icon { background: var(--accent-50); color: var(--accent-ink); }
 .tone-green .kpi-icon { background: var(--good-bg); color: var(--good); }
@@ -568,14 +581,11 @@ select.filter { height: 40px; border: 1px solid var(--border); border-radius: 12
 @media (max-width: 1400px) {
   .dash-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dash-grid-3 > :first-child { grid-row: span 2; }
-  .wf-step .tx span { display: none; }
 }
 @media (max-width: 1280px) {
   .kpis.k5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .flow { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 28px; }
   .flow-node:nth-child(4)::after { display: none; }
-  .wf { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .wf-step:nth-child(4)::after { display: none; }
 }
 @media (max-width: 1100px) {
   .dash-grid-3 { grid-template-columns: minmax(0, 1fr); }
@@ -599,8 +609,7 @@ select.filter { height: 40px; border: 1px solid var(--border); border-radius: 12
 @media (max-width: 640px) {
   .form-grid, .form-grid.three { grid-template-columns: minmax(0, 1fr); }
   .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .flow-node::after, .wf-step::after { display: none; }
-  .wf { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .flow-node::after { display: none; }
   .qflow { flex-direction: column; }
   .qarrow { width: 100%; height: 22px; }
   .top-search { width: auto; flex: 1; max-width: none; min-width: 0; }

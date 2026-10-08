@@ -2,6 +2,8 @@ const nf = new Intl.NumberFormat('en-IN');
 const kgf = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
 
 export const fmtNum = (n: number) => nf.format(n);
+/** "1 job", "2 jobs", "1 dispatch", "3 dispatches" */
+export const plural = (n: number, one: string, many = `${one}s`) => `${nf.format(n)} ${n === 1 ? one : many}`;
 export const fmtKg = (n: number) => `${kgf.format(n)} KG`;
 
 export function fmtDate(iso?: string) {

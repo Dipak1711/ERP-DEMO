@@ -27,7 +27,7 @@ import { fgAvailable, isToday, jobSummary, lotAvailableWeight, materialKey, PROC
 import type { Activity } from '../store/types';
 import { Badge, Empty, FLOW_STEPS, go, JobLink, Kpi, PageHeader, Priority, Stepper } from '../components/ui';
 import { nextStep, pendingSteps } from '../components/workflow';
-import { fmtKg, fmtNum, timeAgo } from '../components/format';
+import { fmtKg, fmtNum, plural, timeAgo } from '../components/format';
 
 const FEED_ICON: Record<Activity['kind'], typeof Play> = {
   inward: ArrowDownToLine,
@@ -126,7 +126,7 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
     })),
     { qty: d.qc.wip, sub: `${d.qc.jobs} job${d.qc.jobs === 1 ? '' : 's'} awaiting`, foot: `${fmtNum(d.qc.acc)} approved`, jobs: d.qc.jobs, loss: d.qc.rej },
     { qty: d.fgAvail + d.fgReserved, sub: `${fmtNum(d.fgAvail)} available`, foot: `${fmtNum(d.fgIn)} received`, jobs: 0, loss: 0 },
-    { qty: d.dispatched, sub: `${fmtNum(d.todayQty)} today`, foot: `${state.dispatches.filter((x) => x.status === 'Dispatched').length} dispatches`, jobs: 0, loss: 0 },
+    { qty: d.dispatched, sub: `${fmtNum(d.todayQty)} today`, foot: plural(state.dispatches.filter((x) => x.status === 'Dispatched').length, 'dispatch', 'dispatches'), jobs: 0, loss: 0 },
   ];
 
   const lossRows = [
@@ -208,7 +208,7 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
 
       <div className="kpis k4">
         <Kpi label="Raw Material Stock" value={d.rawQty} unit="PCS" hint={fmtKg(Math.round(d.rawKg * 10) / 10)} icon={Boxes} tone="blue" onClick={() => navigate('raw-inventory')} />
-        <Kpi label="Active Production Jobs" value={d.active.length} unit="jobs" hint={`${fmtNum(d.active.reduce((t, j) => t + jobSummary(state, j.jobNo).currentQty, 0))} PCS in process · ${state.jobs.length} jobs total`} icon={Factory} tone="violet" trend={waiting ? <span className="chip chip-high">{waiting} need action</span> : undefined} onClick={() => navigate('traceability')} />
+        <Kpi label="Active Production Jobs" value={d.active.length} unit="jobs" hint={`${fmtNum(d.active.reduce((t, j) => t + jobSummary(state, j.jobNo).currentQty, 0))} PCS in process · ${plural(state.jobs.length, 'job')} total`} icon={Factory} tone="violet" trend={waiting ? <span className="chip chip-high">{waiting} need action</span> : undefined} onClick={() => navigate('traceability')} />
         <Kpi label="Finished Goods" value={d.fgAvail} unit="PCS" hint={`${fmtNum(d.fgReserved)} more packed for dispatch`} icon={PackageCheck} tone="green" onClick={() => navigate('finished-goods')} />
         <Kpi label="Today's Dispatch" value={d.todayQty} unit="PCS" hint={`${d.todayCount} dispatch${d.todayCount === 1 ? '' : 'es'} today`} icon={Truck} tone="teal" onClick={() => navigate('dispatch')} />
       </div>

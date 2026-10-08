@@ -1,6 +1,8 @@
 import { useEffect, type ComponentType, type ReactNode } from 'react';
 import {
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   Boxes,
   Crop,
   Flame,
@@ -84,7 +86,7 @@ export function PageHeader({
   title: string;
   subtitle: ReactNode;
   actions?: ReactNode;
-  /** FLOW_STEPS key — shows the Raw → Dispatch workflow bar with this step highlighted */
+  /** FLOW_STEPS key — shows previous / next stage buttons */
   flow?: string;
 }) {
   return (
@@ -94,55 +96,40 @@ export function PageHeader({
           <div className="eyebrow">{eyebrow}</div>
           <h1>{title}</h1>
           <p>{subtitle}</p>
+          {flow && <StepNav current={flow} />}
         </div>
         {actions && <div className="page-actions">{actions}</div>}
       </div>
-      {flow && <WorkflowBar current={flow} />}
     </>
   );
 }
 
-/** The 8-step production flow; every step shows its live load and is clickable. */
-export function WorkflowBar({ current }: { current: string }) {
-  const { state } = useStore();
-  const jobsAt = (key: string) => state.jobs.filter((j) => j.currentStage === key).length;
-  const rawQty = state.rawMaterials.reduce((t, l) => t + l.availableQty, 0);
-  const fgQty = state.finishedGoods.reduce((t, f) => t + f.qty - f.reservedQty - f.dispatchedQty, 0);
-  const ready = state.dispatches.filter((d) => d.status === 'Ready for Dispatch').length;
+/** Previous / next stage buttons, so users can walk the flow in order. */
+function StepNav({ current }: { current: string }) {
+  const i = FLOW_STEPS.findIndex((st) => st.key === current);
+  const prev = FLOW_STEPS[i - 1];
+  const next = FLOW_STEPS[i + 1];
   return (
-    <nav className="wf" aria-label="Production workflow">
-      {FLOW_STEPS.map((st, i) => {
-        const n = st.key === 'raw' ? 0 : st.key === 'dispatched' ? ready : st.key === 'finishedGoods' ? 0 : jobsAt(st.key);
-        const sub =
-          st.key === 'raw'
-            ? `${fmtNum(rawQty)} PCS`
-            : st.key === 'finishedGoods'
-              ? `${fmtNum(fgQty)} PCS`
-              : st.key === 'dispatched'
-                ? `${ready} ready`
-                : n
-                  ? `${n} job${n === 1 ? '' : 's'}`
-                  : 'Clear';
-        const I = st.icon;
-        return (
-          <button
-            key={st.key}
-            className={`wf-step ${st.key === current ? 'cur' : n ? 'busy' : ''}`}
-            onClick={() => go(st.route)}
-            title={`Step ${i + 1}: ${st.label}`}
-          >
-            <span className="n">
-              <I size={16} />
-              {n > 0 && <em>{n}</em>}
-            </span>
-            <span className="tx">
-              <b>{st.label}</b>
-              <span>{sub}</span>
-            </span>
-          </button>
-        );
-      })}
-    </nav>
+    <div className="step-nav">
+      {prev && (
+        <button className="step-link" onClick={() => go(prev.route)} title={`Go to ${prev.label}`}>
+          <ChevronLeft size={16} />
+          <span>
+            <small>Previous stage</small>
+            {prev.label}
+          </span>
+        </button>
+      )}
+      {next && (
+        <button className="step-link next" onClick={() => go(next.route)} title={`Go to ${next.label}`}>
+          <span>
+            <small>Next stage</small>
+            {next.label}
+          </span>
+          <ChevronRight size={16} />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -175,7 +162,7 @@ export function Kpi({
       {trend && <span className="kpi-trend">{trend}</span>}
       <div className="kpi-value">
         {typeof value === 'number' ? fmtNum(value) : value}
-        {unit && <small>{unit}</small>}
+        {unit && <small>{value === 1 && unit !== 'PCS' && unit.endsWith('s') ? unit.slice(0, -1) : unit}</small>}
       </div>
       <div className="kpi-label">{label}</div>
       {hint && <div className="kpi-hint">{hint}</div>}

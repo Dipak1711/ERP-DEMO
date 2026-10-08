@@ -3,7 +3,7 @@ import { ArrowRight, Eye, ScrollText, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { jobSummary, PROCESS_STAGES, STAGE_LABEL } from '../store/engine';
 import { Badge, Empty, JobLink, PageHeader, Priority, Search, Stepper, Tabs } from '../components/ui';
-import { fmtDate, fmtDateTime, fmtNum, matches } from '../components/format';
+import { fmtDate, fmtDateTime, fmtNum, matches, plural } from '../components/format';
 
 // ------------------------------------------------------- Job Traceability ---
 export function TraceabilityPage() {
@@ -140,7 +140,7 @@ export function LedgerPage() {
         <div className="toolbar">
           <Search value={q} onChange={setQ} placeholder="Search job, stage, lot, vehicle…" />
           <span className="muted" style={{ marginLeft: 'auto', fontSize: 12.5 }}>
-            {rows.length} movements
+            {plural(rows.length, 'movement')}
           </span>
         </div>
         {rows.length === 0 && <Empty icon={ScrollText} title="No quantity movements yet" text="Every inward, stage transfer, QC result and dispatch is recorded here." />}

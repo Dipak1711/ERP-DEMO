@@ -5,7 +5,7 @@ import { addInward, fifoLots, lotAvailableWeight, lotStatus, materialKey } from 
 import { SUPPLIERS } from '../store/seed';
 import { findMaterial, MATERIAL_FAMILIES, MATERIAL_MASTER, pieceWeightKg, STANDARD_OD_MM } from '../store/materials';
 import { Badge, Empty, Field, JobLink, Kpi, Modal, NumInput, PageHeader, Search, Tabs } from '../components/ui';
-import { fmtDate, fmtDateTime, fmtKg, fmtNum, matches, todayISO } from '../components/format';
+import { fmtDate, fmtDateTime, fmtKg, fmtNum, matches, plural, todayISO } from '../components/format';
 
 type View = 'stock' | 'inward' | 'issues';
 
@@ -57,11 +57,11 @@ export function RawInventoryPage() {
           </button>
         }
       />
-      <div className="kpis">
-        <Kpi label="Raw Material Stock" value={totalQty} unit="PCS" hint={`${lots.filter((l) => l.availableQty > 0).length} lots in stock`} icon={Boxes} tone="blue" />
+      <div className="kpis compact">
+        <Kpi label="Raw Material Stock" value={totalQty} unit="PCS" hint={`${plural(lots.filter((l) => l.availableQty > 0).length, 'lot')} in stock`} icon={Boxes} tone="blue" />
         <Kpi label="Stock Weight" value={fmtNum(Math.round(totalKg * 10) / 10)} unit="KG" hint="Available weight" icon={Scale} tone="teal" />
         <Kpi label="Material / Size Variants" value={groups.length} unit="SKUs" hint="Material × OD" icon={Layers} tone="violet" />
-        <Kpi label="Issued to Production" value={issuedQty} unit="PCS" hint={`${issues.length} FIFO issues`} icon={Send} tone="amber" onClick={() => setView('issues')} />
+        <Kpi label="Issued to Production" value={issuedQty} unit="PCS" hint={`${plural(issues.length, 'FIFO issue')}`} icon={Send} tone="amber" onClick={() => setView('issues')} />
         <Kpi label="Low Stock Lots" value={low.length} unit="lots" hint="Below 20% of inward" icon={AlertTriangle} tone="red" />
       </div>
 
