@@ -3,7 +3,7 @@ import { Eye, FileText, PackageOpen, Plus, Printer, Truck, X } from 'lucide-reac
 import { useStore } from '../store/StoreContext';
 import { createDispatch, fgAvailable, getProduct, isToday, markDispatched, round3 } from '../store/engine';
 import type { Dispatch } from '../store/types';
-import { Badge, Empty, Field, JobLink, Modal, PageHeader, Search, SummaryLine, Tabs } from '../components/ui';
+import { Badge, Empty, Field, JobLink, Modal, PageHeader, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
 import { fmtDate, fmtKg, fmtNum, matches, todayISO } from '../components/format';
 
@@ -68,10 +68,10 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
             value={filter}
             onChange={setFilter}
             items={[
-              { value: 'all', label: 'All', count: ds.length },
-              ...(ready.length ? [{ value: 'Ready for Dispatch' as const, label: 'Ready for Dispatch', count: ready.length }] : []),
-              { value: 'Dispatched', label: 'Dispatched', count: shipped.length },
-              { value: 'today', label: 'Today', count: today.length },
+              { value: 'all', label: 'All', count: ds.length, tone: 'blue' },
+              ...(ready.length ? [{ value: 'Ready for Dispatch' as const, label: 'Ready for Dispatch', count: ready.length, tone: 'violet' as const }] : []),
+              { value: 'Dispatched', label: 'Dispatched', count: shipped.length, tone: 'teal' },
+              { value: 'today', label: 'Today', count: today.length, tone: 'green' },
             ]}
           />
           <Search value={q} onChange={setQ} placeholder="Search dispatch, job, customer, vehicle…" />
@@ -99,7 +99,7 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
                 {rows.map((d) => {
                   const p = getProduct(state, d.productId);
                   return (
-                    <tr key={d.dispatchNo}>
+                    <tr key={d.dispatchNo} className={rowTone(d.status)}>
                       <td>
                         <div className="mono strong">{d.dispatchNo}</div>
                         <div className="sub">{d.invoiceNo}</div>

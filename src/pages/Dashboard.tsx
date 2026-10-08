@@ -21,8 +21,9 @@ import {
 import { useStore } from '../store/StoreContext';
 import { fgAvailable, isToday, jobSummary, lotAvailableWeight, materialKey, PROCESS_STAGES, STAGE_LABEL, stageRecords } from '../store/engine';
 import type { Activity } from '../store/types';
-import { Badge, Empty, FLOW_STEPS, go, JobLink, Kpi, PageHeader, Priority, Stepper } from '../components/ui';
+import { Badge, Empty, FLOW_STEPS, go, JobLink, Kpi, PageHeader, Priority, rowTone, Stepper } from '../components/ui';
 import { nextStep, pendingSteps } from '../components/workflow';
+import { AnimatedNum } from '../components/motion';
 import { fmtKg, fmtNum, plural, timeAgo } from '../components/format';
 
 const FEED_ICON: Record<Activity['kind'], typeof Play> = {
@@ -182,7 +183,7 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
                 </div>
                 <div className="flow-name">{s.label}</div>
                 <div className="flow-qty">
-                  {fmtNum(n.qty)}
+                  <AnimatedNum value={n.qty} />
                   <small>PCS</small>
                 </div>
                 <div className="flow-sub">{n.sub}</div>
@@ -238,7 +239,7 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
                 </thead>
                 <tbody>
                   {jobs.map((j) => (
-                    <tr key={j.job.jobNo}>
+                    <tr key={j.job.jobNo} className={rowTone(j.status)}>
                       <td>
                         <JobLink jobNo={j.job.jobNo} />
                         {j.job.priority !== 'Normal' && (

@@ -3,7 +3,7 @@ import { ClipboardCheck, Eye, PackageCheck, ShieldCheck } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { completeQC, getJob, getProduct } from '../store/engine';
 import { INSPECTORS } from '../store/seed';
-import { Badge, Empty, Field, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, Search, SummaryLine, Tabs } from '../components/ui';
+import { Badge, Empty, Field, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
 import { fmtNum, matches, todayISO } from '../components/format';
 
@@ -65,10 +65,10 @@ export function QCPage() {
             value={filter}
             onChange={setFilter}
             items={[
-              { value: 'all', label: 'All', count: recs.length },
-              { value: 'QC Pending', label: 'Pending', count: pending.length },
-              { value: 'inspected', label: 'Inspected', count: inspected.length },
-              { value: 'Rejections', label: 'With Rejections', count: withRej.length },
+              { value: 'all', label: 'All', count: recs.length, tone: 'blue' },
+              { value: 'QC Pending', label: 'Pending', count: pending.length, tone: 'amber' },
+              { value: 'inspected', label: 'Inspected', count: inspected.length, tone: 'green' },
+              { value: 'Rejections', label: 'With Rejections', count: withRej.length, tone: 'red' },
             ]}
           />
           <Search value={q} onChange={setQ} placeholder="Search job, product, inspector…" />
@@ -94,7 +94,7 @@ export function QCPage() {
                   const p = getProduct(state, job.productId);
                   const done = r.status !== 'QC Pending';
                   return (
-                    <tr key={r.id}>
+                    <tr key={r.id} className={rowTone(r.status)}>
                       <td>
                         <JobLink jobNo={r.jobNo} />
                       </td>

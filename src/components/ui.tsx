@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { fmtNum } from './format';
+import { useCountUp } from './motion';
 
 export type Icon = ComponentType<LucideProps>;
 
@@ -53,6 +54,28 @@ const TONE: Record<string, string> = {
 export function Badge({ status }: { status: string }) {
   return <span className={`badge ${TONE[status] ?? 'b-neutral'}`}>{status}</span>;
 }
+
+/** Colour families a filter chip or status rail can take. */
+export type Tone = 'neutral' | 'blue' | 'amber' | 'green' | 'red' | 'violet' | 'teal';
+
+/** Same meanings as Badge, expressed as a rail down the row's left edge. */
+const ROW_TONE: Record<string, string> = {
+  Pending: 'st-warn',
+  'In Progress': 'st-info',
+  Completed: 'st-good',
+  'QC Pending': 'st-warn',
+  Approved: 'st-good',
+  Rejected: 'st-bad',
+  'Partially Approved': 'st-orange',
+  'Ready for Dispatch': 'st-violet',
+  Dispatched: 'st-teal',
+  Available: 'st-good',
+  'Low Stock': 'st-warn',
+  Consumed: 'st-neutral',
+  Reserved: 'st-violet',
+  'Partially Dispatched': 'st-info',
+};
+export const rowTone = (status: string) => ROW_TONE[status] ?? 'st-neutral';
 
 export function Priority({ p }: { p: string }) {
   if (p === 'Normal') return <span className="chip">Normal</span>;
@@ -171,6 +194,8 @@ export function Kpi({
   trend?: ReactNode;
   onClick?: () => void;
 }) {
+  const isNum = typeof value === 'number';
+  const shown = useCountUp(isNum ? value : 0);
   const body = (
     <>
       <span className="kpi-icon">
@@ -178,7 +203,7 @@ export function Kpi({
       </span>
       {trend && <span className="kpi-trend">{trend}</span>}
       <div className="kpi-value">
-        {typeof value === 'number' ? fmtNum(value) : value}
+        {isNum ? fmtNum(shown) : value}
         {unit && <small>{value === 1 && unit !== 'PCS' && unit.endsWith('s') ? unit.slice(0, -1) : unit}</small>}
       </div>
       <div className="kpi-label">{label}</div>
@@ -293,12 +318,18 @@ export function Tabs<T extends string>({
 }: {
   value: T;
   onChange: (v: T) => void;
-  items: { value: T; label: string; count?: number }[];
+  items: { value: T; label: string; count?: number; tone?: Tone }[];
 }) {
   return (
     <div className="tabs" role="tablist">
       {items.map((it) => (
-        <button key={it.value} role="tab" className={`tab ${value === it.value ? 'active' : ''}`} onClick={() => onChange(it.value)}>
+        <button
+          key={it.value}
+          role="tab"
+          aria-selected={value === it.value}
+          className={`tab tone-${it.tone ?? 'neutral'} ${value === it.value ? 'active' : ''}`}
+          onClick={() => onChange(it.value)}
+        >
           {it.label}
           {it.count !== undefined && <span className="cnt">{it.count}</span>}
         </button>

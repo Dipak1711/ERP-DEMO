@@ -63,8 +63,10 @@ export default function App() {
   return (
     <StoreProvider>
       <Layout route={route}>
-        {/* key on full hash so pages reset their local filters/modals on navigation */}
-        <Page key={hash} route={route} query={query} navigate={navigate} />
+        {/* key on full hash so pages reset their local filters/modals on navigation, and replay the arrival */}
+        <div className="page-in" key={hash}>
+          <Page route={route} query={query} navigate={navigate} />
+        </div>
       </Layout>
       <TraceDrawer />
       <ActionHost />

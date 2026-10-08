@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ArrowRight, Eye, ScrollText, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { jobSummary, PROCESS_STAGES, STAGE_LABEL } from '../store/engine';
-import { Badge, Empty, JobLink, PageHeader, Priority, Search, Stepper, Tabs } from '../components/ui';
+import { Badge, Empty, JobLink, PageHeader, Priority, rowTone, Search, Stepper, Tabs } from '../components/ui';
 import { fmtDate, fmtDateTime, fmtNum, matches, plural } from '../components/format';
 
 // ------------------------------------------------------- Job Traceability ---
@@ -29,9 +29,9 @@ export function TraceabilityPage() {
             value={f}
             onChange={setF}
             items={[
-              { value: 'all', label: 'All jobs', count: state.jobs.length },
-              { value: 'wip', label: 'In production / FG', count: wip },
-              { value: 'done', label: 'Dispatched', count: state.jobs.filter((j) => j.currentStage === 'dispatched').length },
+              { value: 'all', label: 'All jobs', count: state.jobs.length, tone: 'blue' },
+              { value: 'wip', label: 'In production / FG', count: wip, tone: 'violet' },
+              { value: 'done', label: 'Dispatched', count: state.jobs.filter((j) => j.currentStage === 'dispatched').length, tone: 'teal' },
             ]}
           />
           <Search value={q} onChange={setQ} placeholder="Search job, product, customer, stage…" />
@@ -60,7 +60,7 @@ export function TraceabilityPage() {
               </thead>
               <tbody>
                 {rows.map((s) => (
-                  <tr key={s.job.jobNo}>
+                  <tr key={s.job.jobNo} className={rowTone(s.status)}>
                     <td>
                       <JobLink jobNo={s.job.jobNo} />
                       <div className="sub">{fmtDate(s.job.createdAt)}</div>
@@ -82,7 +82,7 @@ export function TraceabilityPage() {
                               {r.loss > 0 && <div className="sub loss">−{r.loss}</div>}
                             </>
                           ) : r ? (
-                            <span className="chip">{r.status === 'Pending' ? 'Waiting' : 'Running'}</span>
+                            <span className={r.status === 'Pending' ? 'chip chip-wait' : 'chip chip-run'}>{r.status === 'Pending' ? 'Waiting' : 'Running'}</span>
                           ) : (
                             <span className="muted">—</span>
                           )}
@@ -95,7 +95,7 @@ export function TraceabilityPage() {
                           <span className="gain">{s.qc.accepted}</span> / <span className={s.qc.rejected ? 'loss' : 'muted'}>{s.qc.rejected}</span>
                         </>
                       ) : s.qc ? (
-                        <span className="chip">Waiting</span>
+                        <span className="chip chip-wait">Waiting</span>
                       ) : (
                         <span className="muted">—</span>
                       )}

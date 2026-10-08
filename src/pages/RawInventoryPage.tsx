@@ -4,7 +4,7 @@ import { useStore } from '../store/StoreContext';
 import { addInward, lotAvailableWeight, lotStatus, materialKey } from '../store/engine';
 import { SUPPLIERS } from '../store/seed';
 import { findMaterial, MATERIAL_FAMILIES, MATERIAL_MASTER, pieceWeightKg, STANDARD_OD_MM } from '../store/materials';
-import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, Search, SummaryLine, Tabs } from '../components/ui';
+import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
 import { fmtDate, fmtDateTime, fmtKg, fmtNum, matches, todayISO } from '../components/format';
 
 type View = 'stock' | 'inward' | 'issues';
@@ -121,9 +121,9 @@ export function RawInventoryPage() {
             value={view}
             onChange={setView}
             items={[
-              { value: 'stock', label: 'Raw Material Stock', count: lots.length },
-              { value: 'inward', label: 'Inward Register', count: state.rawInwards.length },
-              { value: 'issues', label: 'Issues to Production', count: issues.length },
+              { value: 'stock', label: 'Raw Material Stock', count: lots.length, tone: 'blue' },
+              { value: 'inward', label: 'Inward Register', count: state.rawInwards.length, tone: 'violet' },
+              { value: 'issues', label: 'Issues to Production', count: issues.length, tone: 'amber' },
             ]}
           />
           <Search value={q} onChange={setQ} placeholder="Search material, supplier, lot, heat no…" />
@@ -162,7 +162,7 @@ export function RawInventoryPage() {
                 </thead>
                 <tbody>
                   {stockRows.map((l) => (
-                    <tr key={l.id}>
+                    <tr key={l.id} className={rowTone(lotStatus(l))}>
                       <td>
                         <div className="mono strong nowrap">{l.id}</div>
                         <div className="sub">Heat {l.heatNo}</div>

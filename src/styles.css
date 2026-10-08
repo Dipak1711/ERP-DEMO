@@ -631,3 +631,201 @@ select.filter { height: 40px; border: 1px solid var(--border); border-radius: 12
   .drawer { position: static; width: 100%; box-shadow: none; }
   .drawer-body { overflow: visible; }
 }
+
+/* ==========================================================================
+   Motion & depth
+   Product surface: motion only where it explains a change, a direction or a
+   live state. Nothing performs before the operator can work. Every effect is
+   switched off under prefers-reduced-motion (last block in this file).
+   ========================================================================== */
+:root {
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --card-rim: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+:root[data-theme='dark'] {
+  --card-rim: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+/* an authored canvas, tinted toward the brand, instead of a flat grey field */
+body {
+  background-image:
+    radial-gradient(1100px 620px at 6% -8%, color-mix(in srgb, var(--primary) 11%, transparent), transparent 68%),
+    radial-gradient(900px 560px at 102% -6%, color-mix(in srgb, var(--teal) 10%, transparent), transparent 66%),
+    radial-gradient(760px 520px at 58% 110%, color-mix(in srgb, var(--violet) 8%, transparent), transparent 70%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* ------------------------------------------------------------- surfaces --- */
+.card { box-shadow: var(--card-rim), var(--shadow-sm); }
+
+/* each stat card carries its own tone, so the strip reads as one instrument panel */
+.kpi {
+  background: radial-gradient(135% 105% at 100% 0%, var(--tone-bg, transparent) 0%, transparent 58%), var(--surface);
+  box-shadow: var(--card-rim), var(--shadow-sm);
+}
+.tone-blue .kpi-icon, .tone-amber .kpi-icon, .tone-green .kpi-icon,
+.tone-red .kpi-icon, .tone-violet .kpi-icon, .tone-teal .kpi-icon {
+  background: linear-gradient(140deg, var(--tone-bg), color-mix(in srgb, var(--tone-bg) 45%, var(--surface)));
+}
+button.kpi:hover { box-shadow: var(--card-rim), var(--shadow); }
+
+/* hand-rolled material cards cycle through the palette instead of one flat tone */
+.grid > .kpi:nth-child(6n + 1) { --tone: var(--primary); --tone-bg: var(--primary-50); }
+.grid > .kpi:nth-child(6n + 2) { --tone: var(--teal); --tone-bg: var(--teal-bg); }
+.grid > .kpi:nth-child(6n + 3) { --tone: var(--violet); --tone-bg: var(--violet-bg); }
+.grid > .kpi:nth-child(6n + 4) { --tone: var(--accent); --tone-bg: var(--accent-50); }
+.grid > .kpi:nth-child(6n + 5) { --tone: var(--good); --tone-bg: var(--good-bg); }
+.grid > .kpi:nth-child(6n + 6) { --tone: var(--info); --tone-bg: var(--info-bg); }
+
+/* -------------------------------------------------------- page arrival --- */
+@keyframes pageIn { from { opacity: 0; transform: translateY(9px); } }
+.page-in { animation: pageIn 0.28s var(--ease-out-quart); }
+
+/* the KPI strip powers on once, in step, then stays put */
+@keyframes riseIn { from { opacity: 0; transform: translateY(6px); } }
+.kpis > .kpi { animation: riseIn 0.34s var(--ease-out-quart) backwards; }
+.kpis > .kpi:nth-child(1) { animation-delay: 0.02s; }
+.kpis > .kpi:nth-child(2) { animation-delay: 0.05s; }
+.kpis > .kpi:nth-child(3) { animation-delay: 0.08s; }
+.kpis > .kpi:nth-child(4) { animation-delay: 0.11s; }
+.kpis > .kpi:nth-child(5) { animation-delay: 0.14s; }
+
+/* ----------------------------------------------------------- controls --- */
+.btn {
+  transition: background-color 0.14s var(--ease-out-quart), border-color 0.14s var(--ease-out-quart),
+    color 0.14s var(--ease-out-quart), box-shadow 0.14s var(--ease-out-quart), transform 0.12s var(--ease-out-quart);
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0) scale(0.975); }
+.btn:disabled { transform: none; }
+
+@keyframes tabIn { from { transform: scale(0.94); opacity: 0.5; } }
+.tab { transition: color 0.15s var(--ease-out-quart), background-color 0.2s var(--ease-out-quart), box-shadow 0.2s var(--ease-out-quart); }
+.tab.active { animation: tabIn 0.18s var(--ease-out-quart); }
+
+@keyframes navIn { from { transform: translateX(-5px); opacity: 0; } }
+.nav-item { transition: background-color 0.14s var(--ease-out-quart), color 0.14s var(--ease-out-quart), transform 0.14s var(--ease-out-quart); }
+.nav-item:hover { transform: translateX(2px); }
+.nav-item.active { animation: navIn 0.2s var(--ease-out-quart); }
+
+/* --------------------------------------------------- overlays & panels --- */
+@keyframes popIn { from { opacity: 0; transform: translateY(-7px) scale(0.97); } }
+.pop, .search-pop { animation: popIn 0.19s var(--ease-out-expo); transform-origin: top right; }
+
+@keyframes modalIn { from { opacity: 0; transform: translateY(16px) scale(0.965); } }
+.modal { animation: modalIn 0.26s var(--ease-out-expo); }
+
+@keyframes drawerIn { from { opacity: 0; transform: translateX(46px); } }
+.drawer { animation: drawerIn 0.3s var(--ease-out-expo); }
+
+@keyframes toastIn { from { opacity: 0; transform: translateX(-14px) scale(0.98); } }
+.toast { animation: toastIn 0.3s var(--ease-out-expo); }
+
+/* ------------------------------------------------ data changes shape --- */
+/* meters and bars draw out to their value, so size is felt not just read */
+@keyframes growX { from { transform: scaleX(0); } }
+.meter i, .meter-bar i, .bar-fill { transform-origin: left center; animation: growX 0.7s var(--ease-out-quart) both; }
+.bars .bar-row:nth-child(2) .bar-fill { animation-delay: 0.05s; }
+.bars .bar-row:nth-child(3) .bar-fill { animation-delay: 0.1s; }
+.bars .bar-row:nth-child(4) .bar-fill { animation-delay: 0.15s; }
+.bars .bar-row:nth-child(5) .bar-fill { animation-delay: 0.2s; }
+.stock-list .stock-row:nth-child(2) .meter i { animation-delay: 0.05s; }
+.stock-list .stock-row:nth-child(3) .meter i { animation-delay: 0.1s; }
+.stock-list .stock-row:nth-child(4) .meter i { animation-delay: 0.15s; }
+
+/* stages with work in them breathe — finite, so nothing blinks forever */
+@keyframes nodePulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  45% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--primary) 16%, transparent); }
+}
+.flow-node.flowing .flow-ic { animation: nodePulse 1.6s var(--ease-out-quart) 3; }
+.flow-node:active .flow-ic { transform: translateY(-1px) scale(0.97); }
+
+/* the live pill confirms itself on arrival, then rests on its green dot */
+@keyframes livePulse {
+  0%, 100% { border-color: var(--border); box-shadow: var(--shadow-sm); }
+  50% { border-color: color-mix(in srgb, var(--good) 42%, var(--border)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--good) 12%, transparent); }
+}
+.live { animation: livePulse 2.2s ease-in-out 2; }
+
+/* ==========================================================================
+   Tables & filters
+   Every register table carries meaning in its colour: a status rail down the
+   left edge, and filter chips whose tone matches what they filter for.
+   ========================================================================== */
+
+/* ---- tone tokens for filter chips.
+   The ink colours are the ones this codebase already uses for text on a tint,
+   so count badges and the active label stay readable in both themes. ---- */
+.tab.tone-neutral { --tone-bg: var(--neutral-bg); --tone-ink: var(--text-2); }
+.tab.tone-blue { --tone-bg: var(--primary-50); --tone-ink: var(--primary-ink); }
+.tab.tone-amber { --tone-bg: var(--accent-50); --tone-ink: var(--accent-ink); }
+.tab.tone-green { --tone-bg: var(--good-bg); --tone-ink: var(--good-ink); }
+.tab.tone-red { --tone-bg: var(--crit-bg); --tone-ink: var(--crit-ink); }
+.tab.tone-violet { --tone-bg: var(--violet-bg); --tone-ink: var(--violet); }
+.tab.tone-teal { --tone-bg: var(--teal-bg); --tone-ink: #0f766e; }
+:root[data-theme='dark'] .tab.tone-teal { --tone-ink: var(--teal); }
+
+/* ---- filter chips: tone-tinted counts, ink label and ring when active ---- */
+.tab { background: transparent; color: var(--text-2); }
+.tab .cnt { background: var(--tone-bg, var(--neutral-bg)); color: var(--tone-ink, var(--text-2)); font-weight: 700; }
+.tab:hover { background: var(--tone-bg, var(--surface-3)); color: var(--tone-ink, var(--text)); }
+.tab.active {
+  background: var(--surface); color: var(--tone-ink, var(--text)); font-weight: 700;
+  box-shadow: inset 0 0 0 1.5px var(--tone-ink, var(--primary)), 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+.tab.active .cnt { background: var(--tone-ink, var(--primary)); color: var(--surface); }
+
+/* ---- register tables ---- */
+.tbl thead th {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 7%, var(--surface-2)), var(--surface-2));
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--text-2);
+}
+.tbl tbody tr { --row-tone: transparent; }
+.tbl tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--surface-2) 60%, transparent); }
+.tbl tbody tr.st-neutral { --row-tone: var(--border-strong); }
+.tbl tbody tr.st-info { --row-tone: var(--primary); }
+.tbl tbody tr.st-good { --row-tone: var(--good); }
+.tbl tbody tr.st-warn { --row-tone: var(--accent); }
+.tbl tbody tr.st-orange { --row-tone: var(--serious); }
+.tbl tbody tr.st-bad { --row-tone: var(--crit); }
+.tbl tbody tr.st-violet { --row-tone: var(--violet); }
+.tbl tbody tr.st-teal { --row-tone: var(--teal); }
+.tbl tbody tr td:first-child { box-shadow: inset 3px 0 0 var(--row-tone); }
+:root[data-theme='dark'] .tbl tbody tr td:first-child { box-shadow: inset 4px 0 0 var(--row-tone); }
+.tbl tbody tr.st-bad td { background: color-mix(in srgb, var(--crit) 6%, var(--surface)); }
+.tbl tbody tr:hover td { background: color-mix(in srgb, var(--primary) 7%, var(--surface-2)); }
+
+/* ---- status chips used inside tables ---- */
+.chip-wait { background: var(--warn-bg); color: var(--warn-ink); }
+.chip-run { background: var(--info-bg); color: var(--info); }
+.chip-skip { background: var(--violet-bg); color: var(--violet); }
+
+/* ---- nested tables inside the trace drawer ---- */
+.mini-tbl thead th {
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border-strong);
+}
+.mini-tbl tbody tr:hover td { background: color-mix(in srgb, var(--primary) 6%, transparent); }
+.bag-tbl tbody tr:hover td { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+
+/* ---- the product filter reads as a control, not a bare dropdown ---- */
+.filter-wrap { position: relative; display: inline-flex; align-items: center; }
+.filter-wrap > svg { position: absolute; left: 12px; color: var(--primary); pointer-events: none; }
+select.filter { padding-left: 34px; border-color: var(--primary-100); background: var(--primary-50); color: var(--primary-ink); font-weight: 600; }
+select.filter:hover { border-color: var(--primary); }
+select.filter:focus-visible { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-50); }
+
+/* ======================================================= reduced motion === */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

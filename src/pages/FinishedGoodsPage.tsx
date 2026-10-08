@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Eye, PackageCheck, Truck } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { fgAvailable, fgStatus, fgWeight, getJob, getProduct } from '../store/engine';
-import { Badge, Empty, JobLink, PageHeader, Search, SummaryLine, Tabs } from '../components/ui';
+import { Badge, Empty, JobLink, PageHeader, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
 import { fmtDate, fmtKg, fmtNum, matches } from '../components/format';
 
 type Filter = 'stock' | 'dispatched' | 'all';
@@ -106,9 +106,9 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
             value={filter}
             onChange={setFilter}
             items={[
-              { value: 'all', label: 'All', count: fgs.length },
-              { value: 'stock', label: 'In Stock', count: inStock.length },
-              { value: 'dispatched', label: 'Fully Dispatched', count: fgs.length - inStock.length },
+              { value: 'all', label: 'All', count: fgs.length, tone: 'blue' },
+              { value: 'stock', label: 'In Stock', count: inStock.length, tone: 'green' },
+              { value: 'dispatched', label: 'Fully Dispatched', count: fgs.length - inStock.length, tone: 'teal' },
             ]}
           />
           <Search value={q} onChange={setQ} placeholder="Search lot, job, product…" />
@@ -138,7 +138,7 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
                   const p = getProduct(state, f.productId);
                   const a = fgAvailable(f);
                   return (
-                    <tr key={f.id}>
+                    <tr key={f.id} className={rowTone(fgStatus(f))}>
                       <td>
                         <div className="mono strong">{f.id}</div>
                         <div className="sub">{f.location}</div>

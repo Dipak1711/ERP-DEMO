@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Eye, PenLine, Play, Plus, Waypoints } from 'lucide-react';
+import { CheckCircle2, Eye, PenLine, Play, Plus, SlidersHorizontal, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { completeStage, getJob, getProduct, parseMaterialKey, PROCESS_STAGES, STAGE_LABEL, stageRecords } from '../store/engine';
 import type { ProcessStage, StageRecord } from '../store/types';
 import { OPERATORS } from '../store/seed';
-import { Badge, Empty, Field, FLOW_STEPS, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, Search, SummaryLine, Tabs } from '../components/ui';
+import { Badge, Empty, Field, FLOW_STEPS, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
 import { FifoPreview, tsFor } from '../components/NewJobModal';
 import { nextStep } from '../components/workflow';
 import { fmtNum, matches, todayISO } from '../components/format';
@@ -102,20 +102,23 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
             value={filter}
             onChange={setFilter}
             items={[
-              { value: 'all', label: 'All', count: recs.length },
-              { value: 'Pending', label: 'Pending', count: pending.length },
-              { value: 'Completed', label: 'Completed', count: done.length },
+              { value: 'all', label: 'All', count: recs.length, tone: 'blue' },
+              { value: 'Pending', label: 'Pending', count: pending.length, tone: 'amber' },
+              { value: 'Completed', label: 'Completed', count: done.length, tone: 'green' },
             ]}
           />
           <Search value={q} onChange={setQ} placeholder="Search job, product, customer, machine…" />
-          <select className="filter" value={productF} onChange={(e) => setProductF(e.target.value)}>
-            <option value="">All products</option>
-            {state.products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          <span className="filter-wrap">
+            <SlidersHorizontal size={15} />
+            <select className="filter" value={productF} onChange={(e) => setProductF(e.target.value)} aria-label="Filter by product">
+              <option value="">All products</option>
+              {state.products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </span>
         </div>
         {rows.length === 0 ? (
           <Empty
@@ -166,7 +169,7 @@ function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
   const p = getProduct(state, job.productId);
   const mat = parseMaterialKey(job.materialKey);
   return (
-    <tr>
+    <tr className={rowTone(r.status === 'Completed' ? 'Completed' : 'Pending')}>
       <td>
         <JobLink jobNo={r.jobNo} />
       </td>
@@ -182,7 +185,7 @@ function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
       {r.stage === 'heatTreatment' && <td className="r strong nowrap">{r.params.temperature}°C</td>}
       <td>
         {r.params.skipped ? (
-          <span className="chip">Not required — skipped</span>
+          <span className="chip chip-skip">Not required — skipped</span>
         ) : r.status === 'Completed' ? (
           <InlineQty input={r.input} loss={r.loss} output={r.output} />
         ) : (
@@ -357,7 +360,7 @@ function UpstreamJobs({ jobNos }: { jobNos: string[] }) {
               const rec = stageRecords(state, st).find((r) => r.jobNo === jobNo && r.status !== 'Completed');
               const n = nextStep(state, jobNo);
               return (
-                <tr key={jobNo}>
+                <tr key={jobNo} className={rowTone('Pending')}>
                   <td>
                     <JobLink jobNo={jobNo} />
                   </td>
