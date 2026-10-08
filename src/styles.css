@@ -457,14 +457,6 @@ select.filter { height: 40px; border: 1px solid var(--border); border-radius: 12
 .toast .icon-btn { width: 26px; height: 26px; margin-left: auto; flex-shrink: 0; }
 
 /* ============================================================= dashboard */
-.guide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 22px; align-items: center; padding: 18px 22px; margin-bottom: 24px; background: linear-gradient(110deg, var(--primary-50), var(--surface) 75%); border: 1px solid var(--primary-100); border-radius: var(--radius); }
-.guide .gt { font-weight: 800; font-size: 15.5px; grid-column: 1 / 3; }
-.guide .gt small { display: block; font-weight: 500; color: var(--text-3); font-size: 12.5px; margin-top: 3px; }
-.guide-step { display: flex; gap: 12px; align-items: center; min-width: 0; }
-.guide-step .gn { width: 34px; height: 34px; border-radius: 11px; background: var(--primary); color: #fff; font-weight: 800; display: grid; place-items: center; flex-shrink: 0; font-size: 14px; }
-.guide-step b { font-size: 13.5px; display: block; }
-.guide-step span { font-size: 12.5px; color: var(--text-3); }
-.guide .ga { display: flex; gap: 8px; align-items: center; justify-content: flex-end; grid-column: 3; grid-row: 1; }
 
 .flow { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); padding: 14px 18px 22px; }
 .flow-node { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 6px; cursor: pointer; border: 0; background: none; font: inherit; color: inherit; }
@@ -482,9 +474,6 @@ select.filter { height: 40px; border: 1px solid var(--border); border-radius: 12
 .flow-qty small { font-size: 11px; color: var(--text-3); font-weight: 600; margin-left: 2px; }
 .flow-sub { font-size: 11.5px; color: var(--text-3); margin-top: 2px; line-height: 1.35; }
 .flow-loss { font-size: 11px; font-weight: 700; color: var(--crit); margin-top: 5px; background: var(--crit-bg); padding: 2px 8px; border-radius: 999px; }
-.flow-legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-3); padding: 14px 22px 18px; border-top: 1px solid var(--border); }
-.flow-legend span { display: inline-flex; gap: 7px; align-items: center; }
-.flow-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 
 .dash-grid-3 > * { min-width: 0; }
 .dash-grid-3 { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
@@ -580,12 +569,6 @@ select.filter { height: 40px; border: 1px solid var(--border); border-radius: 12
 .bag { border: 1px solid var(--border); border-radius: 10px; padding: 7px 9px; font-size: 11.5px; background: var(--surface-2); }
 .bag b { display: block; font-size: 12.5px; }
 
-/* =========================================================== phase 2 === */
-.ext-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-.ext { border: 1px dashed var(--border-strong); border-radius: 14px; padding: 14px 16px; background: var(--surface-2); }
-.ext b { display: flex; gap: 8px; align-items: center; font-size: 13.5px; }
-.ext p { margin: 5px 0 0; font-size: 12.5px; color: var(--text-3); line-height: 1.45; }
-
 /* ============================================================ responsive */
 @media (max-width: 1400px) {
   .dash-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -612,8 +595,6 @@ select.filter { height: 40px; border: 1px solid var(--border); border-radius: 12
   .toasts, .app.mini ~ .toasts { left: 16px; }
   .trace-sum { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .page-head h1 { font-size: 30px; }
-  .guide { grid-template-columns: minmax(0, 1fr); }
-  .guide .gt, .guide .ga { grid-column: auto; grid-row: auto; justify-content: flex-start; }
 }
 @media (max-width: 640px) {
   .form-grid, .form-grid.three { grid-template-columns: minmax(0, 1fr); }

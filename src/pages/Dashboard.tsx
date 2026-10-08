@@ -4,12 +4,10 @@ import {
   ArrowDownToLine,
   ChevronRight,
   Boxes,
-  CalendarRange,
   CheckCircle2,
   ClipboardCheck,
   Crop,
   Factory,
-  FileText,
   Flame,
   Hammer,
   PackageCheck,
@@ -18,8 +16,6 @@ import {
   Scissors,
   ShieldCheck,
   Truck,
-  Wrench,
-  X,
   XCircle,
 } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -43,21 +39,6 @@ const FEED_ICON: Record<Activity['kind'], typeof Play> = {
 export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
   const { state, openTrace, openAction } = useStore();
   const [showAll, setShowAll] = useState(false);
-  const [guide, setGuide] = useState(() => {
-    try {
-      return localStorage.getItem('forgeflow.guide') !== 'hidden';
-    } catch {
-      return true;
-    }
-  });
-  const hideGuide = () => {
-    setGuide(false);
-    try {
-      localStorage.setItem('forgeflow.guide', 'hidden');
-    } catch {
-      /* not remembered — fine */
-    }
-  };
   const waiting = pendingSteps(state).length;
 
   const d = useMemo(() => {
@@ -134,7 +115,6 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
     { label: 'QC Rejection', loss: d.qc.rej, input: d.qc.input },
   ];
   const maxLoss = Math.max(1, ...lossRows.map((r) => r.loss));
-  const totalLoss = lossRows.reduce((t, r) => t + r.loss, 0);
 
   const rawGroups = useMemo(() => {
     const m = new Map<string, { label: string; od: number; qty: number; inward: number }>();
@@ -148,14 +128,11 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
     return [...m.values()];
   }, [state.rawMaterials]);
 
-  const now = new Date();
-
   return (
     <>
       <PageHeader
         eyebrow="Main Menu"
         title="Dashboard"
-        subtitle={`Real-time production status of the forging & casting plant — ${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}.`}
         actions={
           <>
             <span className="live">
@@ -167,44 +144,6 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
           </>
         }
       />
-
-      {guide && (
-        <div className="guide">
-          <div className="gt">
-            How the flow works
-            <small>Every job keeps one number from raw material to dispatch</small>
-          </div>
-          <div className="ga">
-            <button className="btn btn-soft" onClick={() => openAction({ kind: 'newJob' })}>
-              Try it <ChevronRight size={15} />
-            </button>
-            <button className="icon-btn" onClick={hideGuide} title="Hide guide" aria-label="Hide guide">
-              <X size={16} />
-            </button>
-          </div>
-          <div className="guide-step">
-            <span className="gn">1</span>
-            <div>
-              <b>Create a job</b>
-              <span>Raw material is issued oldest-lot-first (FIFO)</span>
-            </div>
-          </div>
-          <div className="guide-step">
-            <span className="gn">2</span>
-            <div>
-              <b>Process each stage</b>
-              <span>Enter loss — output moves on automatically</span>
-            </div>
-          </div>
-          <div className="guide-step">
-            <span className="gn">3</span>
-            <div>
-              <b>QC, then dispatch</b>
-              <span>Accepted qty becomes finished goods, then ships</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="kpis k4">
         <Kpi label="Raw Material Stock" value={d.rawQty} unit="PCS" hint={fmtKg(Math.round(d.rawKg * 10) / 10)} icon={Boxes} tone="blue" onClick={() => navigate('raw-inventory')} />
@@ -225,7 +164,6 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
         <div className="card-head">
           <div>
             <h3>Production Flow — Raw Material to Dispatch</h3>
-            <div className="sub">Quantity currently at each stage. Output of every stage becomes the input of the next; loss is recorded where it happens.</div>
           </div>
           <div className="right">
             <span className="chip">Output = Input − Loss</span>
@@ -254,17 +192,6 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
             );
           })}
         </div>
-        <div className="flow-legend">
-          <span>
-            <i style={{ background: 'var(--primary)' }} /> Big number = PCS currently at the stage (WIP / stock)
-          </span>
-          <span>
-            <i style={{ background: 'var(--accent)' }} /> Orange badge = jobs at the stage
-          </span>
-          <span>
-            <i style={{ background: 'var(--crit)' }} /> Red = cumulative loss / rejection at the stage
-          </span>
-        </div>
       </div>
 
       {/* ---------------- Jobs ---------------- */}
@@ -273,7 +200,6 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
           <div className="card-head">
             <div>
               <h3>{showAll ? 'All Production Jobs' : 'Active Production Jobs'}</h3>
-              <div className="sub">Different jobs run at different stages in parallel — click a job number for its full journey</div>
             </div>
             <div className="right">
               <button className="btn btn-sm" onClick={() => setShowAll((x) => !x)}>
@@ -356,7 +282,6 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
           <div className="card-head">
             <div>
               <h3>Recent Activity</h3>
-              <div className="sub">Shop-floor events, newest first</div>
             </div>
             <div className="right">
               <ActivityIcon size={16} className="muted" />
@@ -395,7 +320,6 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
           <div className="card-head">
             <div>
               <h3>Loss / Rejection by Stage</h3>
-              <div className="sub">Completed batches · {fmtNum(totalLoss)} PCS lost in total</div>
             </div>
           </div>
           <div className="card-body">
@@ -430,7 +354,6 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
           <div className="card-head">
             <div>
               <h3>Raw Material Position</h3>
-              <div className="sub">Available stock by material &amp; OD</div>
             </div>
             <div className="right">
               <button className="btn btn-sm" onClick={() => navigate('raw-inventory')}>
@@ -462,32 +385,6 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
                 <div className="meter">
                   <i style={{ width: `${(g.qty / g.inward) * 100}%` }} />
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-head">
-          <div>
-            <h3>Built to Extend — Phase 2 Modules</h3>
-            <div className="sub">The same job-number backbone will carry these modules in the full implementation</div>
-          </div>
-        </div>
-        <div className="card-body">
-          <div className="ext-grid">
-            {[
-              { i: Wrench, t: 'Die & Tool Management', d: 'Die life, shot count and Tool History Card linked to each forging job.' },
-              { i: CalendarRange, t: 'Production Planning', d: 'Order-wise planning, machine loading and raw-material requirement.' },
-              { i: FileText, t: 'Control Plan & PFC', d: 'Process Flow Chart and Control Plan per product, referenced at each stage.' },
-              { i: ClipboardCheck, t: 'Dimension Reports', d: 'Dimensional inspection reports attached to QC of every job.' },
-            ].map((x) => (
-              <div className="ext" key={x.t}>
-                <b>
-                  <x.i size={15} /> {x.t}
-                </b>
-                <p>{x.d}</p>
               </div>
             ))}
           </div>
