@@ -16,13 +16,21 @@ npm run build        # production build in dist/
 npm run test:engine  # headless checks of the quantity engine (runs the worked example below)
 ```
 
-## Starting data
+## Starting data (presentation sample)
 
-The app starts with **master data only: no raw-material stock and no jobs**.
+The app opens with a ready-made sample, so a client sees every screen filled. It is entered through the same rules as real entries (`src/store/sample.ts`):
 
-- **Kept for the dropdowns:** the product master (9084 Flange, Brass Bush, Copper Component, Aluminium Forged Component) and the raw-material categories (EN8 Steel Round Bar OD 50, Brass Round Bar OD 45, Copper Round Bar OD 30, Aluminium Round Bar OD 25). Customer, supplier, machine, operator and inspector lists are also kept.
-- **Entered by you:** every raw-material inward, job, stage entry, QC result and dispatch.
-- **Clear all data** (bottom of the sidebar) deletes all stock and jobs. Masters are kept.
+| Job | Item | Where it is |
+|---|---|---|
+| 0001 | 9084 Flange, 1,000 to cut | **Fully dispatched**, copied from the paper route card: 1,030 cut, Trimming not required, 10 bags, GJ13AX3059 |
+| 0002 | Brass Bush | Finished Goods: 200 PCS dispatched, 188 waiting |
+| 0003 | Aluminium Component | Waiting at QC |
+| 0004 | 9084 Flange | Waiting at Heat Treatment (its raw material came from two lots, FIFO) |
+| 0005 | Copper Component | Waiting at Forging |
+| 0006 | Brass Bush | New job card, waiting at Cutting |
+
+- **Load sample data** (sidebar) brings this back at any time.
+- **Clear all data** empties stock and jobs (masters kept) for a hands-on walkthrough.
 
 ## Raw material master
 

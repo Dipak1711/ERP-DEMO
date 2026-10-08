@@ -10,14 +10,16 @@
 //   forgeflow.v1.trimming        forgeflow.v1.meta   ({ seededAt, version })
 //   forgeflow.v1.heatTreatment
 //
-// VERSION 3 starts with master data only — no raw stock and no jobs. A browser
-// still holding older data (demo jobs or opening stock) is reset automatically.
+// VERSION 4 opens with the presentation sample (see sample.ts). A browser still
+// holding older data is switched to it automatically. "Clear all data" empties
+// everything except the masters; "Load sample data" brings the sample back.
 // ---------------------------------------------------------------------------
 import { buildSeed, emptyState } from './seed';
+import { buildSample } from './sample';
 import type { CollectionKey, ERPState } from './types';
 
 const PREFIX = 'forgeflow.v1.';
-const VERSION = 3;
+const VERSION = 4;
 const KEYS = Object.keys(emptyState()) as CollectionKey[];
 
 function safeGet(key: string): string | null {
@@ -53,7 +55,7 @@ export function loadState(): ERPState {
       /* corrupted or older version — fall through to a fresh start */
     }
   }
-  return resetState();
+  return sampleState();
 }
 
 /** Writes only the collections whose reference changed. */
@@ -63,12 +65,17 @@ export function saveState(next: ERPState, prev?: ERPState) {
   }
 }
 
-export function resetState(): ERPState {
-  const s = buildSeed();
+function replaceWith(s: ERPState): ERPState {
   saveState(s);
   safeSet(PREFIX + 'meta', JSON.stringify({ version: VERSION, seededAt: new Date().toISOString() }));
   return s;
 }
+
+/** Empty plant: masters only, no stock and no jobs. */
+export const resetState = () => replaceWith(buildSeed());
+
+/** Presentation sample: stock, six jobs at different stages, dispatches. */
+export const sampleState = () => replaceWith(buildSample());
 
 export function seededAt(): string | null {
   try {

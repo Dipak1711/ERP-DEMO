@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ERPError } from './engine';
-import { loadState, resetState, saveState } from './storage';
+import { loadState, resetState, sampleState, saveState } from './storage';
 import type { ERPState, ProcessStage } from './types';
 
 /** A shop-floor action that opens its form wherever the user is (page, dashboard, drawer, bell menu). */
@@ -23,6 +23,7 @@ interface StoreValue {
   /** Runs an engine mutation on a draft copy; persists on success, toasts on error. Returns true on success. */
   run: (fn: (draft: ERPState, ts: string) => void, success?: { title: string; message?: string }) => boolean;
   reset: () => void;
+  loadSample: () => void;
   toast: (t: Omit<Toast, 'id'>) => void;
   toasts: Toast[];
   dismiss: (id: number) => void;
@@ -92,9 +93,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     toast({ kind: 'info', title: 'All data cleared', message: 'Raw material stock and all jobs have been removed. Products and other masters are kept.' });
   }, [toast]);
 
+  const loadSample = useCallback(() => {
+    setState(sampleState());
+    setTraceJob(null);
+    setAction(null);
+    toast({ kind: 'info', title: 'Sample data loaded', message: 'Six jobs at different stages, with stock and dispatches.' });
+  }, [toast]);
+
   const value = useMemo(
-    () => ({ state, run, reset, toast, toasts, dismiss, traceJob, openTrace: setTraceJob, action, openAction: setAction }),
-    [state, run, reset, toast, toasts, dismiss, traceJob, action],
+    () => ({ state, run, reset, loadSample, toast, toasts, dismiss, traceJob, openTrace: setTraceJob, action, openAction: setAction }),
+    [state, run, reset, loadSample, toast, toasts, dismiss, traceJob, action],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

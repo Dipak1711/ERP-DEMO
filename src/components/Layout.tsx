@@ -4,6 +4,7 @@ import {
   Bell,
   ChevronDown,
   ClipboardList,
+  Database,
   Factory,
   LayoutGrid,
   Moon,
@@ -71,11 +72,12 @@ function useOutside(ref: React.RefObject<HTMLElement>, open: boolean, close: () 
 }
 
 export function Layout({ route, children }: { route: string; children: ReactNode }) {
-  const { state, reset } = useStore();
+  const { state, reset, loadSample } = useStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mini, setMini] = useState(() => readLS('forgeflow.sidebar') === 'mini');
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmSample, setConfirmSample] = useState(false);
   const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') ?? 'light');
 
   useEffect(() => {
@@ -160,6 +162,10 @@ export function Layout({ route, children }: { route: string; children: ReactNode
             <span className="dot" />
             <span className="t">Data saved in this browser</span>
           </div>
+          <button className="btn btn-sm btn-side" style={{ marginBottom: 8 }} onClick={() => setConfirmSample(true)} title="Load sample data">
+            <Database size={14} />
+            <span className="t">Load sample data</span>
+          </button>
           <button className="btn btn-sm btn-side" onClick={() => setConfirmReset(true)} title="Clear all data">
             <RotateCcw size={14} />
             <span className="t">Clear all data</span>
@@ -196,6 +202,14 @@ export function Layout({ route, children }: { route: string; children: ReactNode
         <main className="content">{children}</main>
       </div>
 
+      <Confirm
+        open={confirmSample}
+        title="Load sample data?"
+        message="Current entries are replaced by a ready-made example: raw material stock and six jobs at different stages — one fully dispatched like the paper route card, others waiting at Cutting, Forging, Heat Treatment, QC and Finished Goods."
+        confirmLabel="Load sample data"
+        onConfirm={loadSample}
+        onClose={() => setConfirmSample(false)}
+      />
       <Confirm
         open={confirmReset}
         title="Clear all data?"
