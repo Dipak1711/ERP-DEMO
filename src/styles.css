@@ -215,13 +215,22 @@ a { color: var(--primary); text-decoration: none; }
 .live { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; color: var(--good); background: var(--surface); border: 1px solid var(--border); padding: 9px 16px; border-radius: 999px; box-shadow: var(--shadow-sm); white-space: nowrap; }
 
 /* previous / next stage buttons under the page title */
-.step-nav { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
-.step-link { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px 8px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; text-align: left; color: var(--text); box-shadow: var(--shadow-sm); transition: border-color 0.12s, background 0.12s; }
-.step-link.next { padding: 8px 10px 8px 14px; }
+.step-nav { display: flex; gap: 8px; flex-wrap: wrap; }
+.sumline { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.sum { display: inline-flex; align-items: baseline; gap: 5px; padding: 6px 12px; border-radius: 999px; background: var(--surface-3); color: var(--text-2); font-size: 12.5px; font-weight: 500; white-space: nowrap; }
+.sum b { color: var(--text); font-size: 14px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.sum.good { background: var(--good-bg); }
+.sum.good b { color: var(--good); }
+.sum.bad { background: var(--crit-bg); }
+.sum.bad b { color: var(--crit); }
+.sum.info { background: var(--primary-50); }
+.sum.info b { color: var(--primary); }
+.step-link { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px 0 8px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; text-align: left; color: var(--text); box-shadow: var(--shadow-sm); transition: border-color 0.12s, background 0.12s; }
+.step-link.next { padding: 0 8px 0 12px; }
 .step-link:hover { border-color: var(--primary-100); background: var(--primary-50); }
 .step-link svg { color: var(--primary); }
-.step-link span { display: flex; flex-direction: column; font-weight: 650; font-size: 13.5px; line-height: 1.25; }
-.step-link small { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.step-link span { display: flex; flex-direction: column; font-weight: 650; font-size: 13px; line-height: 1.2; }
+.step-link small { font-size: 10px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
 
 /* =============================================================== buttons */
 .btn {

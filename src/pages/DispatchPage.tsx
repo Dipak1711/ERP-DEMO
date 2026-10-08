@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarCheck, Eye, FileText, Info, PackageOpen, Plus, Printer, Truck } from 'lucide-react';
+import { Eye, FileText, Info, PackageOpen, Plus, Printer, Truck } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { createDispatch, fgAvailable, getJob, getProduct, isToday, markDispatched, planBags, round3 } from '../store/engine';
 import type { Dispatch } from '../store/types';
 import { CUSTOMERS } from '../store/seed';
-import { Badge, Empty, Field, JobLink, Kpi, Modal, NumInput, PageHeader, Search, Tabs } from '../components/ui';
+import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, Search, SummaryLine, Tabs } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
 import { fmtDate, fmtKg, fmtNum, matches, todayISO } from '../components/format';
 
@@ -40,7 +40,6 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
       <PageHeader
         eyebrow="Workflow · Step 8 of 8"
         title="Dispatch"
-        subtitle="Final stage. Dispatch finished goods by job, with vehicle number and bag-level quantity / weight for full delivery traceability. Finished Goods stock reduces on dispatch."
         flow="dispatched"
         actions={
           <button className="btn btn-primary" onClick={() => newDispatch()}>
@@ -48,19 +47,22 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
           </button>
         }
       />
-      <div className="kpis compact">
-        <Kpi label="Today's Dispatch" value={today.reduce((t, d) => t + d.qty, 0)} unit="PCS" hint={`${today.length} dispatch${today.length === 1 ? '' : 'es'} · ${new Set(today.map((d) => d.vehicleNo)).size} vehicle${new Set(today.map((d) => d.vehicleNo)).size === 1 ? '' : 's'}`} icon={CalendarCheck} tone="teal" onClick={() => setFilter('today')} />
-        <Kpi label="Ready for Dispatch" value={ready.reduce((t, d) => t + d.qty, 0)} unit="PCS" hint={`${ready.length} packed, awaiting vehicle`} icon={PackageOpen} tone="violet" onClick={() => setFilter('Ready for Dispatch')} />
-        <Kpi label="Total Dispatched" value={shipped.reduce((t, d) => t + d.qty, 0)} unit="PCS" hint={fmtKg(round3(shipped.reduce((t, d) => t + d.weight, 0)))} icon={Truck} tone="blue" onClick={() => setFilter('Dispatched')} />
-        <Kpi label="FG Available to Dispatch" value={fgAvail} unit="PCS" hint="From Finished Goods" icon={Info} tone="green" />
-      </div>
-
       <div className="card">
         <div className="card-head">
           <div>
             <h3>Dispatch Register</h3>
-            <div className="sub">Every dispatch is linked to its job number and finished-goods lot</div>
           </div>
+          {(ds.length > 0 || fgAvail > 0) && (
+            <div className="right">
+              <SummaryLine
+                items={[
+                  { label: 'PCS dispatched today', value: fmtNum(today.reduce((t, d) => t + d.qty, 0)), tone: 'good' },
+                  { label: `PCS dispatched in total (${fmtKg(round3(shipped.reduce((t, d) => t + d.weight, 0)))})`, value: fmtNum(shipped.reduce((t, d) => t + d.qty, 0)) },
+                  { label: 'PCS in FG to dispatch', value: fmtNum(fgAvail), tone: 'info' },
+                ]}
+              />
+            </div>
+          )}
         </div>
         <div className="toolbar">
           <Tabs

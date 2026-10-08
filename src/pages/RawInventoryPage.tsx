@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, ArrowDownToLine, Boxes, Layers, PackagePlus, Scale, Send } from 'lucide-react';
+import { ArrowDownToLine, Boxes, Layers, PackagePlus, Send } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { addInward, fifoLots, lotAvailableWeight, lotStatus, materialKey } from '../store/engine';
 import { SUPPLIERS } from '../store/seed';
 import { findMaterial, MATERIAL_FAMILIES, MATERIAL_MASTER, pieceWeightKg, STANDARD_OD_MM } from '../store/materials';
-import { Badge, Empty, Field, JobLink, Kpi, Modal, NumInput, PageHeader, Search, Tabs } from '../components/ui';
-import { fmtDate, fmtDateTime, fmtKg, fmtNum, matches, plural, todayISO } from '../components/format';
+import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, Search, SummaryLine, Tabs } from '../components/ui';
+import { fmtDate, fmtDateTime, fmtKg, fmtNum, matches, todayISO } from '../components/format';
 
 type View = 'stock' | 'inward' | 'issues';
 
@@ -49,7 +49,6 @@ export function RawInventoryPage() {
       <PageHeader
         eyebrow="Workflow · Step 1 of 8"
         title="Raw Inventory"
-        subtitle="Round-bar raw material tracked lot-wise by material, OD / size, quantity and weight, with supplier and inward details. Material is issued to Cutting on a FIFO basis and stock reduces automatically."
         flow="raw"
         actions={
           <button className="btn btn-primary" onClick={() => openAction({ kind: 'inward' })}>
@@ -57,20 +56,22 @@ export function RawInventoryPage() {
           </button>
         }
       />
-      <div className="kpis compact">
-        <Kpi label="Raw Material Stock" value={totalQty} unit="PCS" hint={`${plural(lots.filter((l) => l.availableQty > 0).length, 'lot')} in stock`} icon={Boxes} tone="blue" />
-        <Kpi label="Stock Weight" value={fmtNum(Math.round(totalKg * 10) / 10)} unit="KG" hint="Available weight" icon={Scale} tone="teal" />
-        <Kpi label="Material / Size Variants" value={groups.length} unit="SKUs" hint="Material × OD" icon={Layers} tone="violet" />
-        <Kpi label="Issued to Production" value={issuedQty} unit="PCS" hint={`${plural(issues.length, 'FIFO issue')}`} icon={Send} tone="amber" onClick={() => setView('issues')} />
-        <Kpi label="Low Stock Lots" value={low.length} unit="lots" hint="Below 20% of inward" icon={AlertTriangle} tone="red" />
-      </div>
-
       <div className="card mb">
         <div className="card-head">
           <div>
             <h3>Stock by Material &amp; OD</h3>
-            <div className="sub">Click a material to filter the lot table</div>
           </div>
+          {lots.length > 0 && (
+            <div className="right">
+              <SummaryLine
+                items={[
+                  { label: `PCS in stock (${fmtNum(Math.round(totalKg * 10) / 10)} KG)`, value: fmtNum(totalQty), tone: 'info' },
+                  { label: 'PCS issued to production', value: fmtNum(issuedQty) },
+                  ...(low.length ? [{ label: low.length === 1 ? 'lot low on stock' : 'lots low on stock', value: low.length, tone: 'bad' as const }] : []),
+                ]}
+              />
+            </div>
+          )}
         </div>
         <div className="card-body">
           {groups.length === 0 && (
@@ -168,7 +169,7 @@ export function RawInventoryPage() {
                   {stockRows.map((l) => (
                     <tr key={l.id}>
                       <td>
-                        <div className="mono strong">{l.id}</div>
+                        <div className="mono strong nowrap">{l.id}</div>
                         <div className="sub">Heat {l.heatNo}</div>
                       </td>
                       <td className="strong">

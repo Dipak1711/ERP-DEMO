@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ClipboardCheck, Eye, Info, PackageCheck, ShieldCheck, XCircle } from 'lucide-react';
+import { AlertTriangle, ClipboardCheck, Eye, Info, PackageCheck, ShieldCheck } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { completeQC, getJob, getProduct, qcStatusFor, stageRecords } from '../store/engine';
 import { INSPECTORS } from '../store/seed';
-import { Badge, Empty, Field, JobLink, Kpi, Modal, NumInput, PageHeader, QtyFlow, Search, Tabs } from '../components/ui';
+import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, QtyFlow, Search, SummaryLine, Tabs } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
-import { fmtDateTime, fmtNum, matches, plural, todayISO } from '../components/format';
+import { fmtDateTime, fmtNum, matches, todayISO } from '../components/format';
 
 type Filter = 'QC Pending' | 'inspected' | 'Rejections' | 'all';
 
@@ -41,22 +41,24 @@ export function QCPage() {
       <PageHeader
         eyebrow="Workflow · Step 6 of 8"
         title="Quality Control"
-        subtitle="Final inspection of heat-treated parts. Accepted quantity moves to Finished Goods; rejected quantity is recorded separately with its reason."
         flow="qc"
       />
-      <div className="kpis compact">
-        <Kpi label="QC Pending" value={pending.length} unit="jobs" hint={`${fmtNum(pending.reduce((t, r) => t + r.input, 0))} PCS awaiting inspection`} icon={ClipboardCheck} tone="amber" onClick={() => setFilter('QC Pending')} />
-        <Kpi label="Inspected" value={inspected.length} unit="jobs" hint={`${fmtNum(total)} PCS inspected`} icon={ShieldCheck} tone="blue" onClick={() => setFilter('inspected')} />
-        <Kpi label="Accepted → FG" value={accepted} unit="PCS" hint={total ? `${((accepted / total) * 100).toFixed(1)}% first-pass yield` : '—'} icon={CheckCircle2} tone="green" />
-        <Kpi label="QC Rejected" value={rejected} unit="PCS" hint={`${plural(withRej.length, 'job')} with rejections`} icon={XCircle} tone="red" onClick={() => setFilter('Rejections')} />
-      </div>
-
       <div className="card">
         <div className="card-head">
           <div>
             <h3>Inspection Register</h3>
-            <div className="sub">Only jobs that have completed Heat Treatment are listed</div>
           </div>
+          {total > 0 && (
+            <div className="right">
+              <SummaryLine
+                items={[
+                  { label: 'PCS accepted → FG', value: fmtNum(accepted), tone: 'good' },
+                  { label: 'PCS rejected', value: fmtNum(rejected), tone: 'bad' },
+                  { label: 'first-pass yield', value: `${((accepted / total) * 100).toFixed(1)}%`, tone: 'info' },
+                ]}
+              />
+            </div>
+          )}
         </div>
         <div className="toolbar">
           <Tabs

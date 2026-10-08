@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Archive, Eye, PackageCheck, PackageOpen, Scale, Truck } from 'lucide-react';
+import { Eye, PackageCheck, Truck } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { fgAvailable, fgStatus, fgWeight, getJob, getProduct } from '../store/engine';
-import { Badge, Empty, JobLink, Kpi, PageHeader, Search, Tabs } from '../components/ui';
+import { Badge, Empty, JobLink, PageHeader, Search, SummaryLine, Tabs } from '../components/ui';
 import { fmtDate, fmtKg, fmtNum, matches } from '../components/format';
 
 type Filter = 'stock' | 'dispatched' | 'all';
@@ -45,7 +45,6 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
       <PageHeader
         eyebrow="Workflow · Step 7 of 8"
         title="Finished Goods"
-        subtitle="Separate inventory of QC-approved, processed products. Increases when QC accepts a batch and decreases when goods are dispatched — kept apart from Raw Inventory."
         flow="finishedGoods"
         actions={
           <button className="btn btn-primary" onClick={() => navigate('dispatch?new=1')}>
@@ -53,20 +52,22 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
           </button>
         }
       />
-      <div className="kpis compact">
-        <Kpi label="Available Finished Goods" value={avail} unit="PCS" hint={`${fmtKg(availKg)} ready to sell`} icon={PackageCheck} tone="green" />
-        <Kpi label="Packed / Reserved" value={reserved} unit="PCS" hint="Ready for dispatch" icon={PackageOpen} tone="violet" />
-        <Kpi label="Total Received from QC" value={total} unit="PCS" hint={`${fgs.length} FG lots`} icon={Archive} tone="blue" />
-        <Kpi label="Dispatched" value={dispatched} unit="PCS" hint="Shipped to customers" icon={Truck} tone="teal" />
-        <Kpi label="Lots in Stock" value={inStock.length} unit="lots" hint="With balance quantity" icon={Scale} tone="amber" />
-      </div>
-
       <div className="card mb">
         <div className="card-head">
           <div>
             <h3>Stock by Product</h3>
-            <div className="sub">How many finished products do we have right now?</div>
           </div>
+          {total > 0 && (
+            <div className="right">
+              <SummaryLine
+                items={[
+                  { label: `PCS available (${fmtKg(availKg)})`, value: fmtNum(avail), tone: 'good' },
+                  { label: 'PCS packed', value: fmtNum(reserved), tone: 'info' },
+                  { label: 'PCS dispatched', value: fmtNum(dispatched) },
+                ]}
+              />
+            </div>
+          )}
         </div>
         <div className="card-body">
           {byProduct.length === 0 ? (
@@ -98,7 +99,6 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
         <div className="card-head">
           <div>
             <h3>Finished Goods Inventory</h3>
-            <div className="sub">Lot-wise, traceable to the originating job number</div>
           </div>
         </div>
         <div className="toolbar">

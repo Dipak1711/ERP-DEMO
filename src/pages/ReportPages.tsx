@@ -22,7 +22,6 @@ export function TraceabilityPage() {
       <PageHeader
         eyebrow="Reports"
         title="Job Traceability"
-        subtitle="Every production job with its stage-wise quantities. Open any job to see where its quantity came from, where loss occurred and how much was finally dispatched."
       />
       <div className="card">
         <div className="toolbar">
@@ -134,7 +133,6 @@ export function LedgerPage() {
       <PageHeader
         eyebrow="Reports"
         title="Quantity Movement Ledger"
-        subtitle="Audit trail of every quantity transfer — supplier inward, FIFO issues, stage-to-stage transfers with loss, QC acceptance and dispatch."
       />
       <div className="card">
         <div className="toolbar">
@@ -191,7 +189,6 @@ export function ProductsPage() {
       <PageHeader
         eyebrow="Masters"
         title="Product Master"
-        subtitle="Product-wise process parameters. Heat-treatment temperature, raw material, cutting length and die are defined per product and pre-filled at each stage."
       />
       <div className="card">
         <div className="table-wrap">

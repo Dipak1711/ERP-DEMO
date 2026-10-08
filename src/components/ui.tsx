@@ -84,7 +84,7 @@ export function PageHeader({
 }: {
   eyebrow: string;
   title: string;
-  subtitle: ReactNode;
+  subtitle?: ReactNode;
   actions?: ReactNode;
   /** FLOW_STEPS key — shows previous / next stage buttons */
   flow?: string;
@@ -95,10 +95,14 @@ export function PageHeader({
         <div className="ph-text">
           <div className="eyebrow">{eyebrow}</div>
           <h1>{title}</h1>
-          <p>{subtitle}</p>
-          {flow && <StepNav current={flow} />}
+          {subtitle && <p>{subtitle}</p>}
         </div>
-        {actions && <div className="page-actions">{actions}</div>}
+        {(flow || actions) && (
+          <div className="page-actions">
+            {flow && <StepNav current={flow} />}
+            {actions}
+          </div>
+        )}
       </div>
     </>
   );
@@ -129,6 +133,19 @@ function StepNav({ current }: { current: string }) {
           <ChevronRight size={16} />
         </button>
       )}
+    </div>
+  );
+}
+
+/** One compact line of key numbers, shown in a card header instead of a row of stat cards. */
+export function SummaryLine({ items }: { items: { label: string; value: ReactNode; tone?: 'good' | 'bad' | 'info' }[] }) {
+  return (
+    <div className="sumline">
+      {items.map((it) => (
+        <span key={it.label} className={`sum ${it.tone ?? ''}`}>
+          <b>{it.value}</b> {it.label}
+        </span>
+      ))}
     </div>
   );
 }

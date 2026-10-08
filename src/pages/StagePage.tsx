@@ -1,37 +1,33 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, CheckCircle2, Clock, Eye, Info, Layers, Play, Plus, TrendingDown, Waypoints } from 'lucide-react';
+import { CheckCircle2, Eye, Info, Layers, Play, Plus, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { completeStage, getJob, getProduct, parseMaterialKey, PROCESS_STAGES, STAGE_LABEL, startStage, stageRecords } from '../store/engine';
 import type { ProcessStage, StageRecord } from '../store/types';
 import { MACHINES, OPERATORS } from '../store/seed';
 import { HT_PROCESSES, LOSS_REASONS } from '../store/materials';
-import { Badge, Empty, Field, FLOW_STEPS, InlineQty, JobLink, Kpi, Modal, NumInput, PageHeader, QtyFlow, Search, Tabs } from '../components/ui';
+import { Badge, Empty, Field, FLOW_STEPS, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, Search, SummaryLine, Tabs } from '../components/ui';
 import { FifoPreview, tsFor } from '../components/NewJobModal';
 import { nextStep } from '../components/workflow';
-import { fmtDateTime, fmtNum, matches, todayISO } from '../components/format';
+import { fmtNum, matches, todayISO } from '../components/format';
 
-const CFG: Record<ProcessStage, { title: string; desc: string; from: string; to: string }> = {
+const CFG: Record<ProcessStage, { title: string; from: string; to: string }> = {
   cutting: {
     title: 'Cutting',
-    desc: 'First production stage. Round bars are issued from Raw Inventory (FIFO) and cut to the product length. Cutting output becomes the input for Forging.',
     from: 'Raw Inventory',
     to: 'Forging',
   },
   forging: {
     title: 'Forging / Manufacturing',
-    desc: 'Receives cut billets from Cutting. Only jobs whose Cutting is complete appear here. Forging output moves to Trimming.',
     from: 'Cutting',
     to: 'Trimming',
   },
   trimming: {
     title: 'Trimming',
-    desc: 'Removes flash from forged parts. Receives Forging output; trimmed output moves to Heat Treatment.',
     from: 'Forging',
     to: 'Heat Treatment',
   },
   heatTreatment: {
     title: 'Heat Treatment',
-    desc: 'Receives trimmed parts. Temperature, soak time and cooling are taken from the product master and can be adjusted per batch. Output moves to QC.',
     from: 'Trimming',
     to: 'QC',
   },
@@ -76,7 +72,6 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
       <PageHeader
         eyebrow={`Workflow · Step ${FLOW_STEPS.indexOf(step) + 1} of 8`}
         title={cfg.title}
-        subtitle={cfg.desc}
         flow={stage}
         actions={
           stage === 'cutting' && (
@@ -87,22 +82,21 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
         }
       />
 
-      <div className="kpis compact">
-        <Kpi label={`Pending ${stage === 'cutting' ? 'Cutting' : STAGE_LABEL[stage]}`} value={pending.length} unit="jobs" hint={`${fmtNum(pending.reduce((t, r) => t + r.input, 0))} PCS waiting`} icon={Clock} tone="amber" onClick={() => setFilter('Pending')} />
-        <Kpi label="In Progress" value={inProg.length} unit="jobs" hint={`${fmtNum(inProg.reduce((t, r) => t + r.input, 0))} PCS on machines`} icon={Play} tone="blue" onClick={() => setFilter('In Progress')} />
-        <Kpi label="Completed" value={done.length} unit="jobs" hint={`${fmtNum(totIn)} PCS processed`} icon={CheckCircle2} tone="green" onClick={() => setFilter('Completed')} />
-        <Kpi label={`Output to ${cfg.to}`} value={totOut} unit="PCS" hint="Moved to next stage" icon={ArrowRight} tone="teal" />
-        <Kpi label="Loss / Rejection" value={totLoss} unit="PCS" hint={totIn ? `${((totLoss / totIn) * 100).toFixed(2)}% of input` : 'No completed jobs'} icon={TrendingDown} tone="red" />
-      </div>
-
       <div className="card">
         <div className="card-head">
           <div>
             <h3>{STAGE_LABEL[stage]} Jobs</h3>
-            <div className="sub">
-              {stage === 'cutting' ? 'Cutting orders released from production planning' : `Only jobs that have completed ${cfg.from} are listed here`}
-            </div>
           </div>
+          {done.length > 0 && (
+            <div className="right">
+              <SummaryLine
+                items={[
+                  { label: `PCS sent to ${cfg.to}`, value: fmtNum(totOut), tone: 'good' },
+                  { label: `PCS loss (${((totLoss / totIn) * 100).toFixed(2)}%)`, value: fmtNum(totLoss), tone: 'bad' },
+                ]}
+              />
+            </div>
+          )}
         </div>
         <div className="toolbar">
           <Tabs
@@ -146,7 +140,6 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
                   <th>Product</th>
                   {stage === 'cutting' && <th>Raw Material</th>}
                   {stage === 'heatTreatment' && <th className="r">Temp.</th>}
-                  <th>Received</th>
                   <th>Quantity (In → Loss → Out)</th>
                   <th>Machine / Operator</th>
                   <th>Status</th>
@@ -163,20 +156,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
         )}
       </div>
 
-      {inProg.length > 0 && (
-        <div className="callout warn" style={{ marginTop: 14 }}>
-          <Info size={16} />
-          <div>
-            <b>
-              {inProg.length} job{inProg.length === 1 ? ' is' : 's are'} in progress at {STAGE_LABEL[stage]}:
-            </b>{' '}
-            {inProg.map((r) => r.jobNo).join(', ')}. Click <b>Complete</b> when the batch is finished and enter the loss — only completed jobs move on to{' '}
-            {cfg.to}.
-          </div>
-        </div>
-      )}
-
-      {upstream.length > 0 && <UpstreamJobs stage={stage} jobNos={upstream.map((j) => j.jobNo)} />}
+      {upstream.length > 0 && <UpstreamJobs jobNos={upstream.map((j) => j.jobNo)} />}
 
     </>
   );
@@ -205,7 +185,6 @@ function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
         </td>
       )}
       {r.stage === 'heatTreatment' && <td className="r strong nowrap">{r.params.temperature}°C</td>}
-      <td className="nowrap">{fmtDateTime(r.receivedAt)}</td>
       <td>
         {r.status === 'Completed' ? (
           <InlineQty input={r.input} loss={r.loss} output={r.output} />
@@ -500,16 +479,14 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
 }
 
 /** Jobs still at an earlier stage — shows why they are not here yet and lets the user finish that step. */
-function UpstreamJobs({ stage, jobNos }: { stage: ProcessStage; jobNos: string[] }) {
+function UpstreamJobs({ jobNos }: { jobNos: string[] }) {
   const { state, openAction, openTrace } = useStore();
   return (
     <div className="card" style={{ marginTop: 18 }}>
       <div className="card-head">
         <div>
           <h3>Coming from earlier stages</h3>
-          <div className="sub">
-            These jobs reach {STAGE_LABEL[stage]} automatically once their current stage is <b>completed</b>. A job that is only started stays where it is.
-          </div>
+          <div className="sub">They move here once their current stage is completed.</div>
         </div>
         <div className="right">
           <Waypoints size={18} className="muted" />
