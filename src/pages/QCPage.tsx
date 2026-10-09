@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ClipboardCheck, Eye, PackageCheck, ShieldCheck } from 'lucide-react';
+import { Eye, PackageCheck, ShieldCheck } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { completeQC, getJob, getProduct } from '../store/engine';
 import { INSPECTORS } from '../store/seed';
@@ -93,8 +93,21 @@ export function QCPage() {
                   const job = getJob(state, r.jobNo);
                   const p = getProduct(state, job.productId);
                   const done = r.status !== 'QC Pending';
+                  const act = () => !done && openAction({ kind: 'qc', jobNo: r.jobNo });
                   return (
-                    <tr key={r.id} className={rowTone(r.status)}>
+                    <tr
+                      key={r.id}
+                      className={`${rowTone(r.status)} ${done ? '' : 'row-click'}`}
+                      onClick={act}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          act();
+                        }
+                      }}
+                      tabIndex={done ? undefined : 0}
+                      title={done ? undefined : `Enter QC result for ${r.jobNo}`}
+                    >
                       <td>
                         <JobLink jobNo={r.jobNo} />
                       </td>
@@ -113,12 +126,15 @@ export function QCPage() {
                         <Badge status={r.status} />
                       </td>
                       <td className="r nowrap">
-                        {!done && (
-                          <button className="btn btn-sm btn-primary" onClick={() => openAction({ kind: 'qc', jobNo: r.jobNo })}>
-                            <ClipboardCheck size={13} /> Enter Qty
-                          </button>
-                        )}
-                        <button className="icon-btn" style={{ display: 'inline-grid', verticalAlign: 'middle', marginLeft: 4 }} title="View traceability" onClick={() => openTrace(r.jobNo)}>
+                        <button
+                          className="icon-btn"
+                          style={{ display: 'inline-grid', verticalAlign: 'middle' }}
+                          title="View traceability"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openTrace(r.jobNo);
+                          }}
+                        >
                           <Eye size={16} />
                         </button>
                       </td>

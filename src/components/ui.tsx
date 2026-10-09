@@ -36,7 +36,7 @@ export const FLOW_STEPS: { key: string; label: string; short: string; icon: Icon
 
 // ---------------------------------------------------------------- Badge ---
 const TONE: Record<string, string> = {
-  Pending: 'b-neutral',
+  Pending: 'b-red',
   'In Progress': 'b-blue b-progress',
   Completed: 'b-green',
   'QC Pending': 'b-amber',
@@ -60,7 +60,7 @@ export type Tone = 'neutral' | 'blue' | 'amber' | 'green' | 'red' | 'violet' | '
 
 /** Same meanings as Badge, expressed as a rail down the row's left edge. */
 const ROW_TONE: Record<string, string> = {
-  Pending: 'st-warn',
+  Pending: 'st-pending',
   'In Progress': 'st-info',
   Completed: 'st-good',
   'QC Pending': 'st-warn',
@@ -86,7 +86,15 @@ export function Priority({ p }: { p: string }) {
 export function JobLink({ jobNo }: { jobNo: string }) {
   const { openTrace } = useStore();
   return (
-    <button className="job-link" title="View complete job traceability" onClick={() => openTrace(jobNo)}>
+    <button
+      className="job-link"
+      title="View complete job traceability"
+      // the job number is its own action — don't let it also trigger the row it sits in
+      onClick={(e) => {
+        e.stopPropagation();
+        openTrace(jobNo);
+      }}
+    >
       {jobNo}
     </button>
   );

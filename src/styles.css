@@ -792,12 +792,18 @@ button.kpi:hover { box-shadow: var(--card-rim), var(--shadow); }
 .tbl tbody tr.st-warn { --row-tone: var(--accent); }
 .tbl tbody tr.st-orange { --row-tone: var(--serious); }
 .tbl tbody tr.st-bad { --row-tone: var(--crit); }
+.tbl tbody tr.st-pending { --row-tone: var(--crit); }
 .tbl tbody tr.st-violet { --row-tone: var(--violet); }
 .tbl tbody tr.st-teal { --row-tone: var(--teal); }
 .tbl tbody tr td:first-child { box-shadow: inset 3px 0 0 var(--row-tone); }
 :root[data-theme='dark'] .tbl tbody tr td:first-child { box-shadow: inset 4px 0 0 var(--row-tone); }
 .tbl tbody tr.st-bad td { background: color-mix(in srgb, var(--crit) 6%, var(--surface)); }
 .tbl tbody tr:hover td { background: color-mix(in srgb, var(--primary) 7%, var(--surface-2)); }
+
+/* a row that opens its own form — the whole row is the target, not a button in it */
+.tbl tbody tr.row-click { cursor: pointer; }
+.tbl tbody tr.row-click:hover td { background: color-mix(in srgb, var(--primary) 12%, var(--surface-2)); }
+.tbl tbody tr.row-click:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 
 /* ---- status chips used inside tables ---- */
 .chip-wait { background: var(--warn-bg); color: var(--warn-ink); }

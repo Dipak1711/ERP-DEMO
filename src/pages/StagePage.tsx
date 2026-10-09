@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Eye, PenLine, Play, Plus, SlidersHorizontal, Waypoints } from 'lucide-react';
+import { CheckCircle2, Eye, Play, Plus, SlidersHorizontal, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { completeStage, getJob, getProduct, parseMaterialKey, PROCESS_STAGES, STAGE_LABEL, stageRecords } from '../store/engine';
 import type { ProcessStage, StageRecord } from '../store/types';
@@ -168,8 +168,21 @@ function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
   const job = getJob(state, r.jobNo);
   const p = getProduct(state, job.productId);
   const mat = parseMaterialKey(job.materialKey);
+  const canAct = r.status !== 'Completed';
+  const act = () => canAct && onProcess();
   return (
-    <tr className={rowTone(r.status === 'Completed' ? 'Completed' : 'Pending')}>
+    <tr
+      className={`${rowTone(r.status === 'Completed' ? 'Completed' : 'Pending')} ${canAct ? 'row-click' : ''}`}
+      onClick={act}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          act();
+        }
+      }}
+      tabIndex={canAct ? 0 : undefined}
+      title={canAct ? `Enter quantity for ${r.jobNo}` : undefined}
+    >
       <td>
         <JobLink jobNo={r.jobNo} />
       </td>
@@ -199,12 +212,15 @@ function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
         <Badge status={r.status === 'Completed' ? 'Completed' : 'Pending'} />
       </td>
       <td className="r nowrap">
-        {r.status !== 'Completed' && (
-          <button className="btn btn-sm btn-primary" onClick={onProcess}>
-            <PenLine size={13} /> Enter Qty
-          </button>
-        )}
-        <button className="icon-btn" style={{ display: 'inline-grid', verticalAlign: 'middle', marginLeft: 4 }} title="View traceability" onClick={() => openTrace(r.jobNo)}>
+        <button
+          className="icon-btn"
+          style={{ display: 'inline-grid', verticalAlign: 'middle' }}
+          title="View traceability"
+          onClick={(e) => {
+            e.stopPropagation();
+            openTrace(r.jobNo);
+          }}
+        >
           <Eye size={16} />
         </button>
       </td>
