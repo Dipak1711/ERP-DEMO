@@ -5,6 +5,11 @@ import {
   ChevronDown,
   ClipboardList,
   Database,
+  Layers,
+  Scissors,
+  Hammer,
+  FileClock,
+  Cog,
   Factory,
   LayoutGrid,
   Moon,
@@ -38,11 +43,18 @@ const REPORT_NAV: NavItem[] = [
   { route: 'ledger', label: 'Quantity Ledger', icon: ScrollText },
   { route: 'products', label: 'Product Master', icon: Package },
 ];
+const DIE_NAV: NavItem[] = [
+  { route: 'die-master', label: 'Die Master', icon: Layers },
+  { route: 'forging-die-master', label: 'Forging Die Master', icon: Hammer },
+  { route: 'trimming-die-master', label: 'Trimming Die Master', icon: Scissors },
+  { route: 'die-details', label: 'Die Details / History', icon: FileClock },
+];
 export const ALL_NAV: NavItem[] = [{ route: 'dashboard', label: 'Dashboard', icon: LayoutGrid }, ...WORKFLOW_NAV, ...REPORT_NAV];
 
 const SECTIONS: { id: string; title: string; icon: Icon; items: NavItem[] }[] = [
   { id: 'main', title: 'Main Menu', icon: LayoutGrid, items: [ALL_NAV[0]] },
   { id: 'flow', title: 'Workflow', icon: Workflow, items: WORKFLOW_NAV },
+  { id: 'dies', title: 'Die Management', icon: Cog, items: DIE_NAV },
   { id: 'reports', title: 'Reports & Masters', icon: BarChart3, items: REPORT_NAV },
 ];
 

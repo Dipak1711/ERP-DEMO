@@ -11,6 +11,10 @@ import { FinishedGoodsPage } from './pages/FinishedGoodsPage';
 import { DispatchPage } from './pages/DispatchPage';
 import { LedgerPage, ProductsPage, TraceabilityPage } from './pages/ReportPages';
 import { StoreProvider } from './store/StoreContext';
+import { DieProvider } from './dies/DieContext';
+import { DieHost } from './dies/DieHost';
+import { DieDetailsPage, DieMasterPage, DieRegisterPage } from './dies/pages';
+import './dies/dies.css';
 
 /** Minimal hash router: #/route?query — survives refresh, no server config needed. */
 function useHashRoute() {
@@ -53,6 +57,14 @@ function Page({ route, query, navigate }: { route: string; query: URLSearchParam
       return <LedgerPage />;
     case 'products':
       return <ProductsPage />;
+    case 'die-master':
+      return <DieMasterPage />;
+    case 'forging-die-master':
+      return <DieRegisterPage kind="forging" />;
+    case 'trimming-die-master':
+      return <DieRegisterPage kind="trimming" />;
+    case 'die-details':
+      return <DieDetailsPage query={query} />;
     default:
       return <Dashboard navigate={navigate} />;
   }
@@ -62,6 +74,7 @@ export default function App() {
   const { route, query, hash, navigate } = useHashRoute();
   return (
     <StoreProvider>
+     <DieProvider>
       <Layout route={route}>
         {/* key on full hash so pages reset their local filters/modals on navigation, and replay the arrival */}
         <div className="page-in" key={hash}>
@@ -70,7 +83,9 @@ export default function App() {
       </Layout>
       <TraceDrawer />
       <ActionHost />
+      <DieHost />
       <Toasts />
+     </DieProvider>
     </StoreProvider>
   );
 }
