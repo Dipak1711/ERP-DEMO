@@ -7,7 +7,7 @@
 // cut, Trimming not required, packed in 10 bags (100 / 110 PCS) on GJ13AX3059.
 // The other jobs are left at different stages so every screen has something.
 // ---------------------------------------------------------------------------
-import { addInward, completeQC, completeStage, createDispatch, createJob, materialKey } from './engine';
+import { addInward, completeQC, saveHardnessReport, completeStage, createDispatch, createJob, materialKey } from './engine';
 import { findMaterial, pieceWeightKg } from './materials';
 import { emptyState, INSPECTORS, MACHINES, OPERATORS } from './seed';
 import type { ERPState } from './types';
@@ -131,6 +131,29 @@ export function buildSample(now = new Date()): ERPState {
     [100, 10.5],
     [100, 10.52],
   ]);
+
+  // ---- Hardness Inspection Report (F QC 03) — copied from the client's paper sheet ----
+  saveHardnessReport(
+    s,
+    {
+      jobNo: j3,
+      date: dateOf(at(1, 17)),
+      component: 'Aluminium Handle',
+      material: 'Aluminium',
+      supplier: 'PQR Industries',
+      inwardQty: 10,
+      inspectedQty: 10,
+      cycleNo: '331',
+      drawingNo: '',
+      checkedBy: 'Dhruv',
+      scale: 'HRB',
+      min: 80,
+      max: 90,
+      readings: [84, 86, 87, 86, 81, 85, 83, 84, 83, 81],
+      remarks: '',
+    },
+    at(1, 17),
+  );
 
   return s;
 }

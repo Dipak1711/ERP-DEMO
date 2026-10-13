@@ -118,6 +118,30 @@ export interface QCRecord {
   checks: { dimensional: boolean; visual: boolean; hardness: boolean };
 }
 
+export type HardnessScale = 'HRB' | 'HRC' | 'HV' | 'HB';
+
+/** Hardness Inspection Report — client's paper format F QC 03. One reading per inspected piece. */
+export interface HardnessReport {
+  id: string; // HIR-2026-0001
+  jobNo?: string; // optional link to a production job
+  date: string; // ISO date
+  component: string;
+  material: string;
+  supplier: string;
+  inwardQty: number;
+  inspectedQty: number;
+  cycleNo: string; // hardness (heat-treatment) cycle no.
+  drawingNo: string;
+  checkedBy: string;
+  scale: HardnessScale;
+  min: number; // required hardness, lower limit
+  max: number; // upper limit
+  readings: (number | null)[]; // Sr. No. = index + 1; null = not measured yet
+  remarks: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface FinishedGood {
   id: string; // FG-2026-0001
   jobNo: string;
@@ -191,6 +215,7 @@ export interface ERPState {
   trimming: StageRecord[];
   heatTreatment: StageRecord[];
   qc: QCRecord[];
+  hardnessReports: HardnessReport[];
   finishedGoods: FinishedGood[];
   dispatches: Dispatch[];
   movements: Movement[];

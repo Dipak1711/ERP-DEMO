@@ -16,6 +16,8 @@ import type {
   ERPState,
   FGStatus,
   FinishedGood,
+  HardnessReport,
+  HardnessScale,
   Job,
   JobStage,
   ProcessStage,
@@ -649,3 +651,59 @@ export const isToday = (iso: string | undefined, now = new Date()) => {
   const d = new Date(iso);
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
 };
+
+// ------------------------------------------------------- hardness report ---
+/** Printed on every report — taken from the client's format F QC 03. */
+export const HARDNESS_FORM = {
+  company: 'Everest Auto Forge Pvt. Ltd.',
+  address: 'Survey No. 281, Plot No. 7, Shapar Main Road, Gujarat-360024.',
+  formatNo: 'F QC 03',
+  revision: '00 / 01.10.25',
+  title: 'HARDNESS INSPECTION REPORT',
+} as const;
+
+export const HARDNESS_SCALES: HardnessScale[] = ['HRB', 'HRC', 'HV', 'HB'];
+
+export type ReadingResult = 'OK' | 'Not OK';
+export const readingResult = (r: Pick<HardnessReport, 'min' | 'max'>, v: number | null): ReadingResult | null =>
+  v === null || !Number.isFinite(v) ? null : v >= r.min && v <= r.max ? 'OK' : 'Not OK';
+
+export type HardnessVerdict = 'Pass' | 'Fail' | 'Incomplete';
+export function hardnessVerdict(r: Pick<HardnessReport, 'min' | 'max' | 'readings'>): HardnessVerdict {
+  const res = r.readings.map((v) => readingResult(r, v));
+  if (res.includes('Not OK')) return 'Fail';
+  return res.length === 0 || res.includes(null) ? 'Incomplete' : 'Pass';
+}
+export const requiredText = (r: Pick<HardnessReport, 'min' | 'max' | 'scale'>) => `${r.min} to ${r.max} ${r.scale}`;
+
+export type HardnessInput = Omit<HardnessReport, 'id' | 'createdAt' | 'updatedAt'>;
+
+/** Creates a report, or updates the one with `id`. Returns its id. */
+export function saveHardnessReport(s: ERPState, input: HardnessInput, ts: string, id?: string): string {
+  const component = input.component.trim();
+  if (!component) fail('Enter the component name.');
+  if (!input.date) fail('Enter the inspection date.');
+  if (!input.checkedBy.trim()) fail('Enter who checked the hardness.');
+  if (!Number.isFinite(input.min) || !Number.isFinite(input.max) || input.min <= 0 || input.max <= 0) fail('Enter the required hardness range (both limits).');
+  if (input.min > input.max) fail('Required hardness: the lower limit cannot be above the upper limit.');
+  const inspectedQty = assertQty(input.inspectedQty, 'Inspected quantity');
+  const inwardQty = assertQty(input.inwardQty, 'Inward quantity', { allowZero: true });
+  if (inwardQty && inspectedQty > inwardQty) fail(`Inspected quantity (${inspectedQty}) cannot exceed inward quantity (${inwardQty}).`);
+  if (!input.readings.length) fail('Add at least one hardness reading.');
+  if (input.readings.length > inspectedQty) fail(`${input.readings.length} readings cannot be taken from ${inspectedQty} inspected piece${inspectedQty === 1 ? '' : 's'}.`);
+  if (input.readings.some((v) => v !== null && (!Number.isFinite(v) || v <= 0))) fail('Hardness readings must be positive numbers.');
+  if (input.jobNo && !s.jobs.some((j) => j.jobNo === input.jobNo)) fail(`Job ${input.jobNo} does not exist.`);
+
+  const clean = { ...input, component, inwardQty, inspectedQty, checkedBy: input.checkedBy.trim(), supplier: input.supplier.trim(), material: input.material.trim(), cycleNo: input.cycleNo.trim(), drawingNo: input.drawingNo.trim(), remarks: input.remarks.trim() };
+  if (id) {
+    const old = s.hardnessReports.find((r) => r.id === id) ?? fail(`Report ${id} not found.`);
+    Object.assign(old, clean, { updatedAt: ts });
+    log(s, ts, 'qc', `Hardness report ${id} updated — ${hardnessVerdict(old).toLowerCase()}`, old.jobNo);
+    return id;
+  }
+  const n = s.hardnessReports.reduce((m, r) => Math.max(m, Number(r.id.split('-')[2]) || 0), 0) + 1;
+  const rep: HardnessReport = { ...clean, id: `HIR-${yearOf(ts)}-${pad(n, 4)}`, createdAt: ts, updatedAt: ts };
+  s.hardnessReports.push(rep);
+  log(s, ts, 'qc', `Hardness report ${rep.id} recorded for ${component} — ${hardnessVerdict(rep).toLowerCase()}`, rep.jobNo);
+  return rep.id;
+}

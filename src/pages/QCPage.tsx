@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Eye, PackageCheck, ShieldCheck } from 'lucide-react';
+import { ClipboardCheck, Eye, PackageCheck, ShieldCheck } from 'lucide-react';
+import { HardnessRegister } from './HardnessPage';
 import { useStore } from '../store/StoreContext';
 import { completeQC, getJob, getProduct } from '../store/engine';
 import { INSPECTORS } from '../store/seed';
@@ -11,6 +12,7 @@ type Filter = 'QC Pending' | 'inspected' | 'Rejections' | 'all';
 
 export function QCPage() {
   const { state, openTrace, openAction } = useStore();
+  const [view, setView] = useState<'register' | 'hardness'>('register');
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
 
@@ -42,13 +44,23 @@ export function QCPage() {
         eyebrow="Workflow · Step 6 of 8"
         title="Quality Control"
         flow="qc"
+        actions={
+          <button className="btn btn-primary" onClick={() => openAction({ kind: 'hardness' })}>
+            <ClipboardCheck size={16} /> New Hardness Report
+          </button>
+        }
       />
       <div className="card">
         <div className="card-head">
-          <div>
-            <h3>Inspection Register</h3>
-          </div>
-          {total > 0 && (
+          <Tabs
+            value={view}
+            onChange={setView}
+            items={[
+              { value: 'register', label: 'Inspection Register', count: recs.length, tone: 'blue' },
+              { value: 'hardness', label: 'Hardness Reports', count: state.hardnessReports.length, tone: 'violet' },
+            ]}
+          />
+          {view === 'register' && total > 0 && (
             <div className="right">
               <SummaryLine
                 items={[
@@ -60,6 +72,8 @@ export function QCPage() {
             </div>
           )}
         </div>
+        {view === 'hardness' && <HardnessRegister />}
+        {view === 'register' && (<>
         <div className="toolbar">
           <Tabs
             value={filter}
@@ -145,6 +159,7 @@ export function QCPage() {
             </table>
           </div>
         )}
+        </>)}
       </div>
     </>
   );

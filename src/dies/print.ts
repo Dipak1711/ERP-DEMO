@@ -1,3 +1,4 @@
+import { printHtml as printCommon } from '../components/printHtml';
 import { fmtDate } from '../components/format';
 import { KIND_LABEL, type Die, type DieData, type Dims, type MainDie } from './types';
 
@@ -6,29 +7,15 @@ const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&
 export const fmtDims = (d: Dims) => (d.l || d.w || d.h ? `${d.l ?? '—'} × ${d.w ?? '—'} × ${d.h ?? '—'} mm` : '—');
 export const fmtWt = (n?: number) => (n === undefined ? '—' : `${n} kg`);
 
-/** Prints through a hidden iframe so no pop-up blocker is involved. */
-function printHtml(title: string, body: string) {
-  const f = document.createElement('iframe');
-  f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
-  document.body.appendChild(f);
-  const doc = f.contentDocument!;
-  doc.open();
-  doc.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
-    body{font:12px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;color:#111;margin:24px}
+const DIE_PRINT_CSS = `
     h1{font-size:20px;margin:0}h2{font-size:14px;margin:18px 0 6px;border-bottom:2px solid #333;padding-bottom:3px}
     .sub{color:#555;margin:2px 0 14px}table{border-collapse:collapse;width:100%;margin-bottom:6px}
     th,td{border:1px solid #bbb;padding:5px 8px;text-align:left;vertical-align:top}th{background:#f1f1f1;width:22%}
     .imgs{display:flex;gap:10px;margin:8px 0}.imgs figure{margin:0;text-align:center;font-size:10px;color:#555}
     .imgs img{width:170px;height:115px;object-fit:cover;border:1px solid #bbb;display:block}
     .die{page-break-inside:avoid;margin-bottom:14px}.demo{font-size:10px;color:#a60}
-  </style></head><body>${body}</body></html>`);
-  doc.close();
-  f.contentWindow!.focus();
-  setTimeout(() => {
-    f.contentWindow!.print();
-    setTimeout(() => f.remove(), 1500);
-  }, 250);
-}
+  `;
+const printHtml = (title: string, body: string) => printCommon(title, body, DIE_PRINT_CSS);
 
 function dieBlock(die: Die, data: DieData) {
   const img = (id?: string, cap = '') => (id && data.images[id] ? `<figure><img src="${data.images[id]}"/>${cap}</figure>` : '');

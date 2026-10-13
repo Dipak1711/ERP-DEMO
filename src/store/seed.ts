@@ -98,6 +98,7 @@ export function emptyState(): ERPState {
     trimming: [],
     heatTreatment: [],
     qc: [],
+    hardnessReports: [],
     finishedGoods: [],
     dispatches: [],
     movements: [],

@@ -9,6 +9,8 @@ export type Action =
   | { kind: 'inward'; material?: string; od?: number }
   | { kind: 'stage'; stage: ProcessStage; jobNo: string }
   | { kind: 'qc'; jobNo: string }
+  | { kind: 'hardness'; id?: string; jobNo?: string }
+  | { kind: 'hardnessView'; id: string }
   | { kind: 'dispatch'; fgId: string };
 
 export interface Toast {

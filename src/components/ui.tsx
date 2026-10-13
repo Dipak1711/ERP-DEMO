@@ -50,6 +50,11 @@ const TONE: Record<string, string> = {
   Consumed: 'b-neutral',
   Reserved: 'b-violet',
   'Partially Dispatched': 'b-blue',
+  Pass: 'b-green',
+  Fail: 'b-red',
+  Incomplete: 'b-amber',
+  OK: 'b-green',
+  'Not OK': 'b-red',
 };
 export function Badge({ status }: { status: string }) {
   return <span className={`badge ${TONE[status] ?? 'b-neutral'}`}>{status}</span>;
@@ -74,6 +79,9 @@ const ROW_TONE: Record<string, string> = {
   Consumed: 'st-neutral',
   Reserved: 'st-violet',
   'Partially Dispatched': 'st-info',
+  Pass: 'st-good',
+  Fail: 'st-bad',
+  Incomplete: 'st-warn',
 };
 export const rowTone = (status: string) => ROW_TONE[status] ?? 'st-neutral';
 

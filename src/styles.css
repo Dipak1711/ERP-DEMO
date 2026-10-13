@@ -835,3 +835,12 @@ select.filter:focus-visible { outline: none; border-color: var(--primary); box-s
     scroll-behavior: auto !important;
   }
 }
+
+/* ---- hardness report form ---- */
+.hir-range { display: grid; grid-template-columns: 1fr 1fr 110px; gap: 10px; }
+.hir-range select { height: 40px; border: 1px solid var(--border); border-radius: 12px; padding: 0 10px; background: var(--surface); font-weight: 700; }
+.hir-readings-head { display: flex; align-items: center; gap: 12px; margin: 22px 0 10px; flex-wrap: wrap; }
+.hir-readings-head h4 { margin: 0; font-size: 15px; }
+.hir-readings-head .muted { font-size: 12.5px; }
+.hir-edit .input { height: 36px; max-width: 150px; }
+@media (max-width: 640px) { .hir-range { grid-template-columns: 1fr 1fr; } .hir-range select { grid-column: 1 / -1; } }
