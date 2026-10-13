@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Eye, FileText, PackageOpen, Plus, Printer, Truck, X } from 'lucide-react';
+import { ClipboardList, Eye, FileText, PackageOpen, Plus, Printer, Truck, X } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { createDispatch, fgAvailable, getProduct, isToday, markDispatched, round3 } from '../store/engine';
 import type { Dispatch } from '../store/types';
 import { Badge, Empty, Field, JobLink, Modal, PageHeader, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
+import { printRouteCard } from '../components/routeCard';
 import { fmtDate, fmtKg, fmtNum, matches, todayISO } from '../components/format';
 
 type Filter = 'all' | 'Ready for Dispatch' | 'Dispatched' | 'today';
@@ -128,7 +129,10 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
                             <Truck size={13} /> Dispatch
                           </button>
                         )}
-                        <button className="icon-btn" style={{ display: 'inline-grid', verticalAlign: 'middle', marginLeft: 4 }} title="Packing list" onClick={() => setViewing(d)}>
+                        <button className="icon-btn" style={{ display: 'inline-grid', verticalAlign: 'middle', marginLeft: 4 }} title="Print process route card" onClick={() => printRouteCard(state, d.jobNo)}>
+                          <ClipboardList size={16} />
+                        </button>
+                        <button className="icon-btn" style={{ display: 'inline-grid', verticalAlign: 'middle' }} title="Packing list" onClick={() => setViewing(d)}>
                           <FileText size={16} />
                         </button>
                         <button className="icon-btn" style={{ display: 'inline-grid', verticalAlign: 'middle' }} title="View traceability" onClick={() => openTrace(d.jobNo)}>
@@ -325,9 +329,14 @@ function PackingList({ d, onClose }: { d: Dispatch; onClose: () => void }) {
       title={`Packing List — ${d.dispatchNo}`}
       subtitle={`${d.customer} · ${fmtDate(d.date)}`}
       footer={
-        <button className="btn" onClick={() => window.print()}>
-          <Printer size={15} /> Print
-        </button>
+        <>
+          <button className="btn" onClick={() => printRouteCard(state, d.jobNo)}>
+            <ClipboardList size={15} /> Print Route Card
+          </button>
+          <button className="btn" onClick={() => window.print()}>
+            <Printer size={15} /> Print Packing List
+          </button>
+        </>
       }
     >
       <div className="info-strip">

@@ -126,7 +126,8 @@ export interface HardnessReport {
   jobNo?: string; // optional link to a production job
   date: string; // ISO date
   component: string;
-  material: string;
+  material: string; // Aluminium | Brass | Copper
+  grade: string; // e.g. AA 6082-T6 — decides the required hardness range
   supplier: string;
   inwardQty: number;
   inspectedQty: number;

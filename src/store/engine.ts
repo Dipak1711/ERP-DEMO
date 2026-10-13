@@ -8,6 +8,7 @@
 //     OUTPUT = INPUT − LOSS/REJECTION      (at every stage)
 //     next stage INPUT = previous stage OUTPUT  (never more)
 // ---------------------------------------------------------------------------
+import { hardnessGrades, isHardnessMaterial } from './hardnessSpecs';
 import type {
   Activity,
   Bag,
@@ -683,6 +684,8 @@ export function saveHardnessReport(s: ERPState, input: HardnessInput, ts: string
   const component = input.component.trim();
   if (!component) fail('Enter the component name.');
   if (!input.date) fail('Enter the inspection date.');
+  if (!isHardnessMaterial(input.material)) fail('Select the material: Aluminium, Brass or Copper.');
+  if (input.grade && !hardnessGrades(input.material).some((g) => g.grade === input.grade)) fail(`Grade ${input.grade} does not belong to ${input.material}.`);
   if (!input.checkedBy.trim()) fail('Enter who checked the hardness.');
   if (!Number.isFinite(input.min) || !Number.isFinite(input.max) || input.min <= 0 || input.max <= 0) fail('Enter the required hardness range (both limits).');
   if (input.min > input.max) fail('Required hardness: the lower limit cannot be above the upper limit.');
@@ -694,7 +697,7 @@ export function saveHardnessReport(s: ERPState, input: HardnessInput, ts: string
   if (input.readings.some((v) => v !== null && (!Number.isFinite(v) || v <= 0))) fail('Hardness readings must be positive numbers.');
   if (input.jobNo && !s.jobs.some((j) => j.jobNo === input.jobNo)) fail(`Job ${input.jobNo} does not exist.`);
 
-  const clean = { ...input, component, inwardQty, inspectedQty, checkedBy: input.checkedBy.trim(), supplier: input.supplier.trim(), material: input.material.trim(), cycleNo: input.cycleNo.trim(), drawingNo: input.drawingNo.trim(), remarks: input.remarks.trim() };
+  const clean = { ...input, component, inwardQty, inspectedQty, checkedBy: input.checkedBy.trim(), supplier: input.supplier.trim(), material: input.material.trim(), grade: input.grade.trim(), cycleNo: input.cycleNo.trim(), drawingNo: input.drawingNo.trim(), remarks: input.remarks.trim() };
   if (id) {
     const old = s.hardnessReports.find((r) => r.id === id) ?? fail(`Report ${id} not found.`);
     Object.assign(old, clean, { updatedAt: ts });

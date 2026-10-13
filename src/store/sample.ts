@@ -140,6 +140,7 @@ export function buildSample(now = new Date()): ERPState {
       date: dateOf(at(1, 17)),
       component: 'Aluminium Handle',
       material: 'Aluminium',
+      grade: 'AA 6082-T6',
       supplier: 'PQR Industries',
       inwardQty: 10,
       inspectedQty: 10,

@@ -12,6 +12,7 @@ import {
   type HardnessVerdict,
 } from '../store/engine';
 import { INSPECTORS } from '../store/seed';
+import { HARDNESS_MATERIALS, hardnessGrades, hardnessSpecForRawMaterial, isHardnessMaterial } from '../store/hardnessSpecs';
 import type { HardnessReport, HardnessScale } from '../store/types';
 import { Badge, Empty, Field, Modal, NumInput, rowTone, Search, Tabs } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
@@ -123,7 +124,8 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
     jobNo: cur?.jobNo ?? jobNo ?? '',
     date: cur?.date ?? todayISO(),
     component: cur?.component ?? '',
-    material: cur?.material ?? '',
+    material: cur && isHardnessMaterial(cur.material) ? cur.material : '',
+    grade: cur?.grade ?? '',
     supplier: cur?.supplier ?? '',
     inwardQty: cur ? String(cur.inwardQty) : '',
     inspectedQty: cur ? String(cur.inspectedQty) : '',
@@ -147,17 +149,29 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
   const parsed = Array.from({ length: n }, (_, i) => (reading(i).trim() === '' ? null : Number(reading(i))));
   const verdict = limitsOk ? hardnessVerdict({ ...limits, readings: parsed }) : 'Incomplete';
 
+  const grades = hardnessGrades(f.material);
+  // choosing a material / grade fills the required range (still editable afterwards)
+  const pickMaterial = (m: string) => {
+    const g = hardnessGrades(m)[0];
+    setF((x) => ({ ...x, material: m, grade: g?.grade ?? '', ...(g ? { min: String(g.min), max: String(g.max), scale: g.scale } : {}) }));
+  };
+  const pickGrade = (grade: string) => {
+    const g = grades.find((x) => x.grade === grade);
+    setF((x) => ({ ...x, grade, ...(g ? { min: String(g.min), max: String(g.max), scale: g.scale } : {}) }));
+  };
+
   const pickJob = (no: string) => {
     if (!no) return set('jobNo', '');
     const job = state.jobs.find((j) => j.jobNo === no)!;
     const p = getProduct(state, job.productId);
     const lot = state.rawMaterials.find((l) => l.id === job.issues[0]?.lotId);
     const qc = state.qc.find((r) => r.jobNo === no);
+    const hs = hardnessSpecForRawMaterial(p.material);
     setF((x) => ({
       ...x,
       jobNo: no,
       component: p.name,
-      material: p.material.replace(/ Round Bar$/, ''),
+      ...(hs ? { material: hs.family, grade: hs.grade, min: String(hs.min), max: String(hs.max), scale: hs.scale } : {}),
       supplier: lot?.supplier ?? x.supplier,
       inwardQty: qc ? String(qc.input) : x.inwardQty,
     }));
@@ -169,7 +183,7 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
       (d, now) => {
         saveHardnessReport(
           d,
-          { jobNo: f.jobNo || undefined, date: f.date, component: f.component, material: f.material, supplier: f.supplier, inwardQty: Number(f.inwardQty) || 0, inspectedQty: Number(f.inspectedQty), cycleNo: f.cycleNo, drawingNo: f.drawingNo, checkedBy: f.checkedBy, scale: f.scale, min: limits.min, max: limits.max, readings, remarks: f.remarks },
+          { jobNo: f.jobNo || undefined, date: f.date, component: f.component, material: f.material, grade: f.grade, supplier: f.supplier, inwardQty: Number(f.inwardQty) || 0, inspectedQty: Number(f.inspectedQty), cycleNo: f.cycleNo, drawingNo: f.drawingNo, checkedBy: f.checkedBy, scale: f.scale, min: limits.min, max: limits.max, readings, remarks: f.remarks },
           tsFor(f.date, now),
           id,
         );
@@ -180,7 +194,8 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
   };
 
   const focusNext = (i: number) => (document.querySelector(`[data-reading="${i + 1}"]`) as HTMLInputElement | null)?.focus();
-  const jobs = state.jobs.filter((j) => j.currentStage !== 'scrapped');
+  // only Aluminium / Brass / Copper jobs are reported on this form
+  const jobs = state.jobs.filter((j) => j.currentStage !== 'scrapped' && hardnessSpecForRawMaterial(getProduct(state, j.productId).material));
 
   return (
     <Modal
@@ -218,8 +233,23 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
         <Field label="Component Name" required>
           <input className="input" value={f.component} onChange={(e) => set('component', e.target.value)} />
         </Field>
-        <Field label="Material">
-          <input className="input" value={f.material} onChange={(e) => set('material', e.target.value)} placeholder="e.g. Aluminium" />
+        <Field label="Material" required>
+          <select value={f.material} onChange={(e) => pickMaterial(e.target.value)}>
+            <option value="">Select material…</option>
+            {HARDNESS_MATERIALS.map((m) => (
+              <option key={m}>{m}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Material Grade" hint={f.grade ? 'Required hardness below is set from this grade' : undefined}>
+          <select value={f.grade} onChange={(e) => pickGrade(e.target.value)} disabled={!f.material}>
+            <option value="">{f.material ? 'Select grade…' : 'Select material first'}</option>
+            {grades.map((g) => (
+              <option key={g.grade} value={g.grade}>
+                {g.grade} — {g.min} to {g.max} {g.scale}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="Inward Qty">
           <NumInput value={f.inwardQty} onChange={(v) => set('inwardQty', v)} />
@@ -336,8 +366,9 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const ddmmyyyy = (iso: string) => iso.split('-').reverse().join('-');
 
-const HIR_CSS = `
-.hir{background:#fff;color:#111;font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:13px;max-width:760px;margin:0 auto}
+export const HIR_CSS = `
+.hir,.hir *{font-weight:800!important}
+.hir{background:#fff;color:#000;font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:13px;max-width:760px;margin:0 auto}
 .hir table{border-collapse:collapse;width:100%}
 .hir td,.hir th{border:1.5px solid #243a73;padding:7px 10px;text-align:left;vertical-align:middle}
 .hir .brand{display:flex;align-items:center;gap:10px}
@@ -345,14 +376,14 @@ const HIR_CSS = `
 .hir .co{font-size:22px;font-weight:800;color:#243a73;line-height:1}.hir .co small{display:block;font-size:11px;font-weight:700;margin-top:3px}
 .hir .fmt{font-weight:700;text-align:center}.hir .fmt small{display:block;font-size:11px;margin-top:6px}
 .hir .addr{font-size:12px}.hir .title{text-align:center;font-weight:800;letter-spacing:.02em}
-.hir .lbl{font-weight:700;width:19%}.hir .val{width:31%;font-weight:600;color:#1b2f8a}
-.hir .rd th{text-align:center;font-weight:800}.hir .rd td{text-align:center;height:34px;font-weight:600;color:#1b2f8a}
+.hir .lbl{font-weight:700;width:19%}.hir .val{width:31%;font-weight:600;color:#0f1f6b}
+.hir .rd th{text-align:center;font-weight:800}.hir .rd td{text-align:center;height:34px;font-weight:600;color:#0f1f6b}
 .hir .rd td.ok{color:#0a7a3d}.hir .rd td.no{color:#c4161c}
 .hir .foot td{height:92px;vertical-align:bottom;text-align:right;font-weight:600}
-.hir .verdict{margin-top:8px;font-weight:800}.hir .rem{margin-top:6px;font-size:12px;color:#444}
+.hir .verdict{margin-top:8px;font-weight:800}.hir .rem{margin-top:6px;font-size:12px;color:#000}
 `;
 
-function sheetHtml(r: HardnessReport) {
+export function sheetHtml(r: HardnessReport) {
   const verdict = hardnessVerdict(r);
   const rows = r.readings
     .map((v, i) => {
@@ -368,7 +399,7 @@ function sheetHtml(r: HardnessReport) {
     <tr><td colspan="4" class="addr">Factory Address :${esc(F.address)}</td></tr>
     <tr><td colspan="4" class="title">${esc(F.title)}</td></tr>
     <tr><td class="lbl">Component Name :-</td><td class="val">${esc(r.component)}</td><td class="lbl">Inward Qty.</td><td class="val">${r.inwardQty || ''}</td></tr>
-    <tr><td class="lbl">Material :-</td><td class="val">${esc(r.material)}</td><td class="lbl">Inspected Qty. :-</td><td class="val">${r.inspectedQty}</td></tr>
+    <tr><td class="lbl">Material :-</td><td class="val">${esc(r.material)}${r.grade ? ' · ' + esc(r.grade) : ''}</td><td class="lbl">Inspected Qty. :-</td><td class="val">${r.inspectedQty}</td></tr>
     <tr><td class="lbl">Date :</td><td class="val">${esc(ddmmyyyy(r.date))}</td><td class="lbl">Supplier Name :-</td><td class="val">${esc(r.supplier)}</td></tr>
     <tr><td class="lbl">Hardness Cycle No.</td><td class="val">${esc(r.cycleNo)}</td><td class="lbl">Checked By :-</td><td class="val">${esc(r.checkedBy)}</td></tr>
     <tr><td class="lbl">Drawing No.</td><td class="val" colspan="3">${esc(r.drawingNo)}</td></tr>
