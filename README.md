@@ -22,7 +22,6 @@ The app starts **empty**: only the masters are loaded (products, material grades
 
 - A browser that still holds data from an older build is reset to this empty state automatically on first load.
 - **Clear all data** (sidebar) empties stock and jobs again (masters kept).
-- The old demo records (six jobs, die records) now live only in `scripts/fixtures/`, where the automated checks (`npm run test:access`) use them. The app never loads them.
 
 ## Raw material master
 

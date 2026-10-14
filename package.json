@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test:engine": "vite-node scripts/engine-test.ts",
-    "test:access": "vite-node scripts/access-test.tsx"
+    "test:engine": "vite-node scripts/engine-test.ts"
   },
   "dependencies": {
     "lucide-react": "^1.52.0",

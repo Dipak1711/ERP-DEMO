@@ -41,7 +41,7 @@ applied later to a fresh project with `supabase db push` or by pasting the files
 | **Die Master** `die-master` | Main die (component) register + summary cards; add/edit; Excel/CSV export; print die card | `main_dies`, `dies` | `save_main_die` |
 | **Forging / Trimming Die Master** | Register per kind; add/edit die (dims, weights, maker, drawing, revision, images, status, cost, location, pieces); **replace** (old die kept Retired/Damaged, linked both ways); **maintenance**; **issue** to a press; **return** (adds pieces) | `dies`, `die_*` | `save_die`, `replace_die`, `record_maintenance`, `issue_die`, `return_die` |
 | **Die Details / History** | Per-component view: forging dies, trimming dies, full history timeline, images | `dies`, `die_history`, `die_issues`, `die_maintenance` | — |
-| **Layout / sidebar** | Pending badge per stage, bell menu (= next steps), *Clear all data*, *Load sample data*, theme | `v_stage_wip` | `reset_transactional_data()` (service role only) |
+| **Layout / sidebar** | Pending badge per stage, bell menu (= next steps), *Clear all data*, theme | `v_stage_wip` | `reset_transactional_data()` (service role only) |
 
 ## 3. Design decisions
 
@@ -138,7 +138,6 @@ All raise `exception` with the **same message text** as `ERPError`, so the exist
    Keep `engine.ts` read-only helpers (`jobSummary`, labels) or switch pages to the views.
 5. Replace `DieContext` mutations with the die RPCs; switch `ImagePicker` to Storage uploads.
 6. Generate typed client: `supabase gen types typescript`.
-7. (Optional) write a script that replays the old demo `sample.ts` through the RPCs to load sample data.
 
 ## 8. Open questions for the client
 
@@ -196,11 +195,10 @@ In the localStorage demo the data still sits in the browser, so the demo's maski
 * Masked store/QC users can still *type* a supplier or customer name when they create a record (they have the challan in hand); they just cannot read it back.
 * Die makers are treated as vendors (parties) → masked. Flip `maker` out of the masked list in `13_views.sql` if the client disagrees.
 * Accounts cannot edit the product master (only view rates); change `save_product` / `can_manage_masters()` if Accounts should maintain rates.
-* Product `sales_rate` is per piece, lot `purchase_rate` per KG — confirm units with the client. The demo rates in `seed.ts` / `sample.ts` are illustrative.
+* Product `sales_rate` is per piece, lot `purchase_rate` per KG — confirm units with the client.
 
 ### Verification (permission tests)
 * **Database** — scratch Postgres (PGlite), 6 roles + inactive user + anon: direct table reads denied for all roles; every masking view returns real values for
   director / plant_head / accounts and `••••••` / `NULL` for qc / operator / viewer; `customers` / `suppliers` 5 / 7 rows vs 0; `v_management_summary` only for director / plant head; `v_sales_by_customer` only for the three privileged roles;
   rate entry refused for qc / operator / viewer; `save_product` refused for accounts and below; masked users' edits leave maker / cost untouched; no party name in activity / ledger / history for anyone; inactive user and `anon` get nothing.
-* **Frontend** — `npm run test:access` renders 26 screens / forms / drawers plus route-card, hardness and die-card printouts and the Excel exports for each role (31 outputs per role) and scans for every real party name, invoice, rate and cost:
-  authorised roles show them, qc / operator / viewer show none (0 leaks). `npm run build` and `npm run test:engine` still pass.
+* **Frontend** — an automated per-role render test was run once (every screen, form, drawer, printout and Excel export for all six roles: authorised roles saw the real values, qc / operator / viewer saw none). It used throw-away demo data, which has since been removed from the repo, so the script is gone too; re-create it when real test data exists.

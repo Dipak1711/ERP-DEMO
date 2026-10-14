@@ -10,9 +10,8 @@
 //   forgeflow.v1.trimming        forgeflow.v1.meta   ({ seededAt, version })
 //   forgeflow.v1.heatTreatment
 //
-// VERSION 5 adds purchase / sales rates and keeps party names out of the activity text. VERSION 4 opened with the presentation sample (see sample.ts). A browser still
-// holding older data is switched to it automatically. "Clear all data" empties
-// everything except the masters; "Load sample data" brings the sample back.
+// VERSION 6 starts with an empty plant (masters only). A browser still holding older data is reset to it automatically.
+// "Clear all data" empties everything except the masters.
 // ---------------------------------------------------------------------------
 import { buildSeed, emptyState } from './seed';
 import type { CollectionKey, ERPState } from './types';
