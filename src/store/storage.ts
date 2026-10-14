@@ -10,16 +10,15 @@
 //   forgeflow.v1.trimming        forgeflow.v1.meta   ({ seededAt, version })
 //   forgeflow.v1.heatTreatment
 //
-// VERSION 4 opens with the presentation sample (see sample.ts). A browser still
+// VERSION 5 adds purchase / sales rates and keeps party names out of the activity text. VERSION 4 opened with the presentation sample (see sample.ts). A browser still
 // holding older data is switched to it automatically. "Clear all data" empties
 // everything except the masters; "Load sample data" brings the sample back.
 // ---------------------------------------------------------------------------
 import { buildSeed, emptyState } from './seed';
-import { buildSample } from './sample';
 import type { CollectionKey, ERPState } from './types';
 
 const PREFIX = 'forgeflow.v1.';
-const VERSION = 4;
+const VERSION = 6;
 const KEYS = Object.keys(emptyState()) as CollectionKey[];
 
 function safeGet(key: string): string | null {
@@ -55,7 +54,7 @@ export function loadState(): ERPState {
       /* corrupted or older version — fall through to a fresh start */
     }
   }
-  return sampleState();
+  return resetState();
 }
 
 /** Writes only the collections whose reference changed. */
@@ -73,9 +72,6 @@ function replaceWith(s: ERPState): ERPState {
 
 /** Empty plant: masters only, no stock and no jobs. */
 export const resetState = () => replaceWith(buildSeed());
-
-/** Presentation sample: stock, six jobs at different stages, dispatches. */
-export const sampleState = () => replaceWith(buildSample());
 
 export function seededAt(): string | null {
   try {

@@ -3,7 +3,7 @@
 create table jobs (
   job_no           text primary key,                       -- JOB-2026-0001, same number through every stage
   product_id       text not null references products (id),
-  customer         text not null default '',
+  customer         text not null default '',   -- CONFIDENTIAL (party name)
   planned_qty      int not null check (planned_qty > 0),
   material         text not null references material_master (material) on update cascade, -- what Cutting will consume
   od               numeric(8, 2) not null check (od > 0),

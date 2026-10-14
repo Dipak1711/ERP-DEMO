@@ -1,3 +1,4 @@
+import { isConfidentialAllowed, maskText, searchable } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { ClipboardCheck, Pencil, Printer, Plus } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -33,7 +34,7 @@ export function HardnessRegister() {
     () =>
       all
         .filter((r) => v === 'all' || hardnessVerdict(r) === v)
-        .filter((r) => matches(q, r.id, r.component, r.material, r.cycleNo, r.jobNo, r.checkedBy, r.supplier))
+        .filter((r) => matches(q, r.id, r.component, r.material, r.cycleNo, r.jobNo, r.checkedBy, searchable(r.supplier)))
         .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
     [all, q, v],
   );
@@ -126,7 +127,7 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
     component: cur?.component ?? '',
     material: cur && isHardnessMaterial(cur.material) ? cur.material : '',
     grade: cur?.grade ?? '',
-    supplier: cur?.supplier ?? '',
+    supplier: isConfidentialAllowed() ? cur?.supplier ?? '' : '',   // never load a masked party name into the form
     inwardQty: cur ? String(cur.inwardQty) : '',
     inspectedQty: cur ? String(cur.inspectedQty) : '',
     cycleNo: cur?.cycleNo ?? '',
@@ -172,7 +173,7 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
       jobNo: no,
       component: p.name,
       ...(hs ? { material: hs.family, grade: hs.grade, min: String(hs.min), max: String(hs.max), scale: hs.scale } : {}),
-      supplier: lot?.supplier ?? x.supplier,
+      supplier: isConfidentialAllowed() ? lot?.supplier ?? x.supplier : '',
       inwardQty: qc ? String(qc.input) : x.inwardQty,
     }));
   };
@@ -183,7 +184,7 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
       (d, now) => {
         saveHardnessReport(
           d,
-          { jobNo: f.jobNo || undefined, date: f.date, component: f.component, material: f.material, grade: f.grade, supplier: f.supplier, inwardQty: Number(f.inwardQty) || 0, inspectedQty: Number(f.inspectedQty), cycleNo: f.cycleNo, drawingNo: f.drawingNo, checkedBy: f.checkedBy, scale: f.scale, min: limits.min, max: limits.max, readings, remarks: f.remarks },
+          { jobNo: f.jobNo || undefined, date: f.date, component: f.component, material: f.material, grade: f.grade, supplier: isConfidentialAllowed() ? f.supplier : cur?.supplier ?? '', inwardQty: Number(f.inwardQty) || 0, inspectedQty: Number(f.inspectedQty), cycleNo: f.cycleNo, drawingNo: f.drawingNo, checkedBy: f.checkedBy, scale: f.scale, min: limits.min, max: limits.max, readings, remarks: f.remarks },
           tsFor(f.date, now),
           id,
         );
@@ -261,7 +262,11 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
           <NumInput suffix="rows" min={1} value={count} onChange={setCount} />
         </Field>
         <Field label="Supplier Name">
-          <input className="input" value={f.supplier} onChange={(e) => set('supplier', e.target.value)} />
+          {isConfidentialAllowed() || !cur ? (
+            <input className="input" value={f.supplier} onChange={(e) => set('supplier', e.target.value)} />
+          ) : (
+            <input className="input" value="••••••" readOnly disabled title="Confidential" />
+          )}
         </Field>
         <Field label="Hardness Cycle No.">
           <input className="input" value={f.cycleNo} onChange={(e) => set('cycleNo', e.target.value)} />
@@ -400,7 +405,7 @@ export function sheetHtml(r: HardnessReport) {
     <tr><td colspan="4" class="title">${esc(F.title)}</td></tr>
     <tr><td class="lbl">Component Name :-</td><td class="val">${esc(r.component)}</td><td class="lbl">Inward Qty.</td><td class="val">${r.inwardQty || ''}</td></tr>
     <tr><td class="lbl">Material :-</td><td class="val">${esc(r.material)}${r.grade ? ' · ' + esc(r.grade) : ''}</td><td class="lbl">Inspected Qty. :-</td><td class="val">${r.inspectedQty}</td></tr>
-    <tr><td class="lbl">Date :</td><td class="val">${esc(ddmmyyyy(r.date))}</td><td class="lbl">Supplier Name :-</td><td class="val">${esc(r.supplier)}</td></tr>
+    <tr><td class="lbl">Date :</td><td class="val">${esc(ddmmyyyy(r.date))}</td><td class="lbl">Supplier Name :-</td><td class="val">${esc(maskText(r.supplier))}</td></tr>
     <tr><td class="lbl">Hardness Cycle No.</td><td class="val">${esc(r.cycleNo)}</td><td class="lbl">Checked By :-</td><td class="val">${esc(r.checkedBy)}</td></tr>
     <tr><td class="lbl">Drawing No.</td><td class="val" colspan="3">${esc(r.drawingNo)}</td></tr>
   </table>

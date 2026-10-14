@@ -37,7 +37,7 @@ applied later to a fresh project with `supabase db push` or by pasting the files
 | **Dispatch** `dispatch` | Create dispatch from an FG lot: vehicle, date, driver, invoice, bag-wise qty/weight (or qty + bag count → auto split), status *Ready* (reserves FG) or *Dispatched* (ships). “Mark dispatched” later with vehicle no. Prints bag list | `dispatches`, `dispatch_bags`, `v_finished_goods` | `create_dispatch`, `mark_dispatched` |
 | **Job Traceability** `traceability` + **Trace drawer** | One row per job with per-stage out/loss, QC acc/rej, dispatched, progress stepper, status; drawer shows full route card, material lots issued, ledger, next step | `v_job_summary`, `stage_records`, `job_material_issues`, `movements`, `activity` | — |
 | **Quantity Ledger** `ledger` | Every movement (from → to, qty, loss, note) | `movements` | — (written by RPCs) |
-| **Product Master** `products` | Read-only list (code, raw material, cut length, finished weight, die, HT temp/process, default customer) | `products` | admin CRUD |
+| **Product Master** `products` | Read-only list (code, raw material, cut length, finished weight, die, HT temp/process, default customer) | `products` | director / plant head (`save_product`) |
 | **Die Master** `die-master` | Main die (component) register + summary cards; add/edit; Excel/CSV export; print die card | `main_dies`, `dies` | `save_main_die` |
 | **Forging / Trimming Die Master** | Register per kind; add/edit die (dims, weights, maker, drawing, revision, images, status, cost, location, pieces); **replace** (old die kept Retired/Damaged, linked both ways); **maintenance**; **issue** to a press; **return** (adds pieces) | `dies`, `die_*` | `save_die`, `replace_die`, `record_maintenance`, `issue_die`, `return_die` |
 | **Die Details / History** | Per-component view: forging dies, trimming dies, full history timeline, images | `dies`, `die_history`, `die_issues`, `die_maintenance` | — |
@@ -64,8 +64,8 @@ applied later to a fresh project with `supabase db push` or by pasting the files
    (“Die created”, “Status changed”, “Die details updated — Changed: …”, “Die marked damaged”). RPCs pass extra
    context (event date, note) through transaction-local settings `erp.event_date`, `erp.note`.
 10. **No deletes anywhere** for dies/production (the app never deleted; dies are Retired/Damaged, main dies Inactive).
-11. **Auth/roles (minimal)**: `profiles(role)` auto-created per `auth.users` row; roles `admin|manager|operator|qc|viewer`.
-    Today: any active user can run production RPCs; only `admin` can edit masters. Finer per-role limits (e.g. only `qc` runs
+11. **Auth/roles (minimal)**: `profiles(role)` auto-created per `auth.users` row; roles `director|plant_head|accounts|qc|operator|viewer` (see §10).
+    Today: any active user can run production RPCs; only director / plant head edit masters and see confidential data unmasked. Finer per-role limits (e.g. only `qc` runs
     `complete_qc`) are a one-line `_require_role()` change later.
 12. `created_by uuid default auth.uid()` on the main transactional tables for audit.
 
@@ -132,7 +132,7 @@ All raise `exception` with the **same message text** as `ERPError`, so the exist
 ## 7. Rollout steps once an account exists
 
 1. Create the Supabase project; `supabase link`; `supabase db push`; run `seed.sql`.
-2. Create the first user, then `update profiles set role='admin' where id = '<uuid>';`.
+2. Create the first user, then `update profiles set role='director' where id = '<uuid>';` (new users default to `viewer`; roles: director, plant_head, accounts, qc, operator, viewer — see §10).
 3. Add `@supabase/supabase-js`, a `src/db/client.ts`, and a camelCase⇄snake_case mapper.
 4. Replace `StoreContext.run()` with RPC calls + refetch (or Realtime subscriptions); replace `loadState/saveState`.
    Keep `engine.ts` read-only helpers (`jobSummary`, labels) or switch pages to the views.
@@ -142,7 +142,7 @@ All raise `exception` with the **same message text** as `ERPError`, so the exist
 
 ## 8. Open questions for the client
 
-* Should QC be restricted to `qc` role, and master data to `admin` only? (currently: admin masters, everyone else all actions)
+* Should QC be restricted to the `qc` role? (currently: any active user runs production actions; confidential data per §10)
 * Do job/dispatch numbers restart every year (implemented) or run continuously?
 * Hardness ranges other than AA 6082-T6 are placeholders (see `hardnessSpecs.ts`) — confirm and edit `hardness_specs`.
 * Multi-plant / multi-company? (Not modelled; would add `org_id` + RLS on every table.)
@@ -153,5 +153,54 @@ All 15 migrations + `seed.sql` were applied to a scratch Postgres (PGlite, with 
 flow was executed: inward → job → 4 stages (trimming skipped) → QC (partial) → FG → dispatch (ready → shipped, bag split, bag-wise weights) →
 hardness report (create/update/verdict) → die create/edit/issue/return/maintenance/replace (history lines) → reset.
 Numbers matched the app engine (500 issued, 20 process loss, 2 QC reject, 478 dispatched, 95.6 % yield). Also checked: insufficient-stock error,
-negative-value and duplicate part-code errors, no-delete guard, clients cannot write production tables, `anon` sees nothing, non-admin cannot write masters.
+negative-value and duplicate part-code errors, no-delete guard, clients cannot write production tables, `anon` sees nothing, masked roles cannot write masters.
 Not yet run against a real Supabase project (no account) — do `supabase db reset` locally or `db push` once one exists.
+
+## 10. Confidential data & roles
+
+**Rule:** party names, product / purchase / sales rates, invoices and financial values are visible only to
+**Director, Plant Head and Accounts**. Everyone else gets them masked. Director and Plant Head additionally get the management numbers and can edit master data.
+
+| Role (`profiles.role`) | Confidential data | Management dashboards (`v_management_summary`) | Master data | Enter rates |
+|---|---|---|---|---|
+| `director` | full | yes | edit | yes |
+| `plant_head` | full | yes | edit | yes |
+| `accounts` | full (parties, rates, invoices, values, `v_sales_by_customer`) | no | read | yes |
+| `qc`, `operator`, `viewer` | **masked** (`••••••` / `NULL`) | no | read | no |
+
+New users start as `viewer` (least privilege) until a director sets their role.
+
+**What is confidential (columns):** `products.default_customer`, `products.sales_rate`, `raw_material_lots.supplier / invoice_no / purchase_rate`,
+`jobs.customer`, `dispatches.customer / invoice_no / sales_rate` (+ computed `amount`), `hardness_reports.supplier`, `main_dies.customer`,
+`dies.maker / cost`, and the whole `customers` and `suppliers` lists.
+
+**How it is enforced (server-side, not cosmetic):**
+1. Tables with confidential columns have **no SELECT grant** for clients — `select * from jobs`, `?select=customer`, joins, exports and Realtime on them all fail with *permission denied*.
+2. Clients read **views** (`v_products`, `v_lots`, `v_jobs`, `v_job_summary`, `v_finished_goods`, `v_dispatches`, `v_hardness_reports`, `v_main_dies`, `v_dies`, …).
+   The views run with owner rights and wrap each confidential column in `mask_text()` / `mask_num()`, which check `can_see_confidential()` against the signed-in user's role. A masked user never receives the real value over the wire.
+3. `customers` / `suppliers` have an RLS policy `can_see_confidential()` (masked roles see 0 rows). Master-data writes need `can_manage_masters()` (director / plant head); the product master is written only through `save_product()`.
+4. **Write side:** rate entry (`add_inward.p_purchase_rate`, die cost, product rates) is refused for roles that may not see rates. A masked user editing a record cannot overwrite a hidden value
+   (`save_die`, `save_main_die`, `save_hardness_report` keep the stored maker / customer / supplier / cost), and the literal mask text `••••••` is never stored (`unmask_keep`).
+5. **Side channels closed:** the `activity` and `movements` feeds and die history are readable by everyone, so they contain only job / lot / dispatch numbers — never a party name or amount.
+   Views also return nothing to `anon` or to inactive users.
+6. Function privileges: the mask / role helpers are executable by `authenticated` because Postgres checks function rights against the *caller* even inside a view; they reveal nothing on their own.
+
+**Frontend (this repo, `src/auth/access.tsx`):** a role switcher (“Viewing as”, top bar) stands in for sign-in until Supabase Auth exists. Masked roles see `••••••` — the real value is **not rendered** (so it cannot be selected, copied or found via inspect),
+searches ignore hidden fields (no probing names by typing), forms never load hidden values, the supplier list is not offered, and **printouts** (route card, hardness report, die card) and **Excel/CSV exports** carry the mask too.
+When the app is wired to Supabase it will read the `v_*` views, so the server does the masking and the demo-side switch is replaced by `v_me`.
+In the localStorage demo the data still sits in the browser, so the demo's masking is presentation-only — real protection starts with the database.
+
+**Known limits / decisions to confirm**
+* Free-text fields typed by users (remarks, die maintenance notes) are not scanned; the rule is “do not type party names or prices into remarks”.
+* The existing Dashboard shows operational numbers only (no money), so it stays visible to all roles. `can_see_management()` / `v_management_summary` (stock value, FG value, dispatched value) are ready for a Director / Plant Head finance dashboard.
+* Masked store/QC users can still *type* a supplier or customer name when they create a record (they have the challan in hand); they just cannot read it back.
+* Die makers are treated as vendors (parties) → masked. Flip `maker` out of the masked list in `13_views.sql` if the client disagrees.
+* Accounts cannot edit the product master (only view rates); change `save_product` / `can_manage_masters()` if Accounts should maintain rates.
+* Product `sales_rate` is per piece, lot `purchase_rate` per KG — confirm units with the client. The demo rates in `seed.ts` / `sample.ts` are illustrative.
+
+### Verification (permission tests)
+* **Database** — scratch Postgres (PGlite), 6 roles + inactive user + anon: direct table reads denied for all roles; every masking view returns real values for
+  director / plant_head / accounts and `••••••` / `NULL` for qc / operator / viewer; `customers` / `suppliers` 5 / 7 rows vs 0; `v_management_summary` only for director / plant head; `v_sales_by_customer` only for the three privileged roles;
+  rate entry refused for qc / operator / viewer; `save_product` refused for accounts and below; masked users' edits leave maker / cost untouched; no party name in activity / ledger / history for anyone; inactive user and `anon` get nothing.
+* **Frontend** — `npm run test:access` renders 26 screens / forms / drawers plus route-card, hardness and die-card printouts and the Excel exports for each role (31 outputs per role) and scans for every real party name, invoice, rate and cost:
+  authorised roles show them, qc / operator / viewer show none (0 leaks). `npm run build` and `npm run test:engine` still pass.

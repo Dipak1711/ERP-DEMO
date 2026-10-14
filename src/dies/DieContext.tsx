@@ -10,14 +10,17 @@
 // Seed data is written only when `meta` is absent, so user records survive refreshes.
 // Nothing is ever deleted: dies are Retired / Damaged, main dies are made Inactive.
 // ---------------------------------------------------------------------------
+import { isConfidentialAllowed } from '../auth/access';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useStore } from '../store/StoreContext';
 import { todayISO } from '../components/format';
-import { buildDieSeed, emptyDieData } from './seed';
+import { emptyDieData } from './seed';
 import { KIND_LABEL, KIND_PREFIX, type Die, type DieCollection, type DieData, type DieKind, type DieStatus, type Dims, type HistoryEvent, type MainDie } from './types';
 
 const PREFIX = 'forgeflow.dies.v1.';
 const KEYS = Object.keys(emptyDieData()) as DieCollection[];
+/** Bump to wipe what older builds left in the browser (their demo dies). */
+const VERSION = 2;
 
 function lsGet(k: string) {
   try {
@@ -36,7 +39,13 @@ function lsSet(k: string, v: string) {
 }
 
 function load(): DieData {
-  if (lsGet(PREFIX + 'meta')) {
+  let ok = false;
+  try {
+    ok = (JSON.parse(lsGet(PREFIX + 'meta') ?? '{}') as { version?: number }).version === VERSION;
+  } catch {
+    /* unreadable meta → start clean */
+  }
+  if (ok) {
     try {
       const d = emptyDieData() as unknown as Record<DieCollection, unknown>;
       for (const k of KEYS) {
@@ -45,13 +54,13 @@ function load(): DieData {
       }
       return d as unknown as DieData;
     } catch {
-      /* corrupted — fall through to a fresh seed */
+      /* corrupted — start clean */
     }
   }
-  const seed = buildDieSeed();
-  persist(seed);
-  lsSet(PREFIX + 'meta', JSON.stringify({ seededAt: new Date().toISOString() }));
-  return seed;
+  const empty = emptyDieData();
+  persist(empty);
+  lsSet(PREFIX + 'meta', JSON.stringify({ version: VERSION, startedAt: new Date().toISOString() }));
+  return empty;
 }
 
 /** Writes only the collections whose reference changed. Returns false if the browser refused (quota). */
@@ -176,7 +185,7 @@ export function DieProvider({ children }: { children: ReactNode }) {
     if (isNew && data.mainDies.find((m) => m.code === i.mainCode)?.status === 'Inactive') return 'This main die is Inactive. Make it Active before adding dies.';
     if (!trim(i.material)) return `Enter the ${KIND_LABEL[kind].toLowerCase()} die material / grade.`;
     if (!i.makingDate) return 'Enter the die making date.';
-    if (!trim(i.maker)) return 'Enter the die maker name.';
+    if (!trim(i.maker) && (isNew || isConfidentialAllowed())) return 'Enter the die maker name.';
     const nums = [i.top.l, i.top.w, i.top.h, i.bottom.l, i.bottom.w, i.bottom.h, i.topWeight, i.bottomWeight, i.cost, i.pieces];
     if (nums.some((n) => n !== undefined && (!Number.isFinite(n) || n < 0))) return 'Dimensions, weights, cost and pieces cannot be negative.';
     return null;
@@ -198,7 +207,7 @@ export function DieProvider({ children }: { children: ReactNode }) {
     status: i.status,
     remarks: trim(i.remarks),
     location: trim(i.location),
-    cost: i.cost,
+    cost: isConfidentialAllowed() ? i.cost : undefined, // only authorised roles may enter a die cost
     pieces: i.pieces || 0,
     createdAt: now,
     updatedAt: now,
@@ -215,7 +224,7 @@ export function DieProvider({ children }: { children: ReactNode }) {
     commit((d) => {
       if (code) {
         const i = d.mainDies.findIndex((m) => m.code === code);
-        d.mainDies[i] = { ...d.mainDies[i], ...clean };
+        d.mainDies[i] = { ...d.mainDies[i], ...clean, customer: isConfidentialAllowed() ? clean.customer : d.mainDies[i].customer };
       } else d.mainDies.push({ code: saved, ...clean });
     });
     toastRef.current({ kind: 'success', title: code ? 'Main die updated' : 'Main die added', message: `${saved} · ${clean.name}` });
@@ -233,7 +242,7 @@ export function DieProvider({ children }: { children: ReactNode }) {
         die.topImg = putImage(d, undefined, input.topUrl, saved, 'T');
         die.bottomImg = putImage(d, undefined, input.bottomUrl, saved, 'B');
         d[coll].push(die);
-        addEvent(d, die, 'Die created', `Made by ${die.maker} on ${die.makingDate}, material ${die.material}.`, now);
+        addEvent(d, die, 'Die created', `Made on ${die.makingDate}, material ${die.material}.`, now);
         return;
       }
       // edit: only this one record is replaced — the sibling die type is never touched
@@ -248,6 +257,10 @@ export function DieProvider({ children }: { children: ReactNode }) {
         bottomImg: putImage(d, old.bottomImg, input.bottomUrl, code, 'B'),
         mainCode: old.mainCode,
       };
+      if (!isConfidentialAllowed()) {
+        next.maker = old.maker; // confidential: unchanged unless the role may see it
+        next.cost = old.cost;
+      }
       d[coll][idx] = next;
       const fields: [string, unknown, unknown][] = [
         ['material', old.material, next.material],
@@ -297,7 +310,7 @@ export function DieProvider({ children }: { children: ReactNode }) {
       if (wasStatus !== oldStatus) addEvent(d, old, 'Status changed', `${wasStatus} → ${oldStatus}.${why}`, now);
       if (oldStatus === 'Damaged') addEvent(d, old, 'Die marked damaged', trim(reason) || 'Marked damaged on replacement.', now);
       addEvent(d, old, 'Replacement die created', `Replaced by ${newCode}. This record is kept for traceability.`, now);
-      addEvent(d, die, 'Die created', `Made by ${die.maker} on ${die.makingDate}, material ${die.material}.`, now);
+      addEvent(d, die, 'Die created', `Made on ${die.makingDate}, material ${die.material}.`, now);
       addEvent(d, die, 'Replacement die created', `Replacement for ${oldCode}.`, now);
     });
     const other = kind === 'forging' ? 'trimming' : 'forging';

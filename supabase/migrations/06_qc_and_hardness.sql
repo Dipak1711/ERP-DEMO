@@ -31,7 +31,7 @@ create table hardness_reports (
   component     text not null check (btrim(component) <> ''),
   material      text not null check (material in ('Aluminium', 'Brass', 'Copper')),
   grade         text not null default '',                 -- e.g. AA 6082-T6
-  supplier      text not null default '',
+  supplier      text not null default '',                 -- CONFIDENTIAL (party name)
   inward_qty    int not null default 0 check (inward_qty >= 0),
   inspected_qty int not null check (inspected_qty > 0),
   cycle_no      text not null default '',

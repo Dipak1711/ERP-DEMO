@@ -6,7 +6,7 @@ create table main_dies (
   name        text not null check (btrim(name) <> ''),
   part_code   text not null check (btrim(part_code) <> ''),
   description text not null default '',
-  customer    text not null default '',
+  customer    text not null default '',   -- CONFIDENTIAL (party name)
   metal       metal_type not null default 'Brass',
   created_on  date not null,
   status      main_die_status not null default 'Active',
@@ -33,7 +33,7 @@ create table dies (
   top_weight       numeric(8, 2) check (top_weight    is null or top_weight    >= 0),  -- kg
   bottom_weight    numeric(8, 2) check (bottom_weight is null or bottom_weight >= 0),
   making_date      date not null,
-  maker            text not null check (btrim(maker) <> ''),
+  maker            text not null check (btrim(maker) <> ''),   -- CONFIDENTIAL (vendor / party name)
   drawing_no       text not null default '',
   revision         text not null default 'R0',
   top_img_path     text,                                   -- Storage: die-images/<path>
@@ -41,7 +41,7 @@ create table dies (
   status           die_status not null default 'Available',
   remarks          text not null default '',
   location         text not null default '',
-  cost             numeric(12, 2) check (cost is null or cost >= 0),
+  cost             numeric(12, 2) check (cost is null or cost >= 0),   -- CONFIDENTIAL
   pieces           int not null default 0 check (pieces >= 0),   -- production pieces so far
   last_maint_date  date,
   maint_remarks    text,

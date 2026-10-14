@@ -16,21 +16,13 @@ npm run build        # production build in dist/
 npm run test:engine  # headless checks of the quantity engine (runs the worked example below)
 ```
 
-## Starting data (presentation sample)
+## Starting data
 
-The app opens with a ready-made sample, so a client sees every screen filled. It is entered through the same rules as real entries (`src/store/sample.ts`):
+The app starts **empty**: only the masters are loaded (products, material grades, customers, suppliers, machines, operators, inspectors). There is no stock, no job, no dispatch and no die — everything is entered by the user.
 
-| Job | Item | Where it is |
-|---|---|---|
-| 0001 | 9084 Flange, 1,000 to cut | **Fully dispatched**, copied from the paper route card: 1,030 cut, Trimming not required, 10 bags, GJ13AX3059 |
-| 0002 | Brass Bush | Finished Goods: 200 PCS dispatched, 188 waiting |
-| 0003 | Aluminium Component | Waiting at QC |
-| 0004 | 9084 Flange | Waiting at Heat Treatment (its raw material came from two lots, FIFO) |
-| 0005 | Copper Component | Waiting at Forging |
-| 0006 | Brass Bush | New job card, waiting at Cutting |
-
-- **Load sample data** (sidebar) brings this back at any time.
-- **Clear all data** empties stock and jobs (masters kept) for a hands-on walkthrough.
+- A browser that still holds data from an older build is reset to this empty state automatically on first load.
+- **Clear all data** (sidebar) empties stock and jobs again (masters kept).
+- The old demo records (six jobs, die records) now live only in `scripts/fixtures/`, where the automated checks (`npm run test:access`) use them. The app never loads them.
 
 ## Raw material master
 

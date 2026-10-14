@@ -7,13 +7,15 @@
 // cut, Trimming not required, packed in 10 bags (100 / 110 PCS) on GJ13AX3059.
 // The other jobs are left at different stages so every screen has something.
 // ---------------------------------------------------------------------------
-import { addInward, completeQC, saveHardnessReport, completeStage, createDispatch, createJob, materialKey } from './engine';
-import { findMaterial, pieceWeightKg } from './materials';
-import { emptyState, INSPECTORS, MACHINES, OPERATORS } from './seed';
-import type { ERPState } from './types';
+import { addInward, completeQC, saveHardnessReport, completeStage, createDispatch, createJob, materialKey } from '../../src/store/engine';
+import { findMaterial, pieceWeightKg } from '../../src/store/materials';
+import { emptyState, INSPECTORS, MACHINES, OPERATORS } from '../../src/store/seed';
+import type { ERPState } from '../../src/store/types';
 
 export function buildSample(now = new Date()): ERPState {
   const s = emptyState();
+  // illustrative rates, only so the access test has money to look for
+  for (const p of s.products) p.salesRate = 40 + p.cuttingLength;
 
   // Today's scripted entries run up to 11:30. If the sample is loaded earlier in
   // the day they are pulled back so they stay in the past and keep their order.
@@ -30,10 +32,10 @@ export function buildSample(now = new Date()): ERPState {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
-  const inward = (ts: string, material: string, od: number, lengthMm: number, qty: number, supplier: string, heatNo: string, invoiceNo: string) => {
+  const inward = (ts: string, material: string, od: number, lengthMm: number, qty: number, supplier: string, heatNo: string, invoiceNo: string, ratePerKg?: number) => {
     const spec = findMaterial(material)!;
     const weight = Math.round(pieceWeightKg(od, lengthMm, spec.density) * qty * 1000) / 1000;
-    addInward(s, { material, materialType: spec.grade, od, supplier, inwardDate: dateOf(ts), qty, weight, heatNo, invoiceNo }, ts);
+    addInward(s, { material, materialType: spec.grade, od, supplier, inwardDate: dateOf(ts), qty, weight, heatNo, invoiceNo, purchaseRate: ratePerKg }, ts);
   };
   const jobCard = (ts: string, productId: string, qty: number, extra: { machineNo?: string } = {}) => {
     const p = s.products.find((x) => x.id === productId)!;
@@ -78,12 +80,12 @@ export function buildSample(now = new Date()): ERPState {
   const [priya, rahul] = INSPECTORS;
 
   // ---- 8 days ago: raw material arrives -------------------------------------
-  inward(at(8, 10), 'EN8 Steel Round Bar', 50, 62, 1200, 'Shree Steel Traders', 'H-24817', 'SST/2026/118');
-  inward(at(8, 11), 'Brass Round Bar', 45, 38, 800, 'ABC Metals', 'H-B3301', 'ABC/2026/0441');
+  inward(at(8, 10), 'EN8 Steel Round Bar', 50, 62, 1200, 'Shree Steel Traders', 'H-24817', 'SST/2026/118', 78);
+  inward(at(8, 11), 'Brass Round Bar', 45, 38, 800, 'ABC Metals', 'H-B3301', 'ABC/2026/0441', 590);
 
   // ---- JOB 1 — the client's route card, start to finish ----------------------
   const j1 = jobCard(at(7, 9), 'P-9084', 1000, { machineNo: MACHINES.forging[0] });
-  inward(at(7, 11, 30), 'Aluminium Round Bar', 25, 70, 600, 'PQR Industries', 'H-A6061', 'PQR/2026/0098');
+  inward(at(7, 11, 30), 'Aluminium Round Bar', 25, 70, 600, 'PQR Industries', 'H-A6061', 'PQR/2026/0098', 310);
   stage(at(7, 15), 'cutting', j1, 0, ramesh, { cutQty: 1030 });
   stage(at(6, 10), 'forging', j1, 0, suresh);
 
@@ -92,7 +94,7 @@ export function buildSample(now = new Date()): ERPState {
   stage(at(6, 16), 'cutting', j2, 3, ramesh);
   stage(at(6, 17), 'trimming', j1, 0, imran, { skip: true });
 
-  inward(at(5, 9), 'Copper Round Bar', 30, 45, 500, 'XYZ Metals', 'H-C1190', 'XYZ/2026/0213');
+  inward(at(5, 9), 'Copper Round Bar', 30, 45, 500, 'XYZ Metals', 'H-C1190', 'XYZ/2026/0213', 810);
   stage(at(5, 10), 'heatTreatment', j1, 0, vijay, { temperature: 850 });
   stage(at(5, 11), 'forging', j2, 2, suresh);
 
@@ -111,7 +113,7 @@ export function buildSample(now = new Date()): ERPState {
   stage(at(3, 12), 'heatTreatment', j2, 2, vijay, { temperature: 550 });
 
   // ---- second EN8 lot, then JOB 4 draws from both lots (FIFO) ----------------
-  inward(at(2, 10), 'EN8 Steel Round Bar', 50, 62, 600, 'Shree Steel Traders', 'H-24903', 'SST/2026/131');
+  inward(at(2, 10), 'EN8 Steel Round Bar', 50, 62, 600, 'Shree Steel Traders', 'H-24903', 'SST/2026/131', 81);
   stage(at(2, 11), 'trimming', j3, 0, imran, { skip: true });
   const j4 = jobCard(at(2, 12), 'P-9084', 500, { machineNo: MACHINES.forging[0] });
   qc(at(2, 15), j2, 4, rahul);

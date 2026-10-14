@@ -1,7 +1,9 @@
 -- 10 · Production engine in SQL (port of src/store/engine.ts).
 -- Each function is one transaction: any `raise exception` rolls back everything, like the
 -- clone-then-commit pattern in StoreContext.run(). Error messages match the ERPError texts.
--- Functions are SECURITY DEFINER because clients get SELECT-only access to the tables (see 14).
+-- Functions are SECURITY DEFINER because clients get no write access to the tables (see 14).
+-- Party names (supplier / customer) are NEVER written into movements.note or activity.text: those feeds are readable
+-- by every role, so they carry only job / lot / dispatch numbers. The names live in the masked columns.
 
 -- ----------------------------------------------------------- helpers ---
 create function _require_user() returns void
@@ -63,6 +65,7 @@ create function add_inward(
   p_weight        numeric,
   p_heat_no       text default null,
   p_invoice_no    text default null,
+  p_purchase_rate numeric default null,      -- ₹ per KG — confidential, director / plant head / accounts only
   p_ts            timestamptz default now()
 ) returns text
 language plpgsql security definer set search_path = public as $$
@@ -80,6 +83,10 @@ begin
   v_qty := _assert_qty(p_qty, 'Quantity');
   if not (coalesce(p_weight, 0) > 0) then raise exception 'Weight must be greater than zero.'; end if;
   if p_inward_date is null then raise exception 'Inward date is required.'; end if;
+  if p_purchase_rate is not null and not can_see_confidential() then
+    raise exception 'You are not allowed to enter purchase rates.' using errcode = '42501';
+  end if;
+  if p_purchase_rate < 0 then raise exception 'Purchase rate cannot be negative.'; end if;
   if not exists (select 1 from material_master where material = btrim(p_material)) then
     raise exception 'Unknown material %.', p_material;
   end if;
@@ -89,14 +96,14 @@ begin
   v_wt := round(p_weight, 3);
 
   insert into raw_material_lots (id, material, material_type, od, supplier, inward_date, heat_no, invoice_no,
-                                 inward_qty, inward_weight, available_qty)
+                                 inward_qty, inward_weight, available_qty, purchase_rate)
   values (v_id, btrim(p_material), coalesce(btrim(p_material_type), ''), p_od, btrim(p_supplier), p_inward_date,
-          nullif(btrim(p_heat_no), ''), nullif(btrim(p_invoice_no), ''), v_qty, v_wt, v_qty);
+          nullif(btrim(p_heat_no), ''), nullif(btrim(p_invoice_no), ''), v_qty, v_wt, v_qty, round(p_purchase_rate, 2));
 
   perform _move(v_ts, null, 'Supplier', 'Raw Inventory', v_qty, 0,
                 format('%s OD %smm · lot %s', btrim(p_material), trim_scale(p_od), v_id));
-  perform _log(v_ts, 'inward', format('%s PCS %s (OD %smm) received from %s — lot %s',
-                v_qty, btrim(p_material), trim_scale(p_od), btrim(p_supplier), v_id));
+  perform _log(v_ts, 'inward', format('%s PCS %s (OD %smm) received — lot %s',
+                v_qty, btrim(p_material), trim_scale(p_od), v_id));
   return v_id;
 end $$;
 
@@ -151,7 +158,7 @@ begin
   values (v_job, 'cutting', v_planned, 'Pending', v_ts,
           jsonb_build_object('cuttingLength', case when coalesce(p_cutting_length, 0) > 0 then p_cutting_length else prod.cutting_length end));
 
-  perform _log(v_ts, 'job', format('%s created — %s PCS %s for %s', v_job, v_planned, prod.name, v_cust), v_job);
+  perform _log(v_ts, 'job', format('%s created — %s PCS %s', v_job, v_planned, prod.name), v_job);
   return v_job;
 end $$;
 
@@ -466,18 +473,19 @@ begin
   v_no   := format('DSP-%s-%s', _year(v_ts), lpad(v_n::text, 4, '0'));
 
   insert into dispatches (dispatch_no, fg_id, job_no, product_id, customer, qty, vehicle_no, driver, invoice_no, date, weight,
-                          status, created_at, dispatched_at)
+                          status, created_at, dispatched_at, sales_rate)
   values (v_no, fg.id, fg.job_no, fg.product_id, v_cust, v_tot_q, v_vehicle, coalesce(btrim(p_driver), ''),
           coalesce(nullif(btrim(p_invoice_no), ''), format('INV-%s-%s', _year(v_ts), lpad((v_n + 410)::text, 4, '0'))),
-          p_date, v_tot_w, p_status, v_ts, case when p_status = 'Dispatched' then v_ts end);
+          p_date, v_tot_w, p_status, v_ts, case when p_status = 'Dispatched' then v_ts end,
+          prod.sales_rate);                                  -- rate frozen at dispatch time
 
   insert into dispatch_bags (dispatch_no, bag_no, qty, weight)
   select v_no, (x ->> 'no')::int, (x ->> 'qty')::int, (x ->> 'weight')::numeric from jsonb_array_elements(v_bags) x;
 
   if p_status = 'Dispatched' then
     update finished_goods set dispatched_qty = dispatched_qty + v_tot_q where id = fg.id;
-    perform _move(v_ts, fg.job_no, 'Finished Goods', 'Customer', v_tot_q, 0, format('%s · %s · %s', v_no, v_vehicle, v_cust));
-    perform _log(v_ts, 'dispatch', format('%s PCS %s dispatched to %s — %s (%s)', v_tot_q, prod.name, v_cust, v_no, v_vehicle), fg.job_no);
+    perform _move(v_ts, fg.job_no, 'Finished Goods', 'Customer', v_tot_q, 0, format('%s · %s', v_no, v_vehicle));
+    perform _log(v_ts, 'dispatch', format('%s PCS %s dispatched — %s (%s)', v_tot_q, prod.name, v_no, v_vehicle), fg.job_no);
     perform _sync_job_after_dispatch(fg.job_no);
   else
     update finished_goods set reserved_qty = reserved_qty + v_tot_q where id = fg.id;
@@ -504,9 +512,40 @@ begin
   update finished_goods set reserved_qty = reserved_qty - d.qty, dispatched_qty = dispatched_qty + d.qty where id = d.fg_id;
   update dispatches set status = 'Dispatched', vehicle_no = v_vehicle, dispatched_at = v_ts where dispatch_no = p_dispatch_no;
 
-  perform _move(v_ts, d.job_no, 'Finished Goods', 'Customer', d.qty, 0, format('%s · %s · %s', p_dispatch_no, v_vehicle, d.customer));
-  perform _log(v_ts, 'dispatch', format('%s PCS dispatched to %s — %s (%s)', d.qty, d.customer, p_dispatch_no, v_vehicle), d.job_no);
+  perform _move(v_ts, d.job_no, 'Finished Goods', 'Customer', d.qty, 0, format('%s · %s', p_dispatch_no, v_vehicle));
+  perform _log(v_ts, 'dispatch', format('%s PCS dispatched — %s (%s)', d.qty, p_dispatch_no, v_vehicle), d.job_no);
   perform _sync_job_after_dispatch(d.job_no);
+end $$;
+
+-- ------------------------------------------------------------- products ---
+-- Product master. Writes go through here (not the table) because default_customer / sales_rate are confidential.
+-- Director / plant head only. Payload keys: id, code, name, material, od, cutting_length, finished_weight,
+-- ht_temperature, ht_soak_minutes, ht_process, ht_quench, die_no, default_customer, sales_rate, active
+create function save_product(p_payload jsonb) returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  v_id text := btrim(coalesce(p_payload ->> 'id', ''));
+begin
+  perform _require_user();
+  if not can_manage_masters() then
+    raise exception 'Only the Director or Plant Head can change the product master.' using errcode = '42501';
+  end if;
+  if v_id = '' then raise exception 'Product id is required.'; end if;
+  insert into products (id, code, name, material, od, cutting_length, finished_weight, ht_temperature, ht_soak_minutes,
+                        ht_process, ht_quench, die_no, default_customer, sales_rate, active)
+  values (v_id, p_payload ->> 'code', p_payload ->> 'name', p_payload ->> 'material', (p_payload ->> 'od')::numeric,
+          (p_payload ->> 'cutting_length')::numeric, (p_payload ->> 'finished_weight')::numeric,
+          (p_payload ->> 'ht_temperature')::int, (p_payload ->> 'ht_soak_minutes')::int,
+          coalesce(p_payload ->> 'ht_process', ''), coalesce(p_payload ->> 'ht_quench', ''), coalesce(p_payload ->> 'die_no', ''),
+          coalesce(p_payload ->> 'default_customer', ''), nullif(p_payload ->> 'sales_rate', '')::numeric,
+          coalesce((p_payload ->> 'active')::boolean, true))
+  on conflict (id) do update
+    set code = excluded.code, name = excluded.name, material = excluded.material, od = excluded.od,
+        cutting_length = excluded.cutting_length, finished_weight = excluded.finished_weight,
+        ht_temperature = excluded.ht_temperature, ht_soak_minutes = excluded.ht_soak_minutes,
+        ht_process = excluded.ht_process, ht_quench = excluded.ht_quench, die_no = excluded.die_no,
+        default_customer = excluded.default_customer, sales_rate = excluded.sales_rate, active = excluded.active;
+  return v_id;
 end $$;
 
 -- ---------------------------------------------------------------- reset ---

@@ -1,12 +1,18 @@
--- 14 · Row level security and privileges.
+-- 14 · Row level security and privileges — the part that actually enforces confidentiality.
 --
--- Model
---   • Signed-in, active users can READ everything.
---   • Master data (products, customers, suppliers, machines, operators, inspectors, material/hardness master)
---     can be written by role 'admin' only.
---   • Production, QC, FG, dispatch, hardness and die tables have NO client write access at all:
---     they change only through the SECURITY DEFINER functions in 10–12, which enforce the business rules.
---   • `anon` gets nothing.
+-- Roles (profiles.role)      confidential data        management dashboards   master data
+--   director, plant_head     full                     yes                     edit
+--   accounts                 full (parties, rates)    no                      read
+--   qc, operator, viewer     MASKED                   no                      read
+--
+-- Mechanics
+--   1. Tables that hold confidential columns (products, raw_material_lots, jobs, dispatches, hardness_reports,
+--      main_dies, dies) are NOT readable by clients at all. Clients read the masking views in 13 instead.
+--      → a masked user cannot get the real value with select *, ?select=customer, a join, an export or Realtime.
+--   2. customers / suppliers (pure party lists) are readable only with can_see_confidential().
+--   3. Every table is read-only for clients; data changes only through the SECURITY DEFINER functions in 10–12,
+--      which enforce the business rules and refuse rate entry for roles that may not see rates.
+--   4. `anon` gets nothing.
 
 -- ---- start from a clean slate -------------------------------------------------------------
 revoke all on all tables    in schema public from anon, authenticated;
@@ -22,17 +28,30 @@ begin
   end loop;
 end $$;
 
--- ---- read access --------------------------------------------------------------------------
+-- ---- read access to NON-confidential tables -----------------------------------------------
 do $$
 declare t text;
 begin
-  for t in select tablename from pg_tables where schemaname = 'public' and tablename not in ('profiles', 'doc_counters') loop
+  for t in
+    select tablename from pg_tables
+     where schemaname = 'public'
+       and tablename not in ('profiles', 'doc_counters',
+                             -- confidential: read through v_* views only
+                             'products', 'raw_material_lots', 'jobs', 'dispatches', 'hardness_reports', 'main_dies', 'dies',
+                             -- confidential party lists: own policy below
+                             'customers', 'suppliers')
+  loop
     execute format('grant select on public.%I to authenticated', t);
     execute format('create policy %I on public.%I for select to authenticated using (is_active_user())', t || '_read', t);
   end loop;
 end $$;
 
--- views (security_invoker, so the policies above apply)
+-- party lists
+grant select on customers, suppliers to authenticated;
+create policy customers_read on customers for select to authenticated using (can_see_confidential());
+create policy suppliers_read on suppliers for select to authenticated using (can_see_confidential());
+
+-- views (owner-rights views; they mask and filter by themselves — see 13)
 do $$
 declare v text;
 begin
@@ -42,29 +61,32 @@ begin
 end $$;
 
 -- ---- profiles -----------------------------------------------------------------------------
+-- everyone sees their own row; director / plant head manage roles
 grant select, update on profiles to authenticated;
-create policy profiles_read_own_or_admin on profiles for select to authenticated using (id = auth.uid() or is_admin());
-create policy profiles_admin_update      on profiles for update to authenticated using (is_admin()) with check (is_admin());
+create policy profiles_read   on profiles for select to authenticated using (id = auth.uid() or can_manage_masters());
+create policy profiles_update on profiles for update to authenticated using (can_manage_masters()) with check (can_manage_masters());
 
--- ---- master data: admin writes ------------------------------------------------------------
+-- ---- master data writes: director / plant head --------------------------------------------
 do $$
 declare t text;
 begin
-  foreach t in array array['products', 'customers', 'suppliers', 'machines', 'operators', 'inspectors', 'material_master', 'hardness_specs'] loop
+  foreach t in array array['customers', 'suppliers', 'machines', 'operators', 'inspectors', 'material_master', 'hardness_specs'] loop
     execute format('grant insert, update, delete on public.%I to authenticated', t);
-    execute format('create policy %I on public.%I for insert to authenticated with check (is_admin())', t || '_admin_ins', t);
-    execute format('create policy %I on public.%I for update to authenticated using (is_admin()) with check (is_admin())', t || '_admin_upd', t);
-    execute format('create policy %I on public.%I for delete to authenticated using (is_admin())', t || '_admin_del', t);
+    execute format('create policy %I on public.%I for insert to authenticated with check (can_manage_masters())', t || '_mgr_ins', t);
+    execute format('create policy %I on public.%I for update to authenticated using (can_manage_masters()) with check (can_manage_masters())', t || '_mgr_upd', t);
+    execute format('create policy %I on public.%I for delete to authenticated using (can_manage_masters())', t || '_mgr_del', t);
   end loop;
 end $$;
--- identity sequences used by the master tables
+-- (products are written through save_product(), because of their confidential columns)
 grant usage on all sequences in schema public to authenticated;
 
 -- ---- functions: only the intended entry points are callable --------------------------------
--- (revoked above; grant back the public RPC surface + helpers used inside RLS policies / views)
 grant execute on function
-  is_active_user(), is_admin(), stage_label(text),
-  add_inward(text, text, numeric, text, date, int, numeric, text, text, timestamptz),
+  -- used by RLS policies and by the views in 13 (Postgres checks function privileges against the CALLER, even inside a view)
+  is_active_user(), can_see_confidential(), can_see_management(), can_manage_masters(), current_app_role(),
+  mask_text(text), mask_num(numeric), stage_label(text),
+  -- production
+  add_inward(text, text, numeric, text, date, int, numeric, text, text, numeric, timestamptz),
   create_job(text, int, text, numeric, numeric, text, date, job_priority, numeric, text, text, timestamptz),
   start_stage(process_stage, text, int, text, text, jsonb, timestamptz),
   complete_stage(process_stage, text, int, int, text, text, text, jsonb, timestamptz),
@@ -72,6 +94,8 @@ grant execute on function
   create_dispatch(text, text, date, dispatch_status, jsonb, int, int, numeric, text, text, text, timestamptz),
   mark_dispatched(text, text, timestamptz),
   save_hardness_report(jsonb, text, timestamptz),
+  save_product(jsonb),
+  -- dies
   save_main_die(jsonb, text),
   save_die(die_kind, jsonb, text),
   replace_die(die_kind, text, jsonb, die_status, text),

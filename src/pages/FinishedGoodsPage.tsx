@@ -1,3 +1,4 @@
+import { Conf, searchable } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { Eye, PackageCheck, Truck } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -35,7 +36,7 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
     .filter((f) => (filter === 'all' ? true : filter === 'stock' ? f.dispatchedQty < f.qty : f.dispatchedQty === f.qty))
     .filter((f) => {
       const job = getJob(state, f.jobNo);
-      return matches(q, f.id, f.jobNo, getProduct(state, f.productId).name, job.customer, f.location);
+      return matches(q, f.id, f.jobNo, getProduct(state, f.productId).name, searchable(job.customer), f.location);
     })
     .slice()
     .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
@@ -145,7 +146,7 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
                       </td>
                       <td>
                         <div className="strong">{p.name}</div>
-                        <div className="sub">{getJob(state, f.jobNo).customer}</div>
+                        <div className="sub"><Conf>{getJob(state, f.jobNo).customer}</Conf></div>
                       </td>
                       <td>
                         <JobLink jobNo={f.jobNo} />

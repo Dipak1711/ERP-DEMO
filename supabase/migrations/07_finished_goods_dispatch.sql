@@ -21,11 +21,12 @@ create table dispatches (
   fg_id         text not null references finished_goods (id),
   job_no        text not null references jobs (job_no),
   product_id    text not null references products (id),
-  customer      text not null default '',
+  customer      text not null default '',               -- CONFIDENTIAL (party name)
   qty           int not null check (qty > 0),
   vehicle_no    text not null default '',
   driver        text not null default '',
-  invoice_no    text not null default '',
+  invoice_no    text not null default '',               -- CONFIDENTIAL
+  sales_rate    numeric(12, 2) check (sales_rate is null or sales_rate >= 0),  -- CONFIDENTIAL, ₹/pc snapshot taken at dispatch
   date          date not null,
   weight        numeric(12, 3) not null check (weight >= 0),   -- KG total of all bags
   status        dispatch_status not null,

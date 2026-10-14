@@ -1,3 +1,4 @@
+import { Conf, searchable, useAccess } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { ArrowDownToLine, Boxes, Layers, PackagePlus, Send } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -37,7 +38,7 @@ export function RawInventoryPage() {
   }, [lots]);
   const stockRows = lots
     .filter((l) => !matF || materialKey(l.material, l.od) === matF)
-    .filter((l) => matches(q, l.id, l.material, l.materialType, l.supplier, l.heatNo, `${l.od}`))
+    .filter((l) => matches(q, l.id, l.material, l.materialType, searchable(l.supplier), l.heatNo, `${l.od}`))
     .slice()
     .sort((a, b) => a.inwardDate.localeCompare(b.inwardDate) || a.id.localeCompare(b.id));
 
@@ -152,6 +153,7 @@ export function RawInventoryPage() {
                     <th>Material Type</th>
                     <th>OD / Size</th>
                     <th>Supplier</th>
+                    <th className="r">Purchase Rate</th>
                     <th>Inward Date</th>
                     <th className="r">Inward Qty</th>
                     <th className="r">Available Qty</th>
@@ -170,7 +172,12 @@ export function RawInventoryPage() {
                       <td className="strong">{l.material}</td>
                       <td>{l.materialType}</td>
                       <td className="nowrap">OD {l.od} mm</td>
-                      <td>{l.supplier}</td>
+                      <td>
+                        <Conf>{l.supplier}</Conf>
+                      </td>
+                      <td className="r num nowrap">
+                        <Conf>{l.purchaseRate ? `₹ ${l.purchaseRate.toLocaleString('en-IN')} / kg` : ''}</Conf>
+                      </td>
                       <td className="nowrap">{fmtDate(l.inwardDate)}</td>
                       <td className="r num">
                         {fmtNum(l.inwardQty)}
@@ -211,7 +218,7 @@ export function RawInventoryPage() {
               </thead>
               <tbody>
                 {state.rawInwards
-                  .filter((i) => matches(q, i.lotId, i.material, i.supplier, i.invoiceNo))
+                  .filter((i) => matches(q, i.lotId, i.material, searchable(i.supplier), searchable(i.invoiceNo)))
                   .map((i) => (
                     <tr key={i.id}>
                       <td className="nowrap">{fmtDate(i.date)}</td>
@@ -221,8 +228,12 @@ export function RawInventoryPage() {
                         <div className="sub">{i.materialType}</div>
                       </td>
                       <td>OD {i.od} mm</td>
-                      <td>{i.supplier}</td>
-                      <td className="mono">{i.invoiceNo}</td>
+                      <td>
+                        <Conf>{i.supplier}</Conf>
+                      </td>
+                      <td className="mono">
+                        <Conf>{i.invoiceNo}</Conf>
+                      </td>
                       <td className="r qty-cell">
                         <span className="gain">+{fmtNum(i.qty)}</span>
                       </td>
@@ -282,6 +293,8 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
   const [supplier, setSupplier] = useState('');
   const [date, setDate] = useState(todayISO());
   const [invoice, setInvoice] = useState('');
+  const [rate, setRate] = useState('');
+  const { conf } = useAccess();
   const [heatNo, setHeatNo] = useState('');
   const [qty, setQty] = useState('');
   const [pieceLength, setPieceLength] = useState('');
@@ -310,7 +323,7 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
     if (
       run(
         (d, ts) =>
-          addInward(d, { material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: invoice }, ts),
+          addInward(d, { material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: invoice, purchaseRate: conf && Number(rate) > 0 ? Number(rate) : undefined }, ts),
         {
           title: 'Raw material received',
           message: `${qN} PCS (${wN} KG) of ${material} OD ${od} mm added to stock.`,
@@ -377,12 +390,17 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
       <div className="section-label">Receipt</div>
       <div className="form-grid">
         <Field label="Supplier" required>
-          <select value={supplier} onChange={(e) => setSupplier(e.target.value)}>
-            <option value="">Select supplier…</option>
-            {SUPPLIERS.map((m) => (
-              <option key={m}>{m}</option>
-            ))}
-          </select>
+          {conf ? (
+            <select value={supplier} onChange={(e) => setSupplier(e.target.value)}>
+              <option value="">Select supplier…</option>
+              {SUPPLIERS.map((m) => (
+                <option key={m}>{m}</option>
+              ))}
+            </select>
+          ) : (
+            /* the supplier list is confidential: masked roles type the name from the challan */
+            <input className="input" value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="As on the delivery challan" autoComplete="off" />
+          )}
         </Field>
         <Field label="Inward Date" required>
           <input className="input" type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
@@ -390,6 +408,11 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
         <Field label="Supplier Invoice No.">
           <input className="input mono" value={invoice} onChange={(e) => setInvoice(e.target.value)} placeholder="e.g. INV/2026/0412" />
         </Field>
+        {conf && (
+          <Field label="Purchase Rate (₹ / KG)" hint="Confidential — visible to Director, Plant Head and Accounts only">
+            <input className="input" type="number" min="0" step="any" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="Optional" />
+          </Field>
+        )}
         <Field label="Heat No. / Mill Cert">
           <input className="input mono" value={heatNo} onChange={(e) => setHeatNo(e.target.value)} placeholder="As per mill test certificate" />
         </Field>
@@ -422,7 +445,7 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
         <div className="callout info">
           <Layers size={16} />
           <div>
-            Adds a new lot of <b>{qN} PCS</b> ({wN} KG, {(wN / qN).toFixed(3)} kg/pc) of <b>{material} · OD {od} mm</b> from {supplier}. It is issued after
+            Adds a new lot of <b>{qN} PCS</b> ({wN} KG, {(wN / qN).toFixed(3)} kg/pc) of <b>{material} · OD {od} mm</b>. It is issued after
             any older lots of the same material and size (FIFO).
           </div>
         </div>

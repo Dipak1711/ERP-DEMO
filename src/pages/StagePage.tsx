@@ -1,3 +1,4 @@
+import { searchable } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { CheckCircle2, Eye, Play, Plus, SlidersHorizontal, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -57,7 +58,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
       .filter((r) => {
         const job = getJob(state, r.jobNo);
         const p = getProduct(state, job.productId);
-        return (!productF || p.id === productF) && matches(q, r.jobNo, p.name, job.customer, r.machine, r.operator);
+        return (!productF || p.id === productF) && matches(q, r.jobNo, p.name, searchable(job.customer), r.machine, r.operator);
       })
       .sort((a, b) => order[a.status] - order[b.status] || (b.completedAt ?? b.receivedAt).localeCompare(a.completedAt ?? a.receivedAt));
   }, [recs, filter, q, productF, state]);

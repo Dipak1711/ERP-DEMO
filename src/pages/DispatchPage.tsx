@@ -1,3 +1,4 @@
+import { Conf, maskText, searchable } from '../auth/access';
 import { useEffect, useState } from 'react';
 import { ClipboardList, Eye, FileText, PackageOpen, Plus, Printer, Truck, X } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -33,7 +34,7 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
 
   const rows = ds
     .filter((d) => (filter === 'all' ? true : filter === 'today' ? today.includes(d) : d.status === filter))
-    .filter((d) => matches(q, d.dispatchNo, d.jobNo, d.customer, d.vehicleNo, getProduct(state, d.productId).name, d.invoiceNo));
+    .filter((d) => matches(q, d.dispatchNo, d.jobNo, searchable(d.customer), d.vehicleNo, getProduct(state, d.productId).name, searchable(d.invoiceNo)));
 
   return (
     <>
@@ -103,13 +104,13 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
                     <tr key={d.dispatchNo} className={rowTone(d.status)}>
                       <td>
                         <div className="mono strong">{d.dispatchNo}</div>
-                        <div className="sub">{d.invoiceNo}</div>
+                        <div className="sub"><Conf>{d.invoiceNo}</Conf></div>
                       </td>
                       <td>
                         <JobLink jobNo={d.jobNo} />
                       </td>
                       <td>
-                        <div className="strong">{d.customer}</div>
+                        <div className="strong"><Conf>{d.customer}</Conf></div>
                         <div className="sub">{p.name}</div>
                       </td>
                       <td className="r qty-cell">{fmtNum(d.qty)}</td>
@@ -293,7 +294,7 @@ function ShipModal({ d, onClose }: { d: Dispatch; onClose: () => void }) {
       open
       onClose={onClose}
       title={`Dispatch ${d.dispatchNo}`}
-      subtitle={`${d.qty} PCS · ${d.bags.length} bags · ${fmtKg(d.weight)} → ${d.customer}`}
+      subtitle={`${d.qty} PCS · ${d.bags.length} bags · ${fmtKg(d.weight)} → ${maskText(d.customer)}`}
       footer={
         <>
           <button className="btn" onClick={onClose}>
@@ -327,7 +328,7 @@ function PackingList({ d, onClose }: { d: Dispatch; onClose: () => void }) {
       onClose={onClose}
       size="lg"
       title={`Packing List — ${d.dispatchNo}`}
-      subtitle={`${d.customer} · ${fmtDate(d.date)}`}
+      subtitle={`${maskText(d.customer)} · ${fmtDate(d.date)}`}
       footer={
         <>
           <button className="btn" onClick={() => printRouteCard(state, d.jobNo)}>
@@ -354,7 +355,15 @@ function PackingList({ d, onClose }: { d: Dispatch; onClose: () => void }) {
         </div>
         <div>
           <div className="l">Invoice</div>
-          <div className="v mono">{d.invoiceNo}</div>
+          <div className="v mono">
+            <Conf>{d.invoiceNo}</Conf>
+          </div>
+        </div>
+        <div>
+          <div className="l">Amount</div>
+          <div className="v mono">
+            <Conf>{d.salesRate ? `₹ ${(d.qty * d.salesRate).toLocaleString('en-IN')}` : ''}</Conf>
+          </div>
         </div>
         <div>
           <div className="l">Status</div>

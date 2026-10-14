@@ -2,7 +2,8 @@
 -- Enum labels are deliberately identical to the strings used by the React app
 -- ('heatTreatment', 'In Progress', …) so no value mapping is needed.
 
-create type app_role        as enum ('admin', 'manager', 'operator', 'qc', 'viewer');
+-- director / plant_head / accounts may see confidential commercial data; every other role sees it masked.
+create type app_role        as enum ('director', 'plant_head', 'accounts', 'qc', 'operator', 'viewer');
 
 create type process_stage   as enum ('cutting', 'forging', 'trimming', 'heatTreatment');
 create type job_stage       as enum ('cutting', 'forging', 'trimming', 'heatTreatment', 'qc', 'finishedGoods', 'dispatched', 'scrapped');

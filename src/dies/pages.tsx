@@ -1,3 +1,4 @@
+import { Conf, isConfidentialAllowed, searchable } from '../auth/access';
 import { useMemo, useState, type ReactNode } from 'react';
 import { AlertTriangle, ArrowLeftRight, ChevronRight, Download, FileText, Hammer, History, Layers, Pencil, Plus, Printer, Scissors, Undo2, Upload, Wrench, CheckCircle2, Eye } from 'lucide-react';
 import { Empty, Kpi, PageHeader, Search, Tabs } from '../components/ui';
@@ -82,7 +83,7 @@ export function DieMasterPage() {
   const [type, setType] = useState('');
   const [maker, setMaker] = useState('');
 
-  const makers = useMemo(() => [...new Set([...data.forgingDies, ...data.trimmingDies].map((d) => d.maker))].sort(), [data]);
+  const makers = useMemo(() => (isConfidentialAllowed() ? [...new Set([...data.forgingDies, ...data.trimmingDies].map((d) => d.maker))].sort() : []), [data]);
   const rows = useMemo(
     () =>
       data.mainDies
@@ -93,7 +94,7 @@ export function DieMasterPage() {
           if (type === 'forging' && !f.length) return false;
           if (type === 'trimming' && !t.length) return false;
           if (maker && ![...f, ...t].some((d) => d.maker === maker)) return false;
-          return matches(q, m.code, m.name, m.partCode, m.customer, ...f.map((d) => d.code), ...t.map((d) => d.code));
+          return matches(q, m.code, m.name, m.partCode, searchable(m.customer), ...f.map((d) => d.code), ...t.map((d) => d.code));
         }),
     [data, q, metal, status, type, maker],
   );
@@ -127,7 +128,7 @@ export function DieMasterPage() {
           <Search value={q} onChange={setQ} placeholder="Search die, part, customer, forging / trimming die code…" />
           <Select value={metal} onChange={setMetal} all="All metals" options={METALS} />
           <Select value={type} onChange={setType} all="Any die type" options={['forging', 'trimming']} />
-          <Select value={maker} onChange={setMaker} all="All die makers" options={makers} />
+          {makers.length > 0 && <Select value={maker} onChange={setMaker} all="All die makers" options={makers} />}
           <Select value={status} onChange={setStatus} all="All statuses" options={['Active', 'Inactive']} />
           {filtered && (
             <button className="btn btn-sm btn-ghost" onClick={() => (setQ(''), setMetal(''), setStatus(''), setType(''), setMaker(''))}>
@@ -167,7 +168,9 @@ export function DieMasterPage() {
                     </td>
                     <td>
                       <div className="strong">{m.name}</div>
-                      <div className="sub">{m.customer || '—'}</div>
+                      <div className="sub">
+                        <Conf>{m.customer}</Conf>
+                      </div>
                     </td>
                     <td className="mono">{m.partCode}</td>
                     <td><span className={`chip metal-${m.metal.toLowerCase()}`}>{m.metal}</span></td>
@@ -206,11 +209,11 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
   const [status, setStatus] = useState('');
   const dies = diesOf(kind);
   const mainOf = (d: Die) => data.mainDies.find((m) => m.code === d.mainCode)!;
-  const makers = useMemo(() => [...new Set(dies.map((d) => d.maker))].sort(), [dies]);
+  const makers = useMemo(() => (isConfidentialAllowed() ? [...new Set(dies.map((d) => d.maker))].sort() : []), [dies]);
 
   const rows = dies
     .filter((d) => (!metal || mainOf(d).metal === metal) && (!maker || d.maker === maker) && (!status || d.status === status))
-    .filter((d) => matches(q, d.code, d.mainCode, mainOf(d).name, mainOf(d).partCode, d.material, d.maker, d.drawingNo, d.location))
+    .filter((d) => matches(q, d.code, d.mainCode, mainOf(d).name, mainOf(d).partCode, d.material, searchable(d.maker), d.drawingNo, d.location))
     .sort((a, b) => a.makingDate.localeCompare(b.makingDate) || a.code.localeCompare(b.code));
   const filtered = !!(q || metal || maker || status);
   const label = KIND_LABEL[kind];
@@ -243,7 +246,7 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
         <div className="toolbar">
           <Search value={q} onChange={setQ} placeholder={`Search ${kind} die, main die, component, part code, maker…`} />
           <Select value={metal} onChange={setMetal} all="All metals" options={METALS} />
-          <Select value={maker} onChange={setMaker} all="All die makers" options={makers} />
+          {makers.length > 0 && <Select value={maker} onChange={setMaker} all="All die makers" options={makers} />}
           <Select value={status} onChange={setStatus} all="All statuses" options={DIE_STATUSES} />
           {filtered && (
             <button className="btn btn-sm btn-ghost" onClick={() => (setQ(''), setMetal(''), setMaker(''), setStatus(''))}>
@@ -287,7 +290,9 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
                     </td>
                     <td>{d.material}</td>
                     <td>{fmtDate(d.makingDate)}</td>
-                    <td>{d.maker}</td>
+                    <td>
+                      <Conf>{d.maker}</Conf>
+                    </td>
                     <td>{d.location || '—'}</td>
                     <td>
                       <div className="thumbs">
@@ -332,7 +337,7 @@ export function DieDetailsPage({ query }: { query: URLSearchParams }) {
 
   // ---- no component chosen: a picker
   if (!main) {
-    const list = data.mainDies.filter((m) => matches(hq, m.code, m.name, m.partCode, m.customer));
+    const list = data.mainDies.filter((m) => matches(hq, m.code, m.name, m.partCode, searchable(m.customer)));
     return (
       <>
         <Crumbs items={[{ label: 'Die Management' }, { label: 'Die Details / Die History' }]} />
@@ -372,7 +377,7 @@ export function DieDetailsPage({ query }: { query: URLSearchParams }) {
     ['Component Name', main.name],
     ['Part Code', <span className="mono">{main.partCode}</span>],
     ['Part Description', main.description || '—'],
-    ['Customer', main.customer || '—'],
+    ['Customer', <Conf>{main.customer}</Conf>],
     ['Metal Type', main.metal],
     ['Creation Date', fmtDate(main.createdOn)],
     ['Status', <DieBadge status={main.status} />],
@@ -502,7 +507,9 @@ function DieList({ kind, dies, mainCode }: { kind: DieKind; dies: Die[]; mainCod
                   </td>
                   <td>{d.material}</td>
                   <td>{fmtDate(d.makingDate)}</td>
-                  <td>{d.maker}</td>
+                  <td>
+                      <Conf>{d.maker}</Conf>
+                    </td>
                   <td>
                     <div>{fmtDims(d.top)}</div>
                     <div className="sub">{fmtWt(d.topWeight)}</div>

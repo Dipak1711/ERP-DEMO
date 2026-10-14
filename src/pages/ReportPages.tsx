@@ -1,3 +1,4 @@
+import { Conf, searchable } from '../auth/access';
 import { useState } from 'react';
 import { ArrowRight, Eye, ScrollText, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -13,7 +14,7 @@ export function TraceabilityPage() {
   const rows = state.jobs
     .map((j) => jobSummary(state, j.jobNo))
     .filter((s) => (f === 'all' ? true : f === 'wip' ? s.flowIndex >= 1 && s.flowIndex <= 6 : s.flowIndex === 7))
-    .filter((s) => matches(q, s.job.jobNo, s.product.name, s.job.customer, STAGE_LABEL[s.job.currentStage]))
+    .filter((s) => matches(q, s.job.jobNo, s.product.name, searchable(s.job.customer), STAGE_LABEL[s.job.currentStage]))
     .reverse();
   const wip = state.jobs.filter((j) => !['dispatched', 'scrapped'].includes(j.currentStage)).length;
 
@@ -68,7 +69,7 @@ export function TraceabilityPage() {
                     <td>
                       <div className="strong">{s.product.name}</div>
                       <div className="sub">
-                        {s.job.customer} · <Priority p={s.job.priority} />
+                        <Conf>{s.job.customer}</Conf> · <Priority p={s.job.priority} />
                       </div>
                     </td>
                     <td className="r qty-cell">{s.issuedQty ? fmtNum(s.issuedQty) : <span className="muted">—</span>}</td>
@@ -204,6 +205,7 @@ export function ProductsPage() {
                 <th className="r">HT Temp.</th>
                 <th>HT Process</th>
                 <th>Default Customer</th>
+                <th className="r">Sales Rate</th>
               </tr>
             </thead>
             <tbody>
@@ -225,7 +227,12 @@ export function ProductsPage() {
                       {p.htSoakMinutes} min · {p.htQuench}
                     </div>
                   </td>
-                  <td>{p.defaultCustomer}</td>
+                  <td>
+                    <Conf>{p.defaultCustomer}</Conf>
+                  </td>
+                  <td className="r num nowrap">
+                    <Conf>{p.salesRate ? `₹ ${p.salesRate.toLocaleString('en-IN')} / pc` : ''}</Conf>
+                  </td>
                 </tr>
               ))}
             </tbody>

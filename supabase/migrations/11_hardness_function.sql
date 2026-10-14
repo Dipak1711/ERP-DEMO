@@ -4,6 +4,7 @@
 --   job_no, date, component, material, grade, supplier, inward_qty, inspected_qty, cycle_no, drawing_no,
 --   checked_by, scale, min_hardness, max_hardness, remarks,
 --   readings : [92.5, 88, null, …]   (Sr. No. = position + 1; null = not measured yet)
+-- supplier is confidential: a caller without access may type one on a NEW report, but cannot change it on an existing one.
 -- Pass p_id to update an existing report, omit it to create HIR-YYYY-NNNN. Returns the report id.
 
 create function save_hardness_report(p_payload jsonb, p_id text default null, p_ts timestamptz default now()) returns text
@@ -63,7 +64,8 @@ begin
     v_id := p_id;
     update hardness_reports
        set job_no = v_job, date = v_date, component = v_component, material = v_material, grade = v_grade,
-           supplier = btrim(coalesce(p_payload ->> 'supplier', '')), inward_qty = v_inward, inspected_qty = v_inspected,
+           supplier = case when can_see_confidential() then unmask_keep(btrim(coalesce(p_payload ->> 'supplier', '')), supplier) else supplier end,  -- masked users cannot overwrite it
+           inward_qty = v_inward, inspected_qty = v_inspected,
            cycle_no = btrim(coalesce(p_payload ->> 'cycle_no', '')), drawing_no = btrim(coalesce(p_payload ->> 'drawing_no', '')),
            checked_by = v_checked, scale = v_scale, min_hardness = v_min, max_hardness = v_max,
            remarks = btrim(coalesce(p_payload ->> 'remarks', '')), updated_at = v_ts
@@ -74,7 +76,7 @@ begin
     v_id := format('HIR-%s-%s', _year(v_ts), lpad(next_doc_no('hardness', _year(v_ts))::text, 4, '0'));
     insert into hardness_reports (id, job_no, date, component, material, grade, supplier, inward_qty, inspected_qty, cycle_no,
                                   drawing_no, checked_by, scale, min_hardness, max_hardness, remarks, created_at, updated_at)
-    values (v_id, v_job, v_date, v_component, v_material, v_grade, btrim(coalesce(p_payload ->> 'supplier', '')), v_inward,
+    values (v_id, v_job, v_date, v_component, v_material, v_grade, unmask_keep(btrim(coalesce(p_payload ->> 'supplier', '')), ''), v_inward,
             v_inspected, btrim(coalesce(p_payload ->> 'cycle_no', '')), btrim(coalesce(p_payload ->> 'drawing_no', '')),
             v_checked, v_scale, v_min, v_max, btrim(coalesce(p_payload ->> 'remarks', '')), v_ts, v_ts);
   end if;

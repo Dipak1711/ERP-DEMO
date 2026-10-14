@@ -6,10 +6,11 @@ create table raw_material_lots (
   material       text not null references material_master (material) on update cascade,
   material_type  text not null default '',                 -- grade text, e.g. CW614N
   od             numeric(8, 2) not null check (od > 0),
-  supplier       text not null check (btrim(supplier) <> ''),
+  supplier       text not null check (btrim(supplier) <> ''),   -- CONFIDENTIAL (party name)
   inward_date    date not null,
   heat_no        text,
-  invoice_no     text,
+  invoice_no     text,                                          -- CONFIDENTIAL
+  purchase_rate  numeric(12, 2) check (purchase_rate is null or purchase_rate >= 0),  -- CONFIDENTIAL, ₹ per KG
   inward_qty     int not null check (inward_qty > 0),      -- PCS
   inward_weight  numeric(12, 3) not null check (inward_weight > 0), -- KG
   available_qty  int not null,                             -- PCS

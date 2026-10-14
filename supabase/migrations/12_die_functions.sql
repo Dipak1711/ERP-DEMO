@@ -59,7 +59,8 @@ create trigger dies_code before insert on dies for each row execute function die
 create function dies_after_insert() returns trigger
 language plpgsql as $$
 begin
-  perform _die_event(new, 'Die created', format('Made by %s on %s, material %s.', new.maker, new.making_date, new.material));
+  -- the maker is confidential, so it is kept out of the history feed
+  perform _die_event(new, 'Die created', format('Made on %s, material %s.', new.making_date, new.material));
   return new;
 end $$;
 create trigger dies_history_insert after insert on dies for each row execute function dies_after_insert();
@@ -135,7 +136,7 @@ begin
     update main_dies
        set name = v_name, part_code = v_part,
            description = btrim(coalesce(p_payload ->> 'description', '')),
-           customer    = btrim(coalesce(p_payload ->> 'customer', '')),
+           customer    = case when can_see_confidential() then unmask_keep(btrim(coalesce(p_payload ->> 'customer', '')), customer) else customer end,
            metal       = coalesce(nullif(p_payload ->> 'metal', ''), 'Brass')::metal_type,
            created_on  = v_on,
            status      = coalesce(nullif(p_payload ->> 'status', ''), 'Active')::main_die_status,
@@ -145,7 +146,7 @@ begin
     if v_code is null then raise exception 'Main die % not found.', p_code; end if;
   else
     insert into main_dies (code, name, part_code, description, customer, metal, created_on, status, remarks)
-    values (null, v_name, v_part, btrim(coalesce(p_payload ->> 'description', '')), btrim(coalesce(p_payload ->> 'customer', '')),
+    values (null, v_name, v_part, btrim(coalesce(p_payload ->> 'description', '')), unmask_keep(btrim(coalesce(p_payload ->> 'customer', '')), ''),
             coalesce(nullif(p_payload ->> 'metal', ''), 'Brass')::metal_type, v_on,
             coalesce(nullif(p_payload ->> 'status', ''), 'Active')::main_die_status, btrim(coalesce(p_payload ->> 'remarks', '')))
     returning code into v_code;
@@ -165,7 +166,7 @@ begin
     raise exception 'Enter the % die material / grade.', lower(p_kind::text);
   end if;
   if coalesce(p_payload ->> 'making_date', '') = '' then raise exception 'Enter the die making date.'; end if;
-  if btrim(coalesce(p_payload ->> 'maker', '')) = '' then raise exception 'Enter the die maker name.'; end if;
+  if btrim(coalesce(p_payload ->> 'maker', '')) in ('', '••••••') then raise exception 'Enter the die maker name.'; end if;
   foreach k in array array['top_l','top_w','top_h','bottom_l','bottom_w','bottom_h','top_weight','bottom_weight','cost','pieces'] loop
     if coalesce(nullif(p_payload ->> k, '')::numeric, 0) < 0 then
       raise exception 'Dimensions, weights, cost and pieces cannot be negative.';
@@ -208,6 +209,7 @@ begin
   perform _require_user();
   perform _validate_die_payload(p_kind, p_payload);
   r := _die_row(p_kind, p_payload);
+  if not can_see_confidential() then r.cost := null; end if;   -- only privileged roles may enter a die cost
 
   if p_code is null then
     insert into dies select (r).* returning code into v_code;
@@ -217,9 +219,11 @@ begin
        set material = r.material, top_l = r.top_l, top_w = r.top_w, top_h = r.top_h,
            bottom_l = r.bottom_l, bottom_w = r.bottom_w, bottom_h = r.bottom_h,
            top_weight = r.top_weight, bottom_weight = r.bottom_weight,
-           making_date = r.making_date, maker = r.maker, drawing_no = r.drawing_no, revision = r.revision,
+           making_date = r.making_date,
+           maker = case when can_see_confidential() then unmask_keep(r.maker, maker) else maker end,   -- confidential: unchanged unless caller has access
+           drawing_no = r.drawing_no, revision = r.revision,
            top_img_path = r.top_img_path, bottom_img_path = r.bottom_img_path,
-           status = r.status, remarks = r.remarks, location = r.location, cost = r.cost, pieces = r.pieces
+           status = r.status, remarks = r.remarks, location = r.location, cost = case when can_see_confidential() then r.cost else cost end, pieces = r.pieces
      where code = p_code and kind = p_kind          -- main_code is never changed on edit
     returning code into v_code;
     if v_code is null then raise exception '% die % not found.', p_kind, p_code; end if;

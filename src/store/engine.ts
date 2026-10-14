@@ -133,6 +133,7 @@ export interface InwardInput {
   weight: number;
   heatNo?: string;
   invoiceNo?: string;
+  purchaseRate?: number; // ₹ per KG — confidential
 }
 
 export function addInward(s: ERPState, input: InwardInput, ts: string): string {
@@ -158,6 +159,7 @@ export function addInward(s: ERPState, input: InwardInput, ts: string): string {
     inwardQty: qty,
     inwardWeight: round3(weight),
     availableQty: qty,
+    purchaseRate: input.purchaseRate && input.purchaseRate > 0 ? Math.round(input.purchaseRate * 100) / 100 : undefined,
     unit: 'PCS',
   };
   s.rawMaterials.push(lot);
@@ -172,9 +174,10 @@ export function addInward(s: ERPState, input: InwardInput, ts: string): string {
     qty,
     weight: lot.inwardWeight,
     invoiceNo: lot.invoiceNo,
+    purchaseRate: lot.purchaseRate,
   });
   move(s, ts, '—', 'Supplier', 'Raw Inventory', qty, 0, `${lot.material} OD ${od}mm · lot ${id}`);
-  log(s, ts, 'inward', `${qty} PCS ${lot.material} (OD ${od}mm) received from ${lot.supplier} — lot ${id}`);
+  log(s, ts, 'inward', `${qty} PCS ${lot.material} (OD ${od}mm) received — lot ${id}`);
   return id;
 }
 
@@ -232,7 +235,7 @@ export function createJob(s: ERPState, input: JobInput, ts: string): string {
     remarks: '',
     params: { cuttingLength: Number(input.cuttingLength) || product.cuttingLength },
   });
-  log(s, ts, 'job', `${jobNo} created — ${planned} PCS ${product.name} for ${input.customer || product.defaultCustomer}`, jobNo);
+  log(s, ts, 'job', `${jobNo} created — ${planned} PCS ${product.name}`, jobNo);
   return jobNo;
 }
 
@@ -522,6 +525,7 @@ export function createDispatch(s: ERPState, input: DispatchInput, ts: string): s
     date: input.date,
     bags,
     weight,
+    salesRate: getProduct(s, fg.productId).salesRate,
     status: input.status,
     createdAt: ts,
     dispatchedAt: input.status === 'Dispatched' ? ts : undefined,
@@ -531,8 +535,8 @@ export function createDispatch(s: ERPState, input: DispatchInput, ts: string): s
 
   if (input.status === 'Dispatched') {
     fg.dispatchedQty += qty;
-    move(s, ts, fg.jobNo, 'Finished Goods', 'Customer', qty, 0, `${dispatchNo} · ${d.vehicleNo} · ${input.customer}`);
-    log(s, ts, 'dispatch', `${qty} PCS ${product.name} dispatched to ${d.customer} — ${dispatchNo} (${d.vehicleNo})`, fg.jobNo);
+    move(s, ts, fg.jobNo, 'Finished Goods', 'Customer', qty, 0, `${dispatchNo} · ${d.vehicleNo}`);
+    log(s, ts, 'dispatch', `${qty} PCS ${product.name} dispatched — ${dispatchNo} (${d.vehicleNo})`, fg.jobNo);
     syncJobAfterDispatch(s, fg.jobNo);
   } else {
     fg.reservedQty += qty;
@@ -551,8 +555,8 @@ export function markDispatched(s: ERPState, dispatchNo: string, vehicleNo: strin
   d.status = 'Dispatched';
   d.vehicleNo = vehicleNo.trim().toUpperCase();
   d.dispatchedAt = ts;
-  move(s, ts, d.jobNo, 'Finished Goods', 'Customer', d.qty, 0, `${dispatchNo} · ${d.vehicleNo} · ${d.customer}`);
-  log(s, ts, 'dispatch', `${d.qty} PCS dispatched to ${d.customer} — ${dispatchNo} (${d.vehicleNo})`, d.jobNo);
+  move(s, ts, d.jobNo, 'Finished Goods', 'Customer', d.qty, 0, `${dispatchNo} · ${d.vehicleNo}`);
+  log(s, ts, 'dispatch', `${d.qty} PCS dispatched — ${dispatchNo} (${d.vehicleNo})`, d.jobNo);
   syncJobAfterDispatch(s, d.jobNo);
 }
 

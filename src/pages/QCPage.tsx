@@ -1,3 +1,4 @@
+import { searchable } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { ClipboardCheck, Eye, PackageCheck, ShieldCheck } from 'lucide-react';
 import { HardnessRegister } from './HardnessPage';
@@ -32,7 +33,7 @@ export function QCPage() {
         )
         .filter((r) => {
           const job = getJob(state, r.jobNo);
-          return matches(q, r.jobNo, getProduct(state, job.productId).name, job.customer, r.inspector, r.status);
+          return matches(q, r.jobNo, getProduct(state, job.productId).name, searchable(job.customer), r.inspector, r.status);
         })
         .sort((a, b) => (a.status === 'QC Pending' ? -1 : 1) - (b.status === 'QC Pending' ? -1 : 1) || (b.inspectedAt ?? b.receivedAt).localeCompare(a.inspectedAt ?? a.receivedAt)),
     [recs, filter, q, state],

@@ -1,3 +1,4 @@
+import { Conf, maskText } from '../auth/access';
 import { useEffect, type ReactNode } from 'react';
 import { ArrowRight, CheckCircle2, ChevronRight, Printer, Scale, X } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -118,7 +119,7 @@ export function TraceDrawer() {
               <div className="k">Job Traceability · Production Order</div>
               <h2>{job.jobNo}</h2>
               <div className="prod">
-                {product.name} · {job.customer}
+                {product.name} · <Conf>{job.customer}</Conf>
               </div>
             </div>
             <button className="icon-btn no-print" title="Print job card" onClick={() => window.print()}>
@@ -185,7 +186,7 @@ export function TraceDrawer() {
                 <span>
                   {j.status === 'Rejected'
                     ? 'Nothing left to process for this job.'
-                    : `${fmtNum(j.dispatchedQty)} PCS delivered to ${job.customer.replace(/\.$/, '')}. Full journey below.`}
+                    : `${fmtNum(j.dispatchedQty)} PCS delivered to ${maskText(job.customer.replace(/\.$/, ''))}. Full journey below.`}
                 </span>
               </div>
             </div>
@@ -255,7 +256,7 @@ export function TraceDrawer() {
                       return (
                         <tr key={is.lotId}>
                           <td className="mono">{is.lotId}</td>
-                          <td>{l?.supplier}</td>
+                          <td><Conf>{l?.supplier}</Conf></td>
                           <td className="mono">{l?.heatNo}</td>
                           <td>{fmtDate(l?.inwardDate)}</td>
                           <td className="r num strong">{is.qty}</td>
@@ -401,12 +402,12 @@ export function TraceDrawer() {
                       </div>
                       <Meta
                         items={[
-                          ['Customer', d.customer],
+                          ['Customer', maskText(d.customer)],
                           ['Qty', `${fmtNum(d.qty)} PCS`],
                           ['Vehicle', d.vehicleNo || '—'],
                           ['Bags', `${d.bags.length}`],
                           ['Weight', fmtKg(d.weight)],
-                          ['Invoice', d.invoiceNo],
+                          ['Invoice', maskText(d.invoiceNo)],
                         ]}
                       />
                       <div className="bags">

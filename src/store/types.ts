@@ -28,7 +28,8 @@ export interface Product {
   htProcess: string; // e.g. Normalising, Annealing
   htQuench: string;
   dieNo: string;
-  defaultCustomer: string;
+  defaultCustomer: string; // CONFIDENTIAL (party name)
+  salesRate?: number; // CONFIDENTIAL — ₹ per piece
 }
 
 /** One inward lot of raw material (round bar billets). FIFO is applied across lots of the same material + OD. */
@@ -44,6 +45,7 @@ export interface RawMaterialLot {
   inwardQty: number; // PCS
   inwardWeight: number; // KG
   availableQty: number; // PCS — reduces as material is issued to Cutting
+  purchaseRate?: number; // CONFIDENTIAL — ₹ per KG
   unit: 'PCS';
 }
 
@@ -58,6 +60,7 @@ export interface RawInward {
   qty: number;
   weight: number;
   invoiceNo: string;
+  purchaseRate?: number; // CONFIDENTIAL — ₹ per KG
 }
 
 /** Material issued from a raw lot to a job (FIFO allocation). */
@@ -173,6 +176,7 @@ export interface Dispatch {
   date: string;
   bags: Bag[];
   weight: number; // KG total
+  salesRate?: number; // CONFIDENTIAL — ₹ per piece, frozen at dispatch time
   status: DispatchStatus;
   createdAt: string;
   dispatchedAt?: string;

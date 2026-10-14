@@ -1,3 +1,4 @@
+import { Conf, MASK, isConfidentialAllowed } from '../auth/access';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeftRight, Hammer, ImagePlus, MoreVertical, Printer, Scissors, Wrench, Pencil, Upload, Undo2, Image as ImageIcon, X, History as HistoryIcon } from 'lucide-react';
@@ -251,7 +252,7 @@ export function MainDieForm({ code, onClose }: { code?: string; onClose: () => v
     name: cur?.name ?? '',
     partCode: cur?.partCode ?? '',
     description: cur?.description ?? '',
-    customer: cur?.customer ?? '',
+    customer: isConfidentialAllowed() ? cur?.customer ?? '' : '', // a masked name is never loaded into the form
     metal: (cur?.metal ?? 'Brass') as Metal,
     createdOn: cur?.createdOn ?? todayISO(),
     status: (cur?.status ?? 'Active') as 'Active' | 'Inactive',
@@ -281,7 +282,11 @@ export function MainDieForm({ code, onClose }: { code?: string; onClose: () => v
           <input className={`input ${miss(f.partCode) ? 'bad' : ''}`} value={f.partCode} onChange={(e) => set('partCode', e.target.value)} placeholder="e.g. PRT-004" />
         </Field>
         <Field label="Customer Name">
-          <input className="input" value={f.customer} onChange={(e) => set('customer', e.target.value)} />
+          {isConfidentialAllowed() || !cur ? (
+            <input className="input" value={f.customer} onChange={(e) => set('customer', e.target.value)} />
+          ) : (
+            <input className="input" value={MASK} readOnly disabled title="Confidential" />
+          )}
         </Field>
         <Field label="Metal Type">
           <select value={f.metal} onChange={(e) => set('metal', e.target.value as Metal)}>
@@ -365,7 +370,11 @@ function DieFields({ f, set, kind, lockMain, existing }: { f: DieFormState; set:
         <input className="input" type="date" value={f.makingDate} onChange={(e) => set('makingDate', e.target.value)} />
       </Field>
       <Field label="Die Maker Name" required>
-        <input className="input" value={f.maker} onChange={(e) => set('maker', e.target.value)} />
+        {isConfidentialAllowed() || !existing ? (
+          <input className="input" value={f.maker} onChange={(e) => set('maker', e.target.value)} />
+        ) : (
+          <input className="input" value={MASK} readOnly disabled title="Confidential" />
+        )}
       </Field>
       <Field label="Drawing Number">
         <input className="input" value={f.drawingNo} onChange={(e) => set('drawingNo', e.target.value)} />
@@ -385,9 +394,11 @@ function DieFields({ f, set, kind, lockMain, existing }: { f: DieFormState; set:
       <Field label="Location / Storage Rack">
         <input className="input" value={f.location} onChange={(e) => set('location', e.target.value)} placeholder="e.g. Rack A-2" />
       </Field>
-      <Field label={`${KIND_LABEL[kind]} Die Cost (optional)`}>
-        <NumInput suffix="₹" step="any" value={f.cost} onChange={(v) => set('cost', v)} />
-      </Field>
+      {isConfidentialAllowed() && (
+        <Field label={`${KIND_LABEL[kind]} Die Cost (optional)`}>
+          <NumInput suffix="₹" step="any" value={f.cost} onChange={(v) => set('cost', v)} />
+        </Field>
+      )}
       <Field label="Pieces Produced (optional)">
         <NumInput suffix="PCS" value={f.pieces} onChange={(v) => set('pieces', v)} />
       </Field>
@@ -409,7 +420,7 @@ function useDieForm(init?: Die, mainCode = '', prefill = false) {
     topWeight: str(init?.topWeight),
     bottomWeight: str(init?.bottomWeight),
     makingDate: prefill ? todayISO() : init?.makingDate ?? todayISO(),
-    maker: init?.maker ?? '',
+    maker: isConfidentialAllowed() ? init?.maker ?? '' : '',
     drawingNo: init?.drawingNo ?? '',
     revision: init?.revision ?? 'R0',
     topUrl: prefill ? '' : url(init?.topImg),
@@ -417,7 +428,7 @@ function useDieForm(init?: Die, mainCode = '', prefill = false) {
     status: prefill ? 'Available' : init?.status ?? 'Available',
     remarks: prefill ? '' : init?.remarks ?? '',
     location: prefill ? '' : init?.location ?? '',
-    cost: prefill ? '' : str(init?.cost),
+    cost: prefill || !isConfidentialAllowed() ? '' : str(init?.cost),
     pieces: prefill ? '0' : String(init?.pieces ?? 0),
   });
   const set = <K extends keyof DieFormState>(k: K, v: DieFormState[K]) => setF((x) => ({ ...x, [k]: v }));
@@ -665,13 +676,13 @@ export function DieView({ kind, code, onClose }: { kind: DieKind; code: string; 
         <Row k="Main Die" v={<span className="mono">{main.code} · {main.partCode}</span>} />
         <Row k="Material / Grade" v={die.material} />
         <Row k="Making Date" v={fmtDate(die.makingDate)} />
-        <Row k="Die Maker" v={die.maker} />
+        <Row k="Die Maker" v={<Conf>{die.maker}</Conf>} />
         <Row k="Top Die (L×W×H)" v={`${fmtDims(die.top)} · ${fmtWt(die.topWeight)}`} />
         <Row k="Bottom Die (L×W×H)" v={`${fmtDims(die.bottom)} · ${fmtWt(die.bottomWeight)}`} />
         <Row k="Drawing No. / Revision" v={`${die.drawingNo || '—'} / ${die.revision || '—'}`} />
         <Row k="Location" v={die.location} />
         <Row k="Pieces Produced" v={die.pieces.toLocaleString('en-IN')} />
-        <Row k={`${KIND_LABEL[kind]} Die Cost`} v={die.cost === undefined ? '' : `₹ ${die.cost.toLocaleString('en-IN')}`} />
+        <Row k={`${KIND_LABEL[kind]} Die Cost`} v={<Conf>{die.cost === undefined ? '' : `₹ ${die.cost.toLocaleString('en-IN')}`}</Conf>} />
         <Row k="Last Maintenance" v={die.lastMaintDate ? fmtDate(die.lastMaintDate) : ''} />
         <Row k="Maintenance Remarks" v={die.maintRemarks} />
         {die.replacesCode && <Row k="Replaces" v={<span className="mono">{die.replacesCode}</span>} />}

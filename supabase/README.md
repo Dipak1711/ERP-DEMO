@@ -23,8 +23,8 @@ psql "$DATABASE_URL" -f supabase/seed.sql      # or paste seed.sql into the SQL 
 Local test run (needs Docker): `supabase start && supabase db reset` applies migrations, then `seed.sql` if listed in
 `config.toml` under `[db.seed] sql_paths = ["./seed.sql"]`.
 
-First admin: sign up once, then in the SQL editor
-`update profiles set role = 'admin' where id = '<auth user uuid>';`
+First director: sign up once, then in the SQL editor
+`update profiles set role = 'director' where id = '<auth user uuid>';   -- new users default to 'viewer'`
 
 ## Smoke test (SQL editor, after seed)
 

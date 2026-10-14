@@ -1,4 +1,5 @@
 // Process Route Card (client form F PD 03) — printed from Dispatch, filled from the job's real records.
+import { maskText } from '../auth/access';
 import { getJob, getProduct, round3, STAGE_LABEL } from '../store/engine';
 import type { ERPState, ProcessStage } from '../store/types';
 import { printHtml } from './printHtml';
@@ -80,7 +81,7 @@ export function routeCardHtml(s: ERPState, jobNo: string) {
   <table>
     <tr><td class="l">Length (લંબાઈ) : <span class="v">${p.cuttingLength} MM</span></td><td class="l">Weight (વજન) : <span class="v">${job.pieceWeightG ?? ''}${job.pieceWeightG ? ' g' : ''}</span></td><td class="l">Bar OD (સળીયાનો OD) : <span class="v">${p.od} Ø</span></td></tr>
     <tr><td class="l">To cut (કાપવાના નંગ) : <span class="v">${job.plannedQty}</span></td><td class="l">Die No. : <span class="v">${esc(job.dieNo || p.dieNo)}</span></td><td class="l">Material : <span class="v">${esc(lot?.materialType || p.material)}</span></td></tr>
-    <tr><td class="l" colspan="2">Machine No. : <span class="v">${esc(job.machineNo)}</span></td><td class="l">Customer : <span class="v">${esc(job.customer)}</span></td></tr>
+    <tr><td class="l" colspan="2">Machine No. : <span class="v">${esc(job.machineNo)}</span></td><td class="l">Customer : <span class="v">${esc(maskText(job.customer))}</span></td></tr>
     <tr><td class="l">Cut (કાપેલા નંગ) : <span class="v">${cut && cut.status === 'Completed' ? cut.output : ''}</span></td><td class="l">Final (ફાઈનલ નંગ) : <span class="v">${finalQty || ''}</span></td><td class="l">Bags (દાગીના) : <span class="v">${bags.length || ''}</span></td></tr>
     <tr><td class="l" colspan="2">&nbsp;</td><td class="l">Date (તારીખ) : <span class="v">${dmy(lastDate)}</span></td></tr>
   </table>

@@ -1,3 +1,4 @@
+import { RoleProvider } from './auth/access';
 import { useCallback, useEffect, useState } from 'react';
 import { Layout } from './components/Layout';
 import { Toasts } from './components/Toasts';
@@ -73,6 +74,7 @@ function Page({ route, query, navigate }: { route: string; query: URLSearchParam
 export default function App() {
   const { route, query, hash, navigate } = useHashRoute();
   return (
+    <RoleProvider>
     <StoreProvider>
      <DieProvider>
       <Layout route={route}>
@@ -87,5 +89,6 @@ export default function App() {
       <Toasts />
      </DieProvider>
     </StoreProvider>
+    </RoleProvider>
   );
 }

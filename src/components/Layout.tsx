@@ -1,10 +1,10 @@
+import { ROLES, searchable, useAccess, type Role } from '../auth/access';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   BarChart3,
   Bell,
   ChevronDown,
   ClipboardList,
-  Database,
   Layers,
   Scissors,
   Hammer,
@@ -84,12 +84,11 @@ function useOutside(ref: React.RefObject<HTMLElement>, open: boolean, close: () 
 }
 
 export function Layout({ route, children }: { route: string; children: ReactNode }) {
-  const { state, reset, loadSample } = useStore();
+  const { state, reset } = useStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mini, setMini] = useState(() => readLS('forgeflow.sidebar') === 'mini');
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const [confirmReset, setConfirmReset] = useState(false);
-  const [confirmSample, setConfirmSample] = useState(false);
   const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') ?? 'light');
 
   useEffect(() => {
@@ -174,10 +173,6 @@ export function Layout({ route, children }: { route: string; children: ReactNode
             <span className="dot" />
             <span className="t">Data saved in this browser</span>
           </div>
-          <button className="btn btn-sm btn-side" style={{ marginBottom: 8 }} onClick={() => setConfirmSample(true)} title="Load sample data">
-            <Database size={14} />
-            <span className="t">Load sample data</span>
-          </button>
           <button className="btn btn-sm btn-side" onClick={() => setConfirmReset(true)} title="Clear all data">
             <RotateCcw size={14} />
             <span className="t">Clear all data</span>
@@ -192,6 +187,7 @@ export function Layout({ route, children }: { route: string; children: ReactNode
           </button>
           <JobSearch />
           <div className="top-right">
+            <RoleSwitch />
             <ActionBell />
             <button
               className="round-btn"
@@ -214,14 +210,6 @@ export function Layout({ route, children }: { route: string; children: ReactNode
         <main className="content">{children}</main>
       </div>
 
-      <Confirm
-        open={confirmSample}
-        title="Load sample data?"
-        message="Current entries are replaced by a ready-made example: raw material stock and six jobs at different stages — one fully dispatched like the paper route card, others waiting at Cutting, Forging, Heat Treatment, QC and Finished Goods."
-        confirmLabel="Load sample data"
-        onConfirm={loadSample}
-        onClose={() => setConfirmSample(false)}
-      />
       <Confirm
         open={confirmReset}
         title="Clear all data?"
@@ -300,7 +288,7 @@ function JobSearch() {
     return state.jobs
       .filter((j) => {
         const p = state.products.find((x) => x.id === j.productId);
-        return [j.jobNo, p?.name, j.customer].some((f) => f?.toLowerCase().includes(n));
+        return [j.jobNo, p?.name, searchable(j.customer)].some((f) => f?.toLowerCase().includes(n));
       })
       .slice(0, 8);
   }, [q, state]);
@@ -354,5 +342,23 @@ function JobSearch() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Demo stand-in for the sign-in: pick the role you are "logged in" as. In the Supabase build this is profiles.role. */
+function RoleSwitch() {
+  const { role, setRole, conf } = useAccess();
+  return (
+    <label className="role-switch" title={conf ? 'Confidential data visible' : 'Confidential data masked'}>
+      <span className="lbl">Viewing as</span>
+      <select value={role} onChange={(e) => setRole(e.target.value as Role)} aria-label="Viewing as role">
+        {ROLES.map((r) => (
+          <option key={r.value} value={r.value}>
+            {r.label}
+          </option>
+        ))}
+      </select>
+      <span className={`role-pill ${conf ? 'full' : 'masked-role'}`}>{conf ? 'Full access' : 'Masked'}</span>
+    </label>
   );
 }
