@@ -96,7 +96,7 @@ function SetupNeeded() {
       <div className="login-card" style={{ gridTemplateColumns: '1fr', maxWidth: 520, padding: 34 }}>
         <h2 style={{ margin: '0 0 8px' }}>Database not connected</h2>
         <p className="muted" style={{ margin: 0 }}>
-          Put your Supabase project URL and anon key in the <b>.env</b> file (<b>VITE_SUPABASE_URL</b>, <b>VITE_SUPABASE_ANON_KEY</b>), then restart <b>npm run dev</b>.
+          Add your Supabase project URL and anon key as <b>VITE_SUPABASE_URL</b> and <b>VITE_SUPABASE_ANON_KEY</b>: in the <b>.env</b> file (then restart <b>npm run dev</b>), or on a host such as Vercel under <b>Settings → Environment Variables</b> (then redeploy).
         </p>
       </div>
     </div>
