@@ -1,6 +1,8 @@
-import { RoleProvider, useAccess } from './auth/access';
+import { ROUTE_RESOURCE, RoleProvider, useAccess } from './auth/access';
 import { dbConfigured } from './db/client';
 import { LoginPage } from './auth/LoginPage';
+import { AccessPage } from './pages/AccessPage';
+import { NoAccess } from './pages/NoAccess';
 import { useCallback, useEffect, useState } from 'react';
 import { Layout } from './components/Layout';
 import { Toasts } from './components/Toasts';
@@ -37,6 +39,11 @@ function useHashRoute() {
 }
 
 function Page({ route, query, navigate }: { route: string; query: URLSearchParams; navigate: (r: string) => void }) {
+  const { canRead, canManageAccess } = useAccess();
+  // a page that is Hidden for this role cannot be opened, even by typing its address
+  if (route === 'settings') return canManageAccess ? <AccessPage /> : <NoAccess />;
+  const resource = ROUTE_RESOURCE[route] ?? 'dashboard';
+  if (!canRead(resource)) return <NoAccess />;
   switch (route) {
     case 'raw-inventory':
       return <RawInventoryPage />;

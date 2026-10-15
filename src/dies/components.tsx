@@ -1,4 +1,4 @@
-import { isConfidentialAllowed } from '../auth/access';
+import { canSee, colOk } from '../auth/access';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeftRight, Hammer, ImagePlus, MoreVertical, Printer, Scissors, Wrench, Pencil, Upload, Undo2, Image as ImageIcon, X, History as HistoryIcon } from 'lucide-react';
@@ -266,7 +266,7 @@ export function MainDieForm({ code, onClose }: { code?: string; onClose: () => v
     name: cur?.name ?? '',
     partCode: cur?.partCode ?? '',
     description: cur?.description ?? '',
-    customer: isConfidentialAllowed() ? cur?.customer ?? '' : '', // a masked name is never loaded into the form
+    customer: canSee('party_names') ? cur?.customer ?? '' : '', // a masked name is never loaded into the form
     metal: (cur?.metal ?? 'Brass') as Metal,
     createdOn: cur?.createdOn ?? todayISO(),
     status: (cur?.status ?? 'Active') as 'Active' | 'Inactive',
@@ -295,7 +295,7 @@ export function MainDieForm({ code, onClose }: { code?: string; onClose: () => v
         <Field label="Part Code" required error={miss(f.partCode)}>
           <input className={`input ${miss(f.partCode) ? 'bad' : ''}`} value={f.partCode} onChange={(e) => set('partCode', e.target.value)} placeholder="e.g. PRT-004" />
         </Field>
-        {isConfidentialAllowed() && (
+        {canSee('party_names') && (
           <Field label="Customer Name">
             <input className="input" value={f.customer} onChange={(e) => set('customer', e.target.value)} />
           </Field>
@@ -382,14 +382,16 @@ function DieFields({ f, set, kind, lockMain, existing }: { f: DieFormState; set:
         <input className="input" type="date" value={f.makingDate} onChange={(e) => set('makingDate', e.target.value)} />
       </Field>
       {/* required, so a new die takes the maker name (write-only); an existing die's maker is never shown back to roles without access */}
-      {(isConfidentialAllowed() || !existing) && (
+      {(canSee('party_names') || !existing) && (
         <Field label="Die Maker Name" required>
           <input className="input" value={f.maker} onChange={(e) => set('maker', e.target.value)} />
         </Field>
       )}
-      <Field label="Drawing Number">
-        <input className="input" value={f.drawingNo} onChange={(e) => set('drawingNo', e.target.value)} />
-      </Field>
+      {colOk('die.drawing') && (
+        <Field label="Drawing Number">
+          <input className="input" value={f.drawingNo} onChange={(e) => set('drawingNo', e.target.value)} />
+        </Field>
+      )}
       <Field label="Die Revision">
         <input className="input" value={f.revision} onChange={(e) => set('revision', e.target.value)} placeholder="R0" />
       </Field>
@@ -402,17 +404,21 @@ function DieFields({ f, set, kind, lockMain, existing }: { f: DieFormState; set:
           ))}
         </select>
       </Field>
-      <Field label="Location / Storage Rack">
-        <input className="input" value={f.location} onChange={(e) => set('location', e.target.value)} placeholder="e.g. Rack A-2" />
-      </Field>
-      {isConfidentialAllowed() && (
+      {colOk('die.location') && (
+        <Field label="Location / Storage Rack">
+          <input className="input" value={f.location} onChange={(e) => set('location', e.target.value)} placeholder="e.g. Rack A-2" />
+        </Field>
+      )}
+      {canSee('die_cost') && (
         <Field label={`${KIND_LABEL[kind]} Die Cost (optional)`}>
           <NumInput suffix="₹" step="any" value={f.cost} onChange={(v) => set('cost', v)} />
         </Field>
       )}
-      <Field label="Pieces Produced (optional)">
-        <NumInput suffix="PCS" value={f.pieces} onChange={(v) => set('pieces', v)} />
-      </Field>
+      {colOk('die.pieces') && (
+        <Field label="Pieces Produced (optional)">
+          <NumInput suffix="PCS" value={f.pieces} onChange={(v) => set('pieces', v)} />
+        </Field>
+      )}
       <Field label="Remarks" full>
         <textarea value={f.remarks} onChange={(e) => set('remarks', e.target.value)} />
       </Field>
@@ -431,7 +437,7 @@ function useDieForm(init?: Die, mainCode = '', prefill = false) {
     topWeight: str(init?.topWeight),
     bottomWeight: str(init?.bottomWeight),
     makingDate: prefill ? todayISO() : init?.makingDate ?? todayISO(),
-    maker: isConfidentialAllowed() ? init?.maker ?? '' : '',
+    maker: canSee('party_names') ? init?.maker ?? '' : '',
     drawingNo: init?.drawingNo ?? '',
     revision: init?.revision ?? 'R0',
     topUrl: prefill ? '' : url(init?.topImg),
@@ -439,7 +445,7 @@ function useDieForm(init?: Die, mainCode = '', prefill = false) {
     status: prefill ? 'Available' : init?.status ?? 'Available',
     remarks: prefill ? '' : init?.remarks ?? '',
     location: prefill ? '' : init?.location ?? '',
-    cost: prefill || !isConfidentialAllowed() ? '' : str(init?.cost),
+    cost: prefill || !canSee('die_cost') ? '' : str(init?.cost),
     pieces: prefill ? '0' : String(init?.pieces ?? 0),
   });
   const set = <K extends keyof DieFormState>(k: K, v: DieFormState[K]) => setF((x) => ({ ...x, [k]: v }));
@@ -687,13 +693,13 @@ export function DieView({ kind, code, onClose }: { kind: DieKind; code: string; 
         <Row k="Main Die" v={<span className="mono">{main.code} · {main.partCode}</span>} />
         <Row k="Material / Grade" v={die.material} />
         <Row k="Making Date" v={fmtDate(die.makingDate)} />
-        {isConfidentialAllowed() && <Row k="Die Maker" v={die.maker} />}
+        {canSee('party_names') && <Row k="Die Maker" v={die.maker} />}
         <Row k="Top Die (L×W×H)" v={`${fmtDims(die.top)} · ${fmtWt(die.topWeight)}`} />
         <Row k="Bottom Die (L×W×H)" v={`${fmtDims(die.bottom)} · ${fmtWt(die.bottomWeight)}`} />
-        <Row k="Drawing No. / Revision" v={`${die.drawingNo || '—'} / ${die.revision || '—'}`} />
-        <Row k="Location" v={die.location} />
-        <Row k="Pieces Produced" v={die.pieces.toLocaleString('en-IN')} />
-        {isConfidentialAllowed() && <Row k={`${KIND_LABEL[kind]} Die Cost`} v={die.cost === undefined ? '' : `₹ ${die.cost.toLocaleString('en-IN')}`} />}
+        <Row k={colOk('die.drawing') ? 'Drawing No. / Revision' : 'Revision'} v={colOk('die.drawing') ? `${die.drawingNo || '—'} / ${die.revision || '—'}` : die.revision || '—'} />
+        {colOk('die.location') && <Row k="Location" v={die.location} />}
+        {colOk('die.pieces') && <Row k="Pieces Produced" v={die.pieces.toLocaleString('en-IN')} />}
+        {canSee('die_cost') && <Row k={`${KIND_LABEL[kind]} Die Cost`} v={die.cost === undefined ? '' : `₹ ${die.cost.toLocaleString('en-IN')}`} />}
         <Row k="Last Maintenance" v={die.lastMaintDate ? fmtDate(die.lastMaintDate) : ''} />
         <Row k="Maintenance Remarks" v={die.maintRemarks} />
         {die.replacesCode && <Row k="Replaces" v={<span className="mono">{die.replacesCode}</span>} />}

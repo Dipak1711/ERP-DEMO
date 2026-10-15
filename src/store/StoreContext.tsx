@@ -22,6 +22,27 @@ export interface Toast {
   message?: string;
 }
 
+/** which page an action belongs to — the page whose Write access it needs */
+function actionPage(a: Action): { key: string; label: string } | null {
+  switch (a.kind) {
+    case 'newJob':
+      return { key: 'cutting', label: 'Cutting' };
+    case 'product':
+      return { key: 'products', label: 'Product Master' };
+    case 'inward':
+      return { key: 'raw_inventory', label: 'Raw Inventory' };
+    case 'stage':
+      return a.stage === 'heatTreatment' ? { key: 'heat_treatment', label: 'Heat Treatment' } : { key: a.stage, label: a.stage[0].toUpperCase() + a.stage.slice(1) };
+    case 'qc':
+    case 'hardness':
+      return { key: 'qc', label: 'Quality Control' };
+    case 'dispatch':
+      return { key: 'dispatch', label: 'Dispatch' };
+    default:
+      return null;
+  }
+}
+
 interface StoreValue {
   /** Everything the screens read — loaded from Supabase (confidential columns already withheld by the database). */
   state: ERPState;
@@ -46,7 +67,7 @@ interface StoreValue {
 const Ctx = createContext<StoreValue | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const { logout } = useAccess();
+  const { logout, canWrite, reloadAccess } = useAccess();
   const [data, setData] = useState<{ state: ERPState; masters: Masters } | null>(null);
   const [loadError, setLoadError] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -99,13 +120,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         toast({ kind: 'error', title: 'Saved, but the screen could not refresh', message: dbMessage(e) });
         return true;
       }
+      void reloadAccess();
       if (success) toast({ kind: 'success', ...success });
       return true;
     },
-    [fetchAll, toast],
+    [fetchAll, toast, reloadAccess],
   );
 
   const refresh = useCallback(() => fetchAll().catch((e) => toast({ kind: 'error', title: 'Could not refresh', message: dbMessage(e) })), [fetchAll, toast]);
+
+  const guardedOpen = useCallback(
+    (a: Action | null) => {
+      if (a) {
+        const res = actionPage(a);
+        if (res && !canWrite(res.key)) {
+          toast({ kind: 'error', title: 'View only', message: `You can view ${res.label} but not change it. Ask the Director or Plant Head for Write access.` });
+          return;
+        }
+      }
+      setAction(a);
+    },
+    [canWrite, toast],
+  );
 
   const value = useMemo(
     () =>
@@ -120,9 +156,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         traceJob,
         openTrace: setTraceJob,
         action,
-        openAction: setAction,
+        openAction: guardedOpen,
       },
-    [data, refresh, run, toast, toasts, dismiss, traceJob, action],
+    [data, refresh, run, toast, toasts, dismiss, traceJob, action, guardedOpen],
   );
 
   if (!value) {

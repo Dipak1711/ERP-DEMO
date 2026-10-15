@@ -1,5 +1,5 @@
 import * as api from '../db/api';
-import { Conf, searchable, isConfidentialAllowed, useAccess } from '../auth/access';
+import { Conf, searchable, canSee, useAccess } from '../auth/access';
 import { useState } from 'react';
 import { ArrowRight, Eye, Package, Pencil, Plus, ScrollText, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -38,7 +38,7 @@ export function TraceabilityPage() {
               { value: 'done', label: 'Dispatched', count: state.jobs.filter((j) => j.currentStage === 'dispatched').length, tone: 'teal' },
             ]}
           />
-          <Search value={q} onChange={setQ} placeholder={isConfidentialAllowed() ? 'Search job, product, customer, stage…' : 'Search job, product, stage…'} />
+          <Search value={q} onChange={setQ} placeholder={canSee('party_names') ? 'Search job, product, customer, stage…' : 'Search job, product, stage…'} />
         </div>
         {rows.length === 0 ? (
           <Empty icon={Waypoints} title="No jobs match" />
@@ -72,7 +72,7 @@ export function TraceabilityPage() {
                     <td>
                       <div className="strong">{s.product.name}</div>
                       <div className="sub">
-                        <Conf>{s.job.customer} · </Conf>
+                        <Conf g="party_names">{s.job.customer} · </Conf>
                         <Priority p={s.job.priority} />
                       </div>
                     </td>
@@ -189,7 +189,8 @@ export function LedgerPage() {
 // -------------------------------------------------------- Product Master ---
 export function ProductsPage() {
   const { state, openAction } = useStore();
-  const { mgmt } = useAccess();
+  const { canWrite } = useAccess();
+  const mgmt = canWrite('products');
   const add = (
     <button className="btn btn-primary" onClick={() => openAction({ kind: 'product' })}>
       <Plus size={15} /> Add Product
@@ -216,11 +217,15 @@ export function ProductsPage() {
                 <th>Raw Material</th>
                 <th className="r">Cut Length</th>
                 <th className="r">Finished Wt.</th>
-                <th>Forging Die</th>
+                <Conf col="product.die_no">
+                  <th>Forging Die</th>
+                </Conf>
                 <th className="r">HT Temp.</th>
                 <th>HT Process</th>
-                <Conf>
+                <Conf g="party_names">
                   <th>Default Customer</th>
+                </Conf>
+                <Conf g="sales_rates">
                   <th className="r">Sales Rate</th>
                 </Conf>
                 {mgmt && <th />}
@@ -237,7 +242,9 @@ export function ProductsPage() {
                   </td>
                   <td className="r num">{p.cuttingLength} mm</td>
                   <td className="r num">{p.finishedWeight} kg</td>
-                  <td className="mono">{p.dieNo}</td>
+                  <Conf col="product.die_no">
+                    <td className="mono">{p.dieNo}</td>
+                  </Conf>
                   <td className="r strong nowrap">{p.htTemperature}°C</td>
                   <td>
                     {p.htProcess}
@@ -245,8 +252,10 @@ export function ProductsPage() {
                       {p.htSoakMinutes} min · {p.htQuench}
                     </div>
                   </td>
-                  <Conf>
+                  <Conf g="party_names">
                     <td>{p.defaultCustomer || '—'}</td>
+                  </Conf>
+                  <Conf g="sales_rates">
                     <td className="r num nowrap">{p.salesRate ? `₹ ${p.salesRate.toLocaleString('en-IN')} / pc` : '—'}</td>
                   </Conf>
                   {mgmt && (
@@ -270,6 +279,7 @@ export function ProductsPage() {
 // Add / edit a product (Director and Plant Head). Existing jobs keep their product when it is edited.
 export function ProductModal({ id, onClose }: { id?: string; onClose: () => void }) {
   const { state, run } = useStore();
+  const { can } = useAccess();
   const cur = id ? state.products.find((p) => p.id === id) : undefined;
   const [f, setF] = useState({
     code: cur?.code ?? '',
@@ -334,9 +344,11 @@ export function ProductModal({ id, onClose }: { id?: string; onClose: () => void
         <Field label="Product Name" required>
           <input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Brass Bush" />
         </Field>
-        <Field label="Forging Die No.">
-          <input className="input mono" value={f.dieNo} onChange={(e) => set('dieNo', e.target.value)} placeholder="e.g. D-BB45-01" />
-        </Field>
+        <Conf col="product.die_no">
+          <Field label="Forging Die No.">
+            <input className="input mono" value={f.dieNo} onChange={(e) => set('dieNo', e.target.value)} placeholder="e.g. D-BB45-01" />
+          </Field>
+        </Conf>
         <Field label="Raw Material" required>
           <select value={f.material} onChange={(e) => pickMaterial(e.target.value)}>
             <option value="">Select material…</option>
@@ -376,15 +388,23 @@ export function ProductModal({ id, onClose }: { id?: string; onClose: () => void
           <input className="input" value={f.htQuench} onChange={(e) => set('htQuench', e.target.value)} placeholder="e.g. Still air" />
         </Field>
       </div>
-      <div className="section-label">Commercial (confidential)</div>
-      <div className="form-grid">
-        <Field label="Default Customer">
-          <input className="input" value={f.defaultCustomer} onChange={(e) => set('defaultCustomer', e.target.value)} />
-        </Field>
-        <Field label="Sales Rate" hint="₹ per piece">
-          <NumInput value={f.salesRate} onChange={(v) => set('salesRate', v)} suffix="₹" step="any" />
-        </Field>
-      </div>
+      {(can('party_names') || can('sales_rates')) && (
+        <>
+          <div className="section-label">Commercial (confidential)</div>
+          <div className="form-grid">
+            {can('party_names') && (
+              <Field label="Default Customer">
+                <input className="input" value={f.defaultCustomer} onChange={(e) => set('defaultCustomer', e.target.value)} />
+              </Field>
+            )}
+            {can('sales_rates') && (
+              <Field label="Sales Rate" hint="₹ per piece">
+                <NumInput value={f.salesRate} onChange={(v) => set('salesRate', v)} suffix="₹" step="any" />
+              </Field>
+            )}
+          </div>
+        </>
+      )}
     </Modal>
   );
 }

@@ -1,4 +1,4 @@
-import { searchable, useAccess } from '../auth/access';
+import { ROUTE_RESOURCE, WRITABLE_PAGES, searchable, useAccess } from '../auth/access';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   BarChart3,
@@ -21,6 +21,9 @@ import {
   Sun,
   Waypoints,
   Workflow,
+  KeyRound,
+  Settings,
+  Eye,
 } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { jobSummary, STAGE_LABEL } from '../store/engine';
@@ -58,6 +61,8 @@ const SECTIONS: { id: string; title: string; icon: Icon; items: NavItem[] }[] = 
   { id: 'reports', title: 'Reports & Masters', icon: BarChart3, items: REPORT_NAV },
 ];
 
+const SETTINGS_SECTION = { id: 'settings', title: 'Settings', icon: Settings, items: [{ route: 'settings', label: 'Access Control', icon: KeyRound }] as NavItem[] };
+
 const readLS = (k: string) => {
   try {
     return localStorage.getItem(k);
@@ -85,6 +90,7 @@ function useOutside(ref: React.RefObject<HTMLElement>, open: boolean, close: () 
 
 export function Layout({ route, children }: { route: string; children: ReactNode }) {
   const { state } = useStore();
+  const { canRead, level, canManageAccess } = useAccess();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mini, setMini] = useState(() => readLS('forgeflow.sidebar') === 'mini');
   const [closed, setClosed] = useState<Record<string, boolean>>({});
@@ -128,7 +134,11 @@ export function Layout({ route, children }: { route: string; children: ReactNode
           </div>
         </div>
         <nav className="nav">
-          {SECTIONS.map((sec) => {
+          {[
+            // pages that are Hidden for this role are not in the menu at all
+            ...SECTIONS.map((sec) => ({ ...sec, items: sec.items.filter((n) => canRead(ROUTE_RESOURCE[n.route])) })).filter((sec) => sec.items.length > 0),
+            ...(canManageAccess ? [SETTINGS_SECTION] : []),
+          ].map((sec) => {
             const isClosed = !mini && closed[sec.id];
             return (
               <div className="nav-sec" key={sec.id}>
@@ -185,6 +195,11 @@ export function Layout({ route, children }: { route: string; children: ReactNode
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
+            {WRITABLE_PAGES.has(ROUTE_RESOURCE[route]) && level(ROUTE_RESOURCE[route]) === 'read' && (
+              <span className="view-only" title="You can look at this page but not change anything on it">
+                <Eye size={14} /> View only
+              </span>
+            )}
             <UserCard />
           </div>
         </header>

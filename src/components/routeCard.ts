@@ -1,5 +1,5 @@
 // Process Route Card (client form F PD 03) — printed from Dispatch, filled from the job's real records.
-import { isConfidentialAllowed } from '../auth/access';
+import { canSee, colOk } from '../auth/access';
 import { getJob, getProduct, round3, STAGE_LABEL } from '../store/engine';
 import type { ERPState, ProcessStage } from '../store/types';
 import { printHtml } from './printHtml';
@@ -44,10 +44,10 @@ export function routeCardHtml(s: ERPState, jobNo: string) {
     const r = rec(st);
     const done = r?.status === 'Completed';
     if (r?.params.skipped) return `<tr><td class="n">${i}</td><td class="p">${label}</td><td>${dmy(r.receivedAt)}</td><td colspan="4" class="skip">Not required — skipped</td></tr>`;
-    return `<tr><td class="n">${i}</td><td class="p">${label}</td><td>${dmy(r?.receivedAt)}</td><td>${r ? r.input : ''}</td><td>${done ? r!.output : ''}</td><td>${done ? r!.loss : ''}</td><td>${done ? esc(r!.operator) : ''}</td></tr>`;
+    return `<tr><td class="n">${i}</td><td class="p">${label}</td><td>${dmy(r?.receivedAt)}</td><td>${r ? r.input : ''}</td><td>${done ? r!.output : ''}</td><td>${done ? r!.loss : ''}</td><td>${done && colOk('stage.operator') ? esc(r!.operator) : ''}</td></tr>`;
   };
   const qcDone = qc && qc.status !== 'QC Pending';
-  const qcRow = `<tr><td class="n">5</td><td class="p">QC Inspection</td><td>${dmy(qc?.receivedAt)}</td><td>${qc ? qc.input : ''}</td><td>${qcDone ? qc!.accepted : ''}</td><td>${qcDone ? qc!.rejected : ''}</td><td>${qcDone ? esc(qc!.inspector) : ''}</td></tr>`;
+  const qcRow = `<tr><td class="n">5</td><td class="p">QC Inspection</td><td>${dmy(qc?.receivedAt)}</td><td>${qc ? qc.input : ''}</td><td>${qcDone ? qc!.accepted : ''}</td><td>${qcDone ? qc!.rejected : ''}</td><td>${qcDone && colOk('qc.inspector') ? esc(qc!.inspector) : ''}</td></tr>`;
 
   // ---- bag weights: two columns of bags, as on the paper card (bags 1-12 | 13-24 …)
   const perCol = Math.max(12, Math.ceil(bags.length / 2));
@@ -57,7 +57,7 @@ export function routeCardHtml(s: ERPState, jobNo: string) {
   const sumB = round3(colB.reduce((t, b) => t + b.weight, 0));
   const totalQty = bags.reduce((t, b) => t + b.qty, 0);
   const totalKg = round3(sumA + sumB);
-  const vehicles = [...new Set(dispatches.map((d) => d.vehicleNo).filter(Boolean))].join(', ');
+  const vehicles = colOk('dispatch.vehicle') ? [...new Set(dispatches.map((d) => d.vehicleNo).filter(Boolean))].join(', ') : '';
   const bagRows = Array.from({ length: perCol }, (_, i) => {
     const extra =
       i === 0
@@ -81,7 +81,7 @@ export function routeCardHtml(s: ERPState, jobNo: string) {
   <table>
     <tr><td class="l">Length (લંબાઈ) : <span class="v">${p.cuttingLength} MM</span></td><td class="l">Weight (વજન) : <span class="v">${job.pieceWeightG ?? ''}${job.pieceWeightG ? ' g' : ''}</span></td><td class="l">Bar OD (સળીયાનો OD) : <span class="v">${p.od} Ø</span></td></tr>
     <tr><td class="l">To cut (કાપવાના નંગ) : <span class="v">${job.plannedQty}</span></td><td class="l">Die No. : <span class="v">${esc(job.dieNo || p.dieNo)}</span></td><td class="l">Material : <span class="v">${esc(lot?.materialType || p.material)}</span></td></tr>
-    <tr><td class="l" colspan="2">Machine No. : <span class="v">${esc(job.machineNo)}</span></td>${isConfidentialAllowed() ? `<td class="l">Customer : <span class="v">${esc(job.customer)}</span></td>` : '<td class="l">&nbsp;</td>'}</tr>
+    <tr><td class="l" colspan="2">Machine No. : <span class="v">${esc(job.machineNo)}</span></td>${canSee('party_names') ? `<td class="l">Customer : <span class="v">${esc(job.customer)}</span></td>` : '<td class="l">&nbsp;</td>'}</tr>
     <tr><td class="l">Cut (કાપેલા નંગ) : <span class="v">${cut && cut.status === 'Completed' ? cut.output : ''}</span></td><td class="l">Final (ફાઈનલ નંગ) : <span class="v">${finalQty || ''}</span></td><td class="l">Bags (દાગીના) : <span class="v">${bags.length || ''}</span></td></tr>
     <tr><td class="l" colspan="2">&nbsp;</td><td class="l">Date (તારીખ) : <span class="v">${dmy(lastDate)}</span></td></tr>
   </table>

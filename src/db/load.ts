@@ -21,6 +21,7 @@ import type {
   RawMaterialLot,
   StageRecord,
 } from '../store/types';
+import type { Level } from '../auth/access';
 import type { Die, DieData, HistoryEvent, IssueRecord, MaintenanceRecord, MainDie } from '../dies/types';
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -36,6 +37,19 @@ async function read(source: string, order?: [string, boolean][], limit?: number)
   const { data, error } = await q;
   if (error) throw new Error(`${source}: ${error.message}`);
   return (data ?? []) as Row[];
+}
+
+/** Reads the first source that exists (a masking view from a newer migration, else the older table). */
+async function readFirst(sources: string[], order?: [string, boolean][]): Promise<Row[]> {
+  let last: unknown;
+  for (const s of sources) {
+    try {
+      return await read(s, order);
+    } catch (e) {
+      last = e;
+    }
+  }
+  throw last;
 }
 
 // -------------------------------------------------------------- masters ---
@@ -175,8 +189,8 @@ export async function loadERPState(): Promise<ERPState> {
     read('v_raw_inwards', [['date', false], ['lot_id', false]]),
     read('v_jobs', [['created_at', true], ['job_no', true]]),
     read('job_material_issues', [['id', true]]),
-    read('stage_records', [['id', true]]),
-    read('qc_records', [['id', true]]),
+    readFirst(['v_stage_records', 'stage_records'], [['id', true]]),
+    readFirst(['v_qc_records', 'qc_records'], [['id', true]]),
     read('v_hardness_reports', [['date', true], ['id', true]]),
     read('v_finished_goods', [['received_at', true], ['id', true]]),
     read('v_dispatches', [['created_at', false], ['dispatch_no', false]]),
@@ -353,4 +367,37 @@ export async function loadDieData(): Promise<DieData> {
     ),
     images,
   };
+}
+
+// ------------------------------------------------------- access settings ---
+export interface AccessMatrix {
+  resources: { key: string; label: string; section: string; sort: number; writable: boolean }[];
+  groups: { key: string; label: string; description: string; sort: number; isCustom: boolean; catalogKey?: string }[];
+  /** columns an admin can still add to the sensitive list */
+  catalog: { key: string; label: string; pageLabel: string; sort: number }[];
+  /** role → page key → level */
+  pages: Record<string, Record<string, Level>>;
+  /** role → information type → visible */
+  fields: Record<string, Record<string, boolean>>;
+}
+
+/** The full settings matrix. Only the Director / Plant Head can read it (database policy). */
+export async function loadAccessMatrix(): Promise<AccessMatrix> {
+  const [res, grp, cat, pages, fields] = await Promise.all([
+    read('app_resources', [['sort', true]]),
+    read('field_groups', [['sort', true]]),
+    read('column_catalog', [['sort', true]]).catch(() => [] as Row[]), // migration 19 not installed yet → no catalog
+    read('role_page_access'),
+    read('role_field_access'),
+  ]);
+  const m: AccessMatrix = {
+    resources: res.map((r) => ({ key: r.key, label: r.label, section: r.section, sort: r.sort, writable: !!r.writable })),
+    groups: grp.map((g) => ({ key: g.key, label: g.label, description: g.description, sort: g.sort, isCustom: !!g.is_custom, catalogKey: g.catalog_key ?? undefined })),
+    catalog: cat.map((c) => ({ key: c.key, label: c.label, pageLabel: c.page_label, sort: c.sort })),
+    pages: {},
+    fields: {},
+  };
+  for (const p of pages) (m.pages[p.role] ??= {})[p.resource] = p.level;
+  for (const f of fields) (m.fields[f.role] ??= {})[f.field_group] = !!f.visible;
+  return m;
 }

@@ -1,5 +1,5 @@
 import * as api from '../db/api';
-import { isConfidentialAllowed, searchable } from '../auth/access';
+import { canSee, searchable, Write, Conf, colOk, searchableCol } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { ClipboardCheck, Pencil, Printer, Plus } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -33,7 +33,7 @@ export function HardnessRegister() {
     () =>
       all
         .filter((r) => v === 'all' || hardnessVerdict(r) === v)
-        .filter((r) => matches(q, r.id, r.component, r.material, r.cycleNo, r.jobNo, r.checkedBy, searchable(r.supplier)))
+        .filter((r) => matches(q, r.id, r.component, r.material, searchableCol(r.cycleNo, 'hardness.cycle_drawing'), r.jobNo, r.checkedBy, searchable(r.supplier)))
         .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
     [all, q, v],
   );
@@ -60,9 +60,9 @@ export function HardnessRegister() {
           text={all.length ? 'Try a different search or filter.' : 'Record the hardness readings taken after heat treatment — same layout as the paper report (F QC 03).'}
           action={
             !all.length && (
-              <button className="btn btn-primary" onClick={() => openAction({ kind: 'hardness' })}>
+              <Write res="qc"><button className="btn btn-primary" onClick={() => openAction({ kind: 'hardness' })}>
                 <Plus size={15} /> New Hardness Report
-              </button>
+              </button></Write>
             )
           }
         />
@@ -75,7 +75,9 @@ export function HardnessRegister() {
                 <th>Date</th>
                 <th>Component</th>
                 <th>Material</th>
-                <th>Cycle No.</th>
+                <Conf col="hardness.cycle_drawing">
+                  <th>Cycle No.</th>
+                </Conf>
                 <th className="r">Inspected</th>
                 <th>Required</th>
                 <th>Readings</th>
@@ -97,7 +99,9 @@ export function HardnessRegister() {
                       {r.jobNo && <div className="sub mono">{r.jobNo}</div>}
                     </td>
                     <td>{r.material || '—'}</td>
-                    <td>{r.cycleNo || '—'}</td>
+                    <Conf col="hardness.cycle_drawing">
+                      <td>{r.cycleNo || '—'}</td>
+                    </Conf>
                     <td className="r">{r.inspectedQty}</td>
                     <td className="nowrap">{requiredText(r)}</td>
                     <td className="nowrap">{vals.length ? `${Math.min(...vals)} – ${Math.max(...vals)} ${r.scale}` : '—'}</td>
@@ -126,7 +130,7 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
     component: cur?.component ?? '',
     material: cur && isHardnessMaterial(cur.material) ? cur.material : '',
     grade: cur?.grade ?? '',
-    supplier: isConfidentialAllowed() ? cur?.supplier ?? '' : '',   // a hidden party name is never loaded into the form
+    supplier: canSee('party_names') ? cur?.supplier ?? '' : '',   // a hidden party name is never loaded into the form
     inwardQty: cur ? String(cur.inwardQty) : '',
     inspectedQty: cur ? String(cur.inspectedQty) : '',
     cycleNo: cur?.cycleNo ?? '',
@@ -172,7 +176,7 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
       jobNo: no,
       component: p.name,
       ...(hs ? { material: hs.family, grade: hs.grade, min: String(hs.min), max: String(hs.max), scale: hs.scale } : {}),
-      supplier: isConfidentialAllowed() ? lot?.supplier ?? x.supplier : '',
+      supplier: canSee('party_names') ? lot?.supplier ?? x.supplier : '',
       inwardQty: qc ? String(qc.input) : x.inwardQty,
     }));
   };
@@ -182,7 +186,7 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
     const ok = await run(
       (now) =>
         api.saveHardnessReport(
-          { jobNo: f.jobNo || undefined, date: f.date, component: f.component, material: f.material, grade: f.grade, supplier: isConfidentialAllowed() ? f.supplier : cur?.supplier ?? '', inwardQty: Number(f.inwardQty) || 0, inspectedQty: Number(f.inspectedQty), cycleNo: f.cycleNo, drawingNo: f.drawingNo, checkedBy: f.checkedBy, scale: f.scale, min: limits.min, max: limits.max, readings, remarks: f.remarks },
+          { jobNo: f.jobNo || undefined, date: f.date, component: f.component, material: f.material, grade: f.grade, supplier: canSee('party_names') ? f.supplier : cur?.supplier ?? '', inwardQty: Number(f.inwardQty) || 0, inspectedQty: Number(f.inspectedQty), cycleNo: f.cycleNo, drawingNo: f.drawingNo, checkedBy: f.checkedBy, scale: f.scale, min: limits.min, max: limits.max, readings, remarks: f.remarks },
           tsFor(f.date, now),
           id,
         ),
@@ -226,7 +230,7 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
       }
     >
       <div className="form-grid">
-        <Field label="Production Job (optional)" hint={isConfidentialAllowed() ? 'Pick a job to fill component, material, supplier and qty automatically' : 'Pick a job to fill component, material and qty automatically'}>
+        <Field label="Production Job (optional)" hint={canSee('party_names') ? 'Pick a job to fill component, material, supplier and qty automatically' : 'Pick a job to fill component, material and qty automatically'}>
           <select value={f.jobNo} onChange={(e) => pickJob(e.target.value)} disabled={!!cur}>
             <option value="">— Not linked to a job —</option>
             {jobs.map((j) => (
@@ -266,17 +270,21 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
         <Field label="Inspected Qty" required>
           <NumInput value={f.inspectedQty} onChange={(v) => set('inspectedQty', v)} />
         </Field>
-        {isConfidentialAllowed() && (
+        {canSee('party_names') && (
           <Field label="Supplier Name">
             <input className="input" value={f.supplier} onChange={(e) => set('supplier', e.target.value)} />
           </Field>
         )}
-        <Field label="Hardness Cycle No.">
-          <input className="input" value={f.cycleNo} onChange={(e) => set('cycleNo', e.target.value)} />
-        </Field>
-        <Field label="Drawing No.">
-          <input className="input" value={f.drawingNo} onChange={(e) => set('drawingNo', e.target.value)} />
-        </Field>
+        {colOk('hardness.cycle_drawing') && (
+          <>
+            <Field label="Hardness Cycle No.">
+              <input className="input" value={f.cycleNo} onChange={(e) => set('cycleNo', e.target.value)} />
+            </Field>
+            <Field label="Drawing No.">
+              <input className="input" value={f.drawingNo} onChange={(e) => set('drawingNo', e.target.value)} />
+            </Field>
+          </>
+        )}
         <Field label="Checked By" required>
           <input className="input" list="hir-checkers" value={f.checkedBy} onChange={(e) => set('checkedBy', e.target.value)} />
           <datalist id="hir-checkers">
@@ -421,9 +429,9 @@ export function sheetHtml(r: HardnessReport) {
     <tr><td colspan="4" class="title">${esc(F.title)}</td></tr>
     <tr><td class="lbl">Component Name :-</td><td class="val">${esc(r.component)}</td><td class="lbl">Inward Qty.</td><td class="val">${r.inwardQty || ''}</td></tr>
     <tr><td class="lbl">Material :-</td><td class="val">${esc(r.material)}${r.grade ? ' · ' + esc(r.grade) : ''}</td><td class="lbl">Inspected Qty. :-</td><td class="val">${r.inspectedQty}</td></tr>
-    <tr><td class="lbl">Date :</td><td class="val">${esc(ddmmyyyy(r.date))}</td>${isConfidentialAllowed() ? `<td class="lbl">Supplier Name :-</td><td class="val">${esc(r.supplier)}</td>` : '<td class="lbl"></td><td class="val"></td>'}</tr>
-    <tr><td class="lbl">Hardness Cycle No.</td><td class="val">${esc(r.cycleNo)}</td><td class="lbl">Checked By :-</td><td class="val">${esc(r.checkedBy)}</td></tr>
-    <tr><td class="lbl">Drawing No.</td><td class="val" colspan="3">${esc(r.drawingNo)}</td></tr>
+    <tr><td class="lbl">Date :</td><td class="val">${esc(ddmmyyyy(r.date))}</td>${canSee('party_names') ? `<td class="lbl">Supplier Name :-</td><td class="val">${esc(r.supplier)}</td>` : '<td class="lbl"></td><td class="val"></td>'}</tr>
+    <tr>${colOk('hardness.cycle_drawing') ? `<td class="lbl">Hardness Cycle No.</td><td class="val">${esc(r.cycleNo)}</td>` : '<td class="lbl"></td><td class="val"></td>'}<td class="lbl">Checked By :-</td><td class="val">${esc(r.checkedBy)}</td></tr>
+    ${colOk('hardness.cycle_drawing') ? `<tr><td class="lbl">Drawing No.</td><td class="val" colspan="3">${esc(r.drawingNo)}</td></tr>` : ''}
   </table>
   <table class="rd">
     <tr><th style="width:9%">Sr.No.</th><th>Required Hardness</th><th style="width:24%">Hardness</th><th style="width:22%">Result</th></tr>
@@ -449,9 +457,9 @@ export function HardnessSheet({ id, onClose }: { id: string; onClose: () => void
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={() => openAction({ kind: 'hardness', id: r.id })}>
+          <Write res="qc"><button className="btn" onClick={() => openAction({ kind: 'hardness', id: r.id })}>
             <Pencil size={15} /> Edit
-          </button>
+          </button></Write>
           <button className="btn btn-primary" onClick={() => printHtml(`Hardness Report ${r.id}`, sheetHtml(r), HIR_CSS)}>
             <Printer size={15} /> Print
           </button>

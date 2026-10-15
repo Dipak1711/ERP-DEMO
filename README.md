@@ -9,7 +9,7 @@ Every business rule runs inside the database (`supabase/migrations`), and who ma
 
 ## Connect to Supabase (once)
 
-1. Create the project, then run the files in `supabase/migrations/` in order (`01_…` → `17_…`) in the SQL editor.
+1. Create the project, then run the files in `supabase/migrations/` in order (`01_…` → `19_…`) in the SQL editor.
 2. Run `supabase/seed.sql` (masters), then — for a demo — `supabase/seed_demo.sql` (demo data + the six demo logins).
 3. Copy `.env.example` to `.env` and fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (Project Settings → API). Only the anon key — never the `service_role` key.
 4. `npm run dev` and sign in. Roles come from the `profiles` table; new users start as `viewer` until a Director sets their role.

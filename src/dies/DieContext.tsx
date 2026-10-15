@@ -8,6 +8,7 @@
 // ---------------------------------------------------------------------------
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useStore } from '../store/StoreContext';
+import { useAccess } from '../auth/access';
 import { dbMessage } from '../db/client';
 import { loadDieData } from '../db/load';
 import * as api from '../db/api';
@@ -74,6 +75,7 @@ const nextCode = (prefix: string, codes: string[]) => {
 
 export function DieProvider({ children }: { children: ReactNode }) {
   const { toast } = useStore();
+  const { canWrite } = useAccess();
   const [data, setData] = useState<DieData>(emptyDieData);
   const [ui, setUI] = useState<DieUI | null>(null);
 
@@ -143,7 +145,16 @@ export function DieProvider({ children }: { children: ReactNode }) {
   const value: DieStore = {
     data,
     ui,
-    openUI: setUI,
+    openUI: (u) => {
+      if (u && u.kind !== 'die-view') {
+        const res = u.kind === 'main-form' ? { key: 'die_master', label: 'Die Master' } : u.dieKind === 'forging' ? { key: 'forging_dies', label: 'Forging Die Master' } : { key: 'trimming_dies', label: 'Trimming Die Master' };
+        if (!canWrite(res.key)) {
+          toast({ kind: 'error', title: 'View only', message: `You can view ${res.label} but not change it. Ask the Director or Plant Head for Write access.` });
+          return;
+        }
+      }
+      setUI(u);
+    },
     saveMain,
     saveDie,
     replaceDie,

@@ -1,4 +1,4 @@
-import { Conf, isConfidentialAllowed, searchable } from '../auth/access';
+import { Conf, canSee, searchable, Write, colOk } from '../auth/access';
 import { useMemo, useState, type ReactNode } from 'react';
 import { AlertTriangle, ArrowLeftRight, ChevronRight, Download, FileText, Hammer, History, Layers, Pencil, Plus, Printer, Scissors, Undo2, Upload, Wrench, CheckCircle2, Eye } from 'lucide-react';
 import { Empty, Kpi, PageHeader, Search, Tabs } from '../components/ui';
@@ -83,7 +83,7 @@ export function DieMasterPage() {
   const [type, setType] = useState('');
   const [maker, setMaker] = useState('');
 
-  const makers = useMemo(() => (isConfidentialAllowed() ? [...new Set([...data.forgingDies, ...data.trimmingDies].map((d) => d.maker))].sort() : []), [data]);
+  const makers = useMemo(() => (canSee('party_names') ? [...new Set([...data.forgingDies, ...data.trimmingDies].map((d) => d.maker))].sort() : []), [data]);
   const rows = useMemo(
     () =>
       data.mainDies
@@ -112,9 +112,9 @@ export function DieMasterPage() {
             <button className="btn" onClick={() => exportMainDies(rows.map((r) => r.m), data)}>
               <Download size={16} /> Export to Excel
             </button>
-            <button className="btn btn-primary" onClick={() => openUI({ kind: 'main-form' })}>
+            <Write res="die_master"><button className="btn btn-primary" onClick={() => openUI({ kind: 'main-form' })}>
               <Plus size={16} /> Add New Die
-            </button>
+            </button></Write>
           </>
         }
       />
@@ -125,7 +125,7 @@ export function DieMasterPage() {
           <div className="right muted">{rows.length} of {data.mainDies.length} shown</div>
         </div>
         <div className="toolbar">
-          <Search value={q} onChange={setQ} placeholder={isConfidentialAllowed() ? 'Search die, part, customer, forging / trimming die code…' : 'Search die, part, forging / trimming die code…'} />
+          <Search value={q} onChange={setQ} placeholder={canSee('party_names') ? 'Search die, part, customer, forging / trimming die code…' : 'Search die, part, forging / trimming die code…'} />
           <Select value={metal} onChange={setMetal} all="All metals" options={METALS} />
           <Select value={type} onChange={setType} all="Any die type" options={['forging', 'trimming']} />
           {makers.length > 0 && <Select value={maker} onChange={setMaker} all="All die makers" options={makers} />}
@@ -141,7 +141,7 @@ export function DieMasterPage() {
             icon={Layers}
             title={filtered ? 'No dies match these filters' : 'No dies yet'}
             text={filtered ? 'Try a different search or clear the filters.' : 'Add the first component to start building its die set.'}
-            action={!filtered && <button className="btn btn-primary" onClick={() => openUI({ kind: 'main-form' })}><Plus size={15} /> Add New Die</button>}
+            action={!filtered && <Write res="die_master"><button className="btn btn-primary" onClick={() => openUI({ kind: 'main-form' })}><Plus size={15} /> Add New Die</button></Write>}
           />
         ) : (
           <div className="table-wrap">
@@ -168,7 +168,7 @@ export function DieMasterPage() {
                     </td>
                     <td>
                       <div className="strong">{m.name}</div>
-                      <Conf>
+                      <Conf g="party_names">
                         <div className="sub">{m.customer || '—'}</div>
                       </Conf>
                     </td>
@@ -209,7 +209,7 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
   const [status, setStatus] = useState('');
   const dies = diesOf(kind);
   const mainOf = (d: Die) => data.mainDies.find((m) => m.code === d.mainCode)!;
-  const makers = useMemo(() => (isConfidentialAllowed() ? [...new Set(dies.map((d) => d.maker))].sort() : []), [dies]);
+  const makers = useMemo(() => (canSee('party_names') ? [...new Set(dies.map((d) => d.maker))].sort() : []), [dies]);
 
   const rows = dies
     .filter((d) => (!metal || mainOf(d).metal === metal) && (!maker || d.maker === maker) && (!status || d.status === status))
@@ -231,9 +231,9 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
             <button className="btn" onClick={() => exportDies(kind, rows, data)}>
               <Download size={16} /> Export to Excel
             </button>
-            <button className="btn btn-primary" onClick={() => openUI({ kind: 'die-form', dieKind: kind })} disabled={!data.mainDies.length}>
+            <Write res={kind === 'forging' ? 'forging_dies' : 'trimming_dies'}><button className="btn btn-primary" onClick={() => openUI({ kind: 'die-form', dieKind: kind })} disabled={!data.mainDies.length}>
               <Plus size={16} /> Add {label} Die
-            </button>
+            </button></Write>
           </>
         }
       />
@@ -244,7 +244,7 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
           <div className="right muted">{rows.length} of {dies.length} shown</div>
         </div>
         <div className="toolbar">
-          <Search value={q} onChange={setQ} placeholder={`Search ${kind} die, main die, component, part code${isConfidentialAllowed() ? ', maker' : ''}…`} />
+          <Search value={q} onChange={setQ} placeholder={`Search ${kind} die, main die, component, part code${canSee('party_names') ? ', maker' : ''}…`} />
           <Select value={metal} onChange={setMetal} all="All metals" options={METALS} />
           {makers.length > 0 && <Select value={maker} onChange={setMaker} all="All die makers" options={makers} />}
           <Select value={status} onChange={setStatus} all="All statuses" options={DIE_STATUSES} />
@@ -259,7 +259,7 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
             icon={Ic}
             title={filtered ? 'No dies match these filters' : `No ${kind} dies yet`}
             text={filtered ? 'Try a different search or clear the filters.' : data.mainDies.length ? `Add a ${kind} die.` : 'Create a Main Die first, then add its dies.'}
-            action={!filtered && data.mainDies.length > 0 && <button className="btn btn-primary" onClick={() => openUI({ kind: 'die-form', dieKind: kind })}><Plus size={15} /> Add {label} Die</button>}
+            action={!filtered && data.mainDies.length > 0 && <Write res={kind === 'forging' ? 'forging_dies' : 'trimming_dies'}><button className="btn btn-primary" onClick={() => openUI({ kind: 'die-form', dieKind: kind })}><Plus size={15} /> Add {label} Die</button></Write>}
           />
         ) : (
           <div className="table-wrap">
@@ -270,10 +270,12 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
                   <th>Main Die / Component</th>
                   <th>Material</th>
                   <th>Making Date</th>
-                  <Conf>
+                  <Conf g="party_names">
                     <th>Maker</th>
                   </Conf>
-                  <th>Location</th>
+                  <Conf col="die.location">
+                    <th>Location</th>
+                  </Conf>
                   <th>Images</th>
                   <th>Status</th>
                   <th className="r">Actions</th>
@@ -292,10 +294,12 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
                     </td>
                     <td>{d.material}</td>
                     <td>{fmtDate(d.makingDate)}</td>
-                    <Conf>
+                    <Conf g="party_names">
                       <td>{d.maker}</td>
                     </Conf>
-                    <td>{d.location || '—'}</td>
+                    <Conf col="die.location">
+                      <td>{d.location || '—'}</td>
+                    </Conf>
                     <td>
                       <div className="thumbs">
                         <Thumb id={d.topImg} label="Top die" />
@@ -379,7 +383,7 @@ export function DieDetailsPage({ query }: { query: URLSearchParams }) {
     ['Component Name', main.name],
     ['Part Code', <span className="mono">{main.partCode}</span>],
     ['Part Description', main.description || '—'],
-    ...(isConfidentialAllowed() ? ([['Customer', main.customer || '—']] as [string, ReactNode][]) : []),
+    ...(canSee('party_names') ? ([['Customer', main.customer || '—']] as [string, ReactNode][]) : []),
     ['Metal Type', main.metal],
     ['Creation Date', fmtDate(main.createdOn)],
     ['Status', <DieBadge status={main.status} />],
@@ -397,9 +401,9 @@ export function DieDetailsPage({ query }: { query: URLSearchParams }) {
             <button className="btn" onClick={() => printDieCard(main, data)}>
               <Printer size={16} /> Print Die Card
             </button>
-            <button className="btn" onClick={() => openUI({ kind: 'main-form', code: main.code })}>
+            <Write res="die_master"><button className="btn" onClick={() => openUI({ kind: 'main-form', code: main.code })}>
               <Pencil size={16} /> Edit
-            </button>
+            </button></Write>
           </>
         }
       />
@@ -456,7 +460,7 @@ export function DieDetailsPage({ query }: { query: URLSearchParams }) {
                       <Thumb big id={d.bottomImg} label="Bottom die" />
                     </div>
                     <div className="kv-grid one">
-                      <div className="kv"><span>Drawing Number</span><b>{d.drawingNo || '—'}</b></div>
+                      {colOk('die.drawing') && <div className="kv"><span>Drawing Number</span><b>{d.drawingNo || '—'}</b></div>}
                       <div className="kv"><span>Revision</span><b>{d.revision || '—'}</b></div>
                     </div>
                     <button className="btn btn-sm" onClick={() => openUI({ kind: 'die-view', dieKind: d.kind, code: d.code })}>Open die</button>
@@ -478,9 +482,9 @@ function DieList({ kind, dies, mainCode }: { kind: DieKind; dies: Die[]; mainCod
     <>
       <div className="toolbar">
         <span className="muted">{dies.length === 1 ? '1 die' : `${dies.length} dies`} linked to this component.</span>
-        <button className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }} onClick={() => openUI({ kind: 'die-form', dieKind: kind, mainCode })}>
+        <Write res={kind === 'forging' ? 'forging_dies' : 'trimming_dies'}><button className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }} onClick={() => openUI({ kind: 'die-form', dieKind: kind, mainCode })}>
           <Plus size={15} /> Add {label} Die
-        </button>
+        </button></Write>
       </div>
       {dies.length === 0 ? (
         <Empty icon={kind === 'forging' ? Hammer : Scissors} title={`No ${kind} dies yet`} text={`Add a ${kind} die and it will appear here.`} />
@@ -492,7 +496,7 @@ function DieList({ kind, dies, mainCode }: { kind: DieKind; dies: Die[]; mainCod
                 <th>{label} Die</th>
                 <th>Material</th>
                 <th>Making Date</th>
-                <Conf>
+                <Conf g="party_names">
                     <th>Maker</th>
                   </Conf>
                 <th>Size (top)</th>
@@ -511,7 +515,7 @@ function DieList({ kind, dies, mainCode }: { kind: DieKind; dies: Die[]; mainCod
                   </td>
                   <td>{d.material}</td>
                   <td>{fmtDate(d.makingDate)}</td>
-                  <Conf>
+                  <Conf g="party_names">
                       <td>{d.maker}</td>
                     </Conf>
                   <td>

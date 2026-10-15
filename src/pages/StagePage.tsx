@@ -1,5 +1,5 @@
 import * as api from '../db/api';
-import { searchable, isConfidentialAllowed } from '../auth/access';
+import { searchable, canSee, Write, Conf, searchableCol } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { CheckCircle2, Eye, Play, Plus, SlidersHorizontal, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -58,7 +58,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
       .filter((r) => {
         const job = getJob(state, r.jobNo);
         const p = getProduct(state, job.productId);
-        return (!productF || p.id === productF) && matches(q, r.jobNo, p.name, searchable(job.customer), r.machine, r.operator);
+        return (!productF || p.id === productF) && matches(q, r.jobNo, p.name, searchable(job.customer), searchableCol(r.machine, 'stage.machine'), searchableCol(r.operator, 'stage.operator'));
       })
       .sort((a, b) => order[a.status] - order[b.status] || (b.completedAt ?? b.receivedAt).localeCompare(a.completedAt ?? a.receivedAt));
   }, [recs, filter, q, productF, state]);
@@ -75,9 +75,9 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
         flow={stage}
         actions={
           stage === 'cutting' && (
-            <button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}>
+            <Write res="cutting"><button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}>
               <Plus size={16} /> New Job Card
-            </button>
+            </button></Write>
           )
         }
       />
@@ -108,7 +108,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
               { value: 'Completed', label: 'Completed', count: done.length, tone: 'green' },
             ]}
           />
-          <Search value={q} onChange={setQ} placeholder={isConfidentialAllowed() ? 'Search job, product, customer, machine…' : 'Search job, product, machine…'} />
+          <Search value={q} onChange={setQ} placeholder={canSee('party_names') ? 'Search job, product, customer, machine…' : 'Search job, product, machine…'} />
           <span className="filter-wrap">
             <SlidersHorizontal size={15} />
             <select className="filter" value={productF} onChange={(e) => setProductF(e.target.value)} aria-label="Filter by product">
@@ -131,7 +131,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
                   : `No ${filter.toLowerCase()} ${STAGE_LABEL[stage]} jobs`
             }
             text={stage === 'cutting' ? 'Create a job card to start production.' : `Jobs appear here automatically once ${cfg.from} is completed.`}
-            action={stage === 'cutting' && <button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}><Plus size={15} /> New Job Card</button>}
+            action={stage === 'cutting' && <Write res="cutting"><button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}><Plus size={15} /> New Job Card</button></Write>}
           />
         ) : (
           <div className="table-wrap">
@@ -143,7 +143,9 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
                   {stage === 'cutting' && <th>Material</th>}
                   {stage === 'heatTreatment' && <th className="r">Temp.</th>}
                   <th>Received → Rejection → OK</th>
-                  <th>Checked By</th>
+                  <Conf col="stage.operator">
+                    <th>Checked By</th>
+                  </Conf>
                   <th>Status</th>
                   <th className="r">Action</th>
                 </tr>
@@ -208,7 +210,9 @@ function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
           </span>
         )}
       </td>
-      <td>{r.operator || <span className="muted">—</span>}</td>
+      <Conf col="stage.operator">
+        <td>{r.operator || <span className="muted">—</span>}</td>
+      </Conf>
       <td>
         <Badge status={r.status === 'Completed' ? 'Completed' : 'Pending'} />
       </td>

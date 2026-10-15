@@ -1,4 +1,4 @@
-import { Conf, isConfidentialAllowed, useAccess } from '../auth/access';
+import { Conf, canSee, useAccess, colOk } from '../auth/access';
 import { useEffect, type ReactNode } from 'react';
 import { ArrowRight, CheckCircle2, ChevronRight, Printer, Scale, X } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -33,7 +33,7 @@ function stageParams(r: StageRecord) {
   const p = r.params;
   const items: [string, ReactNode][] = [];
   if (r.stage === 'cutting' && p.cuttingLength) items.push(['Cutting length', `${p.cuttingLength} mm`]);
-  if (r.stage === 'forging' && p.dieNo) items.push(['Die', p.dieNo]);
+  if (r.stage === 'forging' && p.dieNo && colOk('product.die_no')) items.push(['Die', p.dieNo]);
   if (r.stage === 'trimming' && p.trimDie) items.push(['Trim die', p.trimDie]);
   if (r.stage === 'heatTreatment') {
     items.push(['Temperature', <b style={{ color: 'var(--crit)' }}>{p.temperature}°C</b>]);
@@ -41,8 +41,8 @@ function stageParams(r: StageRecord) {
     if (p.process) items.push(['Process', p.process]);
     if (p.quench) items.push(['Cooling', p.quench]);
   }
-  if (r.machine) items.push(['Machine', r.machine]);
-  if (r.operator) items.push(['Checked by', r.operator]);
+  if (r.machine && colOk('stage.machine')) items.push(['Machine', r.machine]);
+  if (r.operator && colOk('stage.operator')) items.push(['Checked by', r.operator]);
   return items;
 }
 
@@ -80,7 +80,7 @@ function reconcile(j: JobSummary) {
 
 export function TraceDrawer() {
   const { state, traceJob, openTrace, openAction } = useStore();
-  const { conf } = useAccess();
+  const { can } = useAccess();
 
   useEffect(() => {
     if (!traceJob) return;
@@ -121,7 +121,7 @@ export function TraceDrawer() {
               <h2>{job.jobNo}</h2>
               <div className="prod">
                 {product.name}
-                <Conf> · {job.customer}</Conf>
+                <Conf g="party_names"> · {job.customer}</Conf>
               </div>
             </div>
             <button className="icon-btn no-print" title="Print job card" onClick={() => window.print()}>
@@ -188,7 +188,7 @@ export function TraceDrawer() {
                 <span>
                   {j.status === 'Rejected'
                     ? 'Nothing left to process for this job.'
-                    : `${fmtNum(j.dispatchedQty)} PCS delivered${isConfidentialAllowed() ? ` to ${job.customer.replace(/\.$/, '')}` : ''}. Full journey below.`}
+                    : `${fmtNum(j.dispatchedQty)} PCS delivered${canSee('party_names') ? ` to ${job.customer.replace(/\.$/, '')}` : ''}. Full journey below.`}
                 </span>
               </div>
             </div>
@@ -216,7 +216,7 @@ export function TraceDrawer() {
             </div>
             <div>
               <div className="l">Die No.</div>
-              <div className="v mono">{job.dieNo || product.dieNo || '—'}</div>
+              <div className="v mono">{job.dieNo || (colOk('product.die_no') ? product.dieNo : '') || '—'}</div>
             </div>
             <div>
               <div className="l">Machine No.</div>
@@ -245,8 +245,8 @@ export function TraceDrawer() {
                   <thead>
                     <tr>
                       <th>Lot</th>
-                      {conf && <th>Supplier</th>}
-                      <th>Heat No.</th>
+                      {can('party_names') && <th>Supplier</th>}
+                      {colOk('raw.heat_no') && <th>Heat No.</th>}
                       <th>Inward</th>
                       <th className="r">Qty</th>
                       <th className="r">Weight</th>
@@ -258,10 +258,10 @@ export function TraceDrawer() {
                       return (
                         <tr key={is.lotId}>
                           <td className="mono">{is.lotId}</td>
-                          <Conf>
+                          <Conf g="party_names">
                             <td>{l?.supplier}</td>
                           </Conf>
-                          <td className="mono">{l?.heatNo}</td>
+                          {colOk('raw.heat_no') && <td className="mono">{l?.heatNo}</td>}
                           <td>{fmtDate(l?.inwardDate)}</td>
                           <td className="r num strong">{is.qty}</td>
                           <td className="r num">{fmtKg(is.weight)}</td>
@@ -344,7 +344,7 @@ export function TraceDrawer() {
                     </div>
                     <Meta
                       items={[
-                        ['Checked by', j.qc.inspector || '—'],
+                        ...(colOk('qc.inspector') ? ([['Checked by', j.qc.inspector || '—']] as [string, ReactNode][]) : []),
                         ...(j.qc.rejectionReason ? ([['Rejection reason', j.qc.rejectionReason]] as [string, ReactNode][]) : []),
                       ]}
                     />
@@ -374,7 +374,7 @@ export function TraceDrawer() {
                         ['Received', `${fmtNum(f.qty)} PCS`],
                         ['Available', `${fmtNum(fgAvailable(f))} PCS`],
                         ['Packed', `${fmtNum(f.reservedQty)} PCS`],
-                        ['Location', f.location],
+                        ...(colOk('fg.location') ? ([['Location', f.location]] as [string, ReactNode][]) : []),
                       ]}
                     />
                   </div>
@@ -406,12 +406,12 @@ export function TraceDrawer() {
                       </div>
                       <Meta
                         items={[
-                          ...(conf ? ([['Customer', d.customer]] as [string, string][]) : []),
+                          ...(can('party_names') ? ([['Customer', d.customer]] as [string, string][]) : []),
                           ['Qty', `${fmtNum(d.qty)} PCS`],
-                          ['Vehicle', d.vehicleNo || '—'],
+                          ...(colOk('dispatch.vehicle') ? ([['Vehicle', d.vehicleNo || '—']] as [string, string][]) : []),
                           ['Bags', `${d.bags.length}`],
                           ['Weight', fmtKg(d.weight)],
-                          ...(conf ? ([['Invoice', d.invoiceNo]] as [string, string][]) : []),
+                          ...(can('invoices') ? ([['Invoice', d.invoiceNo]] as [string, string][]) : []),
                         ]}
                       />
                       <div className="bags">

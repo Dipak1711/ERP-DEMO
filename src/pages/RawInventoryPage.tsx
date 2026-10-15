@@ -1,5 +1,5 @@
 import * as api from '../db/api';
-import { Conf, searchable, useAccess, isConfidentialAllowed } from '../auth/access';
+import { Conf, searchable, useAccess, canSee, Write, searchableCol } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { ArrowDownToLine, Boxes, Layers, PackagePlus, Send } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -38,7 +38,7 @@ export function RawInventoryPage() {
   }, [lots]);
   const stockRows = lots
     .filter((l) => !matF || materialKey(l.material, l.od) === matF)
-    .filter((l) => matches(q, l.id, l.material, l.materialType, searchable(l.supplier), l.heatNo, `${l.od}`))
+    .filter((l) => matches(q, l.id, l.material, l.materialType, searchable(l.supplier), searchableCol(l.heatNo, 'raw.heat_no'), `${l.od}`))
     .slice()
     .sort((a, b) => a.inwardDate.localeCompare(b.inwardDate) || a.id.localeCompare(b.id));
 
@@ -49,9 +49,9 @@ export function RawInventoryPage() {
         title="Raw Inventory"
         flow="raw"
         actions={
-          <button className="btn btn-primary" onClick={() => openAction({ kind: 'inward' })}>
+          <Write res="raw_inventory"><button className="btn btn-primary" onClick={() => openAction({ kind: 'inward' })}>
             <PackagePlus size={16} /> Add Raw Material Inward
-          </button>
+          </button></Write>
         }
       />
       <div className="card mb">
@@ -78,9 +78,9 @@ export function RawInventoryPage() {
               title="No raw material in stock"
               text="Record your first inward — material, OD / size, quantity and weight. Stock appears here by material and OD."
               action={
-                <button className="btn btn-primary" onClick={() => openAction({ kind: 'inward' })}>
+                <Write res="raw_inventory"><button className="btn btn-primary" onClick={() => openAction({ kind: 'inward' })}>
                   <PackagePlus size={15} /> Add Raw Material Inward
-                </button>
+                </button></Write>
               }
             />
           )}
@@ -127,7 +127,7 @@ export function RawInventoryPage() {
               { value: 'issues', label: 'Issues to Production', count: issues.length, tone: 'amber' },
             ]}
           />
-          <Search value={q} onChange={setQ} placeholder={isConfidentialAllowed() ? 'Search material, supplier, lot, heat no…' : 'Search material, lot, heat no…'} />
+          <Search value={q} onChange={setQ} placeholder={canSee('party_names') ? 'Search material, supplier, lot, heat no…' : 'Search material, lot, heat no…'} />
           {view === 'stock' && (
             <select className="filter" value={matF} onChange={(e) => setMatF(e.target.value)}>
               <option value="">All materials</option>
@@ -152,8 +152,10 @@ export function RawInventoryPage() {
                     <th>Material</th>
                     <th>Material Type</th>
                     <th>OD / Size</th>
-                    <Conf>
+                    <Conf g="party_names">
                       <th>Supplier</th>
+                    </Conf>
+                    <Conf g="purchase_rates">
                       <th className="r">Purchase Rate</th>
                     </Conf>
                     <th>Inward Date</th>
@@ -169,13 +171,17 @@ export function RawInventoryPage() {
                     <tr key={l.id} className={rowTone(lotStatus(l))}>
                       <td>
                         <div className="mono strong nowrap">{l.id}</div>
-                        <div className="sub">Heat {l.heatNo}</div>
+                        <Conf col="raw.heat_no">
+                          <div className="sub">Heat {l.heatNo}</div>
+                        </Conf>
                       </td>
                       <td className="strong">{l.material}</td>
                       <td>{l.materialType}</td>
                       <td className="nowrap">OD {l.od} mm</td>
-                      <Conf>
+                      <Conf g="party_names">
                         <td>{l.supplier}</td>
+                      </Conf>
+                      <Conf g="purchase_rates">
                         <td className="r num nowrap">{l.purchaseRate ? `₹ ${l.purchaseRate.toLocaleString('en-IN')} / kg` : '—'}</td>
                       </Conf>
                       <td className="nowrap">{fmtDate(l.inwardDate)}</td>
@@ -210,8 +216,10 @@ export function RawInventoryPage() {
                   <th>Lot No.</th>
                   <th>Material</th>
                   <th>OD / Size</th>
-                  <Conf>
+                  <Conf g="party_names">
                     <th>Supplier</th>
+                  </Conf>
+                  <Conf g="invoices">
                     <th>Invoice</th>
                   </Conf>
                   <th className="r">Quantity</th>
@@ -220,7 +228,7 @@ export function RawInventoryPage() {
               </thead>
               <tbody>
                 {state.rawInwards
-                  .filter((i) => matches(q, i.lotId, i.material, searchable(i.supplier), searchable(i.invoiceNo)))
+                  .filter((i) => matches(q, i.lotId, i.material, searchable(i.supplier), searchable(i.invoiceNo, 'invoices')))
                   .map((i) => (
                     <tr key={i.id}>
                       <td className="nowrap">{fmtDate(i.date)}</td>
@@ -230,8 +238,10 @@ export function RawInventoryPage() {
                         <div className="sub">{i.materialType}</div>
                       </td>
                       <td>OD {i.od} mm</td>
-                      <Conf>
+                      <Conf g="party_names">
                         <td>{i.supplier}</td>
+                      </Conf>
+                      <Conf g="invoices">
                         <td className="mono">{i.invoiceNo}</td>
                       </Conf>
                       <td className="r qty-cell">
@@ -294,7 +304,7 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
   const [date, setDate] = useState(todayISO());
   const [invoice, setInvoice] = useState('');
   const [rate, setRate] = useState('');
-  const { conf } = useAccess();
+  const { can } = useAccess();
   const [heatNo, setHeatNo] = useState('');
   const [qty, setQty] = useState('');
   const [pieceLength, setPieceLength] = useState('');
@@ -321,7 +331,7 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
 
   const submit = async () => {
     if (
-      await run((ts) => api.addInward({ material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: conf ? invoice : '', purchaseRate: conf && Number(rate) > 0 ? Number(rate) : undefined }, ts), {
+      await run((ts) => api.addInward({ material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: can('invoices') ? invoice : '', purchaseRate: can('purchase_rates') && Number(rate) > 0 ? Number(rate) : undefined }, ts), {
         title: 'Raw material received',
         message: `${qN} PCS (${wN} KG) of ${material} OD ${od} mm added to stock.`,
       })
@@ -386,7 +396,7 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
       <div className="section-label">Receipt</div>
       <div className="form-grid">
         <Field label="Supplier" required>
-          {conf ? (
+          {can('party_names') ? (
             <select value={supplier} onChange={(e) => setSupplier(e.target.value)}>
               <option value="">Select supplier…</option>
               {masters.suppliers.map((m) => (
@@ -401,13 +411,13 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
         <Field label="Inward Date" required>
           <input className="input" type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
-        {conf && (
+        {can('invoices') && (
           <Field label="Supplier Invoice No.">
             <input className="input mono" value={invoice} onChange={(e) => setInvoice(e.target.value)} placeholder="e.g. INV/2026/0412" />
           </Field>
         )}
-        {conf && (
-          <Field label="Purchase Rate (₹ / KG)" hint="Confidential — visible to Director, Plant Head and Accounts only">
+        {can('purchase_rates') && (
+          <Field label="Purchase Rate (₹ / KG)" hint="Confidential — only roles allowed to see purchase rates can enter it">
             <input className="input" type="number" min="0" step="any" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="Optional" />
           </Field>
         )}

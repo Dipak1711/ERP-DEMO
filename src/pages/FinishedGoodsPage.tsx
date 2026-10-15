@@ -1,4 +1,4 @@
-import { Conf, searchable } from '../auth/access';
+import { Conf, searchable, searchableCol } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { Eye, PackageCheck, Truck } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -36,7 +36,7 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
     .filter((f) => (filter === 'all' ? true : filter === 'stock' ? f.dispatchedQty < f.qty : f.dispatchedQty === f.qty))
     .filter((f) => {
       const job = getJob(state, f.jobNo);
-      return matches(q, f.id, f.jobNo, getProduct(state, f.productId).name, searchable(job.customer), f.location);
+      return matches(q, f.id, f.jobNo, getProduct(state, f.productId).name, searchable(job.customer), searchableCol(f.location, 'fg.location'));
     })
     .slice()
     .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
@@ -142,11 +142,13 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
                     <tr key={f.id} className={rowTone(fgStatus(f))}>
                       <td>
                         <div className="mono strong">{f.id}</div>
-                        <div className="sub">{f.location}</div>
+                        <Conf col="fg.location">
+                          <div className="sub">{f.location}</div>
+                        </Conf>
                       </td>
                       <td>
                         <div className="strong">{p.name}</div>
-                        <Conf>
+                        <Conf g="party_names">
                           <div className="sub">{getJob(state, f.jobNo).customer}</div>
                         </Conf>
                       </td>

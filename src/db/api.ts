@@ -219,3 +219,12 @@ export const issueDie = (code: string, v: { date: string; issuedTo: string; rema
 
 export const returnDie = (code: string, v: { date: string; pieces: number; remarks: string; status: DieStatus }) =>
   call<void>('return_die', { p_code: code, p_date: v.date, p_pieces: v.pieces, p_remarks: v.remarks, p_status: v.status });
+
+// ------------------------------------------------------ access settings ---
+export const saveRoleAccess = (role: string, pages: Record<string, string>, fields: Record<string, boolean>) =>
+  call<void>('save_role_access', { p_role: role, p_pages: pages, p_fields: fields });
+
+export const resetRoleAccess = (role: string) => call<void>('reset_role_access', { p_role: role });
+
+export const addProtectedColumns = (keys: string[]) => call<number>('add_protected_columns', { p_keys: keys });
+export const removeProtectedColumn = (key: string) => call<void>('remove_protected_column', { p_key: key });

@@ -1,4 +1,4 @@
-import { Conf } from '../auth/access';
+import { Conf, Write } from '../auth/access';
 import { useMemo, useState } from 'react';
 import {
   Activity as ActivityIcon,
@@ -140,9 +140,9 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
             <span className="live">
               <ActivityIcon size={15} /> Live data synced
             </span>
-            <button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}>
+            <Write res="cutting"><button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}>
               <Plus size={16} /> New Job Card
-            </button>
+            </button></Write>
           </>
         }
       />
@@ -219,9 +219,9 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
                   : 'Raw material stock is ready. Create the first job and take it from Cutting to Dispatch.'
               }
               action={
-                <button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}>
+                <Write res="cutting"><button className="btn btn-primary" onClick={() => openAction({ kind: 'newJob' })}>
                   <Plus size={15} /> New Job Card
-                </button>
+                </button></Write>
               }
             />
           ) : (
@@ -251,7 +251,7 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
                       </td>
                       <td>
                         <div className="strong nowrap">{j.product.name}</div>
-                        <Conf>
+                        <Conf g="party_names">
                           <div className="sub nowrap">{j.job.customer}</div>
                         </Conf>
                       </td>
@@ -371,9 +371,9 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
               title="No raw material in stock"
               text="Add a raw material inward to start."
               action={
-                <button className="btn btn-sm btn-primary" onClick={() => openAction({ kind: 'inward' })}>
+                <Write res="raw_inventory"><button className="btn btn-sm btn-primary" onClick={() => openAction({ kind: 'inward' })}>
                   <Plus size={14} /> Add Inward
-                </button>
+                </button></Write>
               }
             />
           )}

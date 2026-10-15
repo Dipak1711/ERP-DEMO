@@ -1,5 +1,5 @@
 import * as api from '../db/api';
-import { searchable } from '../auth/access';
+import { searchable, Write, Conf, searchableCol } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { ClipboardCheck, Eye, PackageCheck, ShieldCheck } from 'lucide-react';
 import { HardnessRegister } from './HardnessPage';
@@ -33,7 +33,7 @@ export function QCPage() {
         )
         .filter((r) => {
           const job = getJob(state, r.jobNo);
-          return matches(q, r.jobNo, getProduct(state, job.productId).name, searchable(job.customer), r.inspector, r.status);
+          return matches(q, r.jobNo, getProduct(state, job.productId).name, searchable(job.customer), searchableCol(r.inspector, 'qc.inspector'), r.status);
         })
         .sort((a, b) => (a.status === 'QC Pending' ? -1 : 1) - (b.status === 'QC Pending' ? -1 : 1) || (b.inspectedAt ?? b.receivedAt).localeCompare(a.inspectedAt ?? a.receivedAt)),
     [recs, filter, q, state],
@@ -46,9 +46,9 @@ export function QCPage() {
         title="Quality Control"
         flow="qc"
         actions={
-          <button className="btn btn-primary" onClick={() => openAction({ kind: 'hardness' })}>
+          <Write res="qc"><button className="btn btn-primary" onClick={() => openAction({ kind: 'hardness' })}>
             <ClipboardCheck size={16} /> New Hardness Report
-          </button>
+          </button></Write>
         }
       />
       <div className="card">
@@ -98,7 +98,9 @@ export function QCPage() {
                   <th>Job Card No.</th>
                   <th>Item</th>
                   <th>Received → Rejection → OK</th>
-                  <th>Checked By</th>
+                  <Conf col="qc.inspector">
+                    <th>Checked By</th>
+                  </Conf>
                   <th>QC Status</th>
                   <th className="r">Action</th>
                 </tr>
@@ -136,7 +138,9 @@ export function QCPage() {
                           </span>
                         )}
                       </td>
-                      <td>{done && r.inspector ? r.inspector : <span className="muted">—</span>}</td>
+                      <Conf col="qc.inspector">
+                        <td>{done && r.inspector ? r.inspector : <span className="muted">—</span>}</td>
+                      </Conf>
                       <td>
                         <Badge status={r.status} />
                       </td>

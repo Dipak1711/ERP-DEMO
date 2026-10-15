@@ -1,5 +1,5 @@
 import * as api from '../db/api';
-import { Conf, isConfidentialAllowed, searchable, useAccess } from '../auth/access';
+import { Conf, canSee, searchable, useAccess, searchableCol } from '../auth/access';
 import { useEffect, useState } from 'react';
 import { ClipboardList, Eye, FileText, PackageOpen, Plus, Printer, Truck, X } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -14,7 +14,7 @@ type Filter = 'all' | 'Ready for Dispatch' | 'Dispatched' | 'today';
 
 export function DispatchPage({ query }: { query: URLSearchParams }) {
   const { state, openTrace, openAction } = useStore();
-  const { conf } = useAccess();
+  const { can } = useAccess();
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
   const newDispatch = (fgId = '') => openAction({ kind: 'dispatch', fgId });
@@ -36,7 +36,7 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
 
   const rows = ds
     .filter((d) => (filter === 'all' ? true : filter === 'today' ? today.includes(d) : d.status === filter))
-    .filter((d) => matches(q, d.dispatchNo, d.jobNo, searchable(d.customer), d.vehicleNo, getProduct(state, d.productId).name, searchable(d.invoiceNo)));
+    .filter((d) => matches(q, d.dispatchNo, d.jobNo, searchable(d.customer), searchableCol(d.vehicleNo, 'dispatch.vehicle'), getProduct(state, d.productId).name, searchable(d.invoiceNo, 'invoices')));
 
   return (
     <>
@@ -78,7 +78,7 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
               { value: 'today', label: 'Today', count: today.length, tone: 'green' },
             ]}
           />
-          <Search value={q} onChange={setQ} placeholder={conf ? 'Search dispatch, job, customer, vehicle…' : 'Search dispatch, job, vehicle…'} />
+          <Search value={q} onChange={setQ} placeholder={can('party_names') ? 'Search dispatch, job, customer, vehicle…' : 'Search dispatch, job, vehicle…'} />
         </div>
         {rows.length === 0 ? (
           <Empty icon={Truck} title="No dispatches in this view" text="Create a dispatch from available finished goods." action={<button className="btn btn-primary" onClick={() => newDispatch()}><Plus size={15} /> New Dispatch</button>} />
@@ -89,11 +89,13 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
                 <tr>
                   <th>Dispatch No.</th>
                   <th>Job No.</th>
-                  <th>{conf ? 'Customer / Product' : 'Product'}</th>
+                  <th>{can('party_names') ? 'Customer / Product' : 'Product'}</th>
                   <th className="r">Quantity</th>
                   <th className="r">Bags</th>
                   <th className="r">Weight</th>
-                  <th>Vehicle</th>
+                  <Conf col="dispatch.vehicle">
+                    <th>Vehicle</th>
+                  </Conf>
                   <th>Date</th>
                   <th>Status</th>
                   <th className="r">Action</th>
@@ -106,7 +108,7 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
                     <tr key={d.dispatchNo} className={rowTone(d.status)}>
                       <td>
                         <div className="mono strong">{d.dispatchNo}</div>
-                        <Conf>
+                        <Conf g="invoices">
                           <div className="sub">{d.invoiceNo}</div>
                         </Conf>
                       </td>
@@ -114,7 +116,7 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
                         <JobLink jobNo={d.jobNo} />
                       </td>
                       <td>
-                        <Conf>
+                        <Conf g="party_names">
                           <div className="strong">{d.customer}</div>
                         </Conf>
                         <div className="sub">{p.name}</div>
@@ -125,7 +127,9 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
                         <div className="sub">{d.bags[0]?.qty} / bag</div>
                       </td>
                       <td className="r num nowrap">{fmtKg(d.weight)}</td>
-                      <td className="mono nowrap">{d.vehicleNo || <span className="muted">—</span>}</td>
+                      <Conf col="dispatch.vehicle">
+                        <td className="mono nowrap">{d.vehicleNo || <span className="muted">—</span>}</td>
+                      </Conf>
                       <td className="nowrap">{fmtDate(d.date)}</td>
                       <td>
                         <Badge status={d.status} />
@@ -294,7 +298,7 @@ function ShipModal({ d, onClose }: { d: Dispatch; onClose: () => void }) {
       open
       onClose={onClose}
       title={`Dispatch ${d.dispatchNo}`}
-      subtitle={`${d.qty} PCS · ${d.bags.length} bags · ${fmtKg(d.weight)} ${isConfidentialAllowed() ? ` → ${d.customer}` : ''}`}
+      subtitle={`${d.qty} PCS · ${d.bags.length} bags · ${fmtKg(d.weight)} ${canSee('party_names') ? ` → ${d.customer}` : ''}`}
       footer={
         <>
           <button className="btn" onClick={onClose}>
@@ -328,7 +332,7 @@ function PackingList({ d, onClose }: { d: Dispatch; onClose: () => void }) {
       onClose={onClose}
       size="lg"
       title={`Packing List — ${d.dispatchNo}`}
-      subtitle={isConfidentialAllowed() ? `${d.customer} · ${fmtDate(d.date)}` : fmtDate(d.date)}
+      subtitle={canSee('party_names') ? `${d.customer} · ${fmtDate(d.date)}` : fmtDate(d.date)}
       footer={
         <>
           <button className="btn" onClick={() => printRouteCard(state, d.jobNo)}>
@@ -349,15 +353,19 @@ function PackingList({ d, onClose }: { d: Dispatch; onClose: () => void }) {
           <div className="l">Product</div>
           <div className="v">{p.name}</div>
         </div>
-        <div>
-          <div className="l">Vehicle</div>
-          <div className="v mono">{d.vehicleNo || '—'}</div>
-        </div>
-        <Conf>
+        <Conf col="dispatch.vehicle">
+          <div>
+            <div className="l">Vehicle</div>
+            <div className="v mono">{d.vehicleNo || '—'}</div>
+          </div>
+        </Conf>
+        <Conf g="invoices">
           <div>
             <div className="l">Invoice</div>
             <div className="v mono">{d.invoiceNo}</div>
           </div>
+        </Conf>
+        <Conf g="sales_rates">
           <div>
             <div className="l">Amount</div>
             <div className="v mono">{d.salesRate ? `₹ ${(d.qty * d.salesRate).toLocaleString('en-IN')}` : '—'}</div>

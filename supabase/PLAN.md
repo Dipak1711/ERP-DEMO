@@ -212,3 +212,27 @@ In the localStorage demo the data still sits in the browser, so the demo's hidin
 * **Pictures:** die photos upload to the private `die-images` bucket; the app shows short-lived signed links.
 * **Migration 17** (`17_fix_die_edit_for_hidden_roles.sql`) lets qc / operator / viewer edit an existing die without sending the maker (which they cannot see). Run it on projects created before it existed.
 * **Verified:** the app's real loaders and API wrappers were run against a copy of the database (all migrations + both seeds) for operator, qc, accounts and director — 20 end-to-end checks (visibility per role, full job flow inward → dispatch, QC and dispatch rules, hardness, product master, dies incl. replacement). The loaders were also run read-only against the live project for director, accounts and operator.
+
+## 12. Configurable access (Settings → Access Control) — migration 18
+
+The fixed rules of §10 are now settings the Director / Plant Head control, per role, from one page.
+
+* **Pages** — every page has a level per role: **Hidden** (not in the menu, cannot be opened), **Read** (opens, nothing can be changed), **Write**.
+  Write is enforced by the database: every action function starts with `_require_write(<page>)` (stages by stage, die actions by die kind), so a role without Write gets "You do not have permission to change …" even if it calls the API directly.
+  Hidden / Read are enforced in the app (menu, route guard, hidden buttons). Hiding a page removes the page, it does not remove the underlying records (they still feed the Dashboard, Traceability, etc.); what protects the *values* is the next point.
+* **Sensitive information** — five switches per role: `party_names`, `invoices`, `purchase_rates`, `sales_rates`, `die_cost`. The masking views read `can_see_field(<group>)`, so a hidden kind of data never reaches the browser; the customer / supplier lists follow `party_names`; entering a purchase rate or a die cost needs the matching switch.
+* **Locked** — Director and Plant Head always have full access and cannot be edited (nobody can lock the admins out). Editable roles: accounts, qc, operator, viewer. Only the admins can read or change the settings (`role_page_access`, `role_field_access`, `save_role_access()`, `reset_role_access()`).
+* **Defaults** reproduce the old behaviour: accounts see everything; qc / operator / viewer see no sensitive data; products are read-only for everyone but the admins; **viewer is read-only on every page**. "Reset to standard" restores them.
+* **The app reads** the signed-in person's access from the view `v_my_access` (and falls back to the old fixed rules if migration 18 is not installed yet). It re-reads on window focus and after each action, so a change made by an admin reaches users without a re-login.
+* **Gap closed along the way:** `replace_die` could be used to set a die cost by a role without the cost switch — it now ignores it.
+* **Tested:** 12 database checks (defaults, admin-only settings, locked admin roles, validation, per-field visibility, per-page write enforcement incl. per stage and per die kind, hidden fields preserved on product edit, reset, anon) and a real-browser run of the app (Chrome, demo data) as Director / Operator / Viewer: menu filtering, "View only" badge, "No access" page, Settings editing and saving.
+
+## 13. Add your own columns to "Sensitive information" — migration 19
+
+The five built-in kinds of sensitive data (§12) can now be extended from Settings → Access Control → **Add data column**: pick any column from a catalog and protect it per role (Hidden / Visible), like the built-in ones.
+
+* **Catalog** (`column_catalog`, 11 columns to start): Heat number · Operator / checked by (stages) · Machine (stages) · QC inspector · Hardness cycle & drawing no. · Vehicle number · Finished-goods location · Product die number · Die location · Die drawing number · Pieces produced (dies). Adding another column later = one catalog row, one `column_visible()` wrap in its view, and hiding it on the screens that show it.
+* **Adding / removing** (`add_protected_columns`, `remove_protected_column`, admins only): each added column becomes its own row with a switch per role. New items start **Visible for Accounts and Hidden for QC / Production / Viewer** (same as the other sensitive information). Removing an item makes the column visible to everyone again.
+* **Enforcement** — the masking views wrap every catalog column in `case when (select column_visible('…')) then col end` (evaluated once per query). A column that is not in the list is visible to everyone, so nothing changes until an admin adds it. Stage and QC records are now read through `v_stage_records` / `v_qc_records` (direct table access closed) so their columns can be protected too.
+* **Editing never overwrites a hidden value** — `save_die`, `save_hardness_report` and `save_product` keep the stored drawing no. / location / pieces / cycle / die no. when the editor may not see that column. The screens drop the column, line, form field, printout cell and Excel column.
+* **Tested:** 12 database checks (direct-table lock, nothing changes until added, admin-only, idempotent add, defaults per role, per-role switch, edit-preserve for dies / hardness / products, remove restores visibility, built-ins not removable, anon) + the 12 earlier access checks still pass; browser run of the Add-column dialog and of the hidden columns on the pages.
