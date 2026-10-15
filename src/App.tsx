@@ -1,4 +1,5 @@
-import { RoleProvider } from './auth/access';
+import { RoleProvider, useAccess } from './auth/access';
+import { LoginPage } from './auth/LoginPage';
 import { useCallback, useEffect, useState } from 'react';
 import { Layout } from './components/Layout';
 import { Toasts } from './components/Toasts';
@@ -71,24 +72,33 @@ function Page({ route, query, navigate }: { route: string; query: URLSearchParam
   }
 }
 
-export default function App() {
+/** Nothing of the ERP is mounted until someone has signed in; a role switch or logout remounts it, so no screen keeps data from the previous user. */
+function Shell() {
   const { route, query, hash, navigate } = useHashRoute();
+  const { user } = useAccess();
+  if (!user) return <LoginPage />;
+  return (
+    <StoreProvider key={user.email}>
+      <DieProvider>
+        <Layout route={route}>
+          {/* key on full hash so pages reset their local filters/modals on navigation, and replay the arrival */}
+          <div className="page-in" key={hash}>
+            <Page route={route} query={query} navigate={navigate} />
+          </div>
+        </Layout>
+        <TraceDrawer />
+        <ActionHost />
+        <DieHost />
+        <Toasts />
+      </DieProvider>
+    </StoreProvider>
+  );
+}
+
+export default function App() {
   return (
     <RoleProvider>
-    <StoreProvider>
-     <DieProvider>
-      <Layout route={route}>
-        {/* key on full hash so pages reset their local filters/modals on navigation, and replay the arrival */}
-        <div className="page-in" key={hash}>
-          <Page route={route} query={query} navigate={navigate} />
-        </div>
-      </Layout>
-      <TraceDrawer />
-      <ActionHost />
-      <DieHost />
-      <Toasts />
-     </DieProvider>
-    </StoreProvider>
+      <Shell />
     </RoleProvider>
   );
 }

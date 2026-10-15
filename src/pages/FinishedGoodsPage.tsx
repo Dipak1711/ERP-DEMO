@@ -146,7 +146,9 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
                       </td>
                       <td>
                         <div className="strong">{p.name}</div>
-                        <div className="sub"><Conf>{getJob(state, f.jobNo).customer}</Conf></div>
+                        <Conf>
+                          <div className="sub">{getJob(state, f.jobNo).customer}</div>
+                        </Conf>
                       </td>
                       <td>
                         <JobLink jobNo={f.jobNo} />

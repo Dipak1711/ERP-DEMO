@@ -1,4 +1,4 @@
-import { Conf, MASK, isConfidentialAllowed } from '../auth/access';
+import { isConfidentialAllowed } from '../auth/access';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeftRight, Hammer, ImagePlus, MoreVertical, Printer, Scissors, Wrench, Pencil, Upload, Undo2, Image as ImageIcon, X, History as HistoryIcon } from 'lucide-react';
@@ -281,13 +281,11 @@ export function MainDieForm({ code, onClose }: { code?: string; onClose: () => v
         <Field label="Part Code" required error={miss(f.partCode)}>
           <input className={`input ${miss(f.partCode) ? 'bad' : ''}`} value={f.partCode} onChange={(e) => set('partCode', e.target.value)} placeholder="e.g. PRT-004" />
         </Field>
-        <Field label="Customer Name">
-          {isConfidentialAllowed() || !cur ? (
+        {isConfidentialAllowed() && (
+          <Field label="Customer Name">
             <input className="input" value={f.customer} onChange={(e) => set('customer', e.target.value)} />
-          ) : (
-            <input className="input" value={MASK} readOnly disabled title="Confidential" />
-          )}
-        </Field>
+          </Field>
+        )}
         <Field label="Metal Type">
           <select value={f.metal} onChange={(e) => set('metal', e.target.value as Metal)}>
             {METALS.map((m) => (
@@ -369,13 +367,12 @@ function DieFields({ f, set, kind, lockMain, existing }: { f: DieFormState; set:
       <Field label="Die Making Date" required hint={`Independent of the ${kind === 'forging' ? 'trimming' : 'forging'} die's date`}>
         <input className="input" type="date" value={f.makingDate} onChange={(e) => set('makingDate', e.target.value)} />
       </Field>
-      <Field label="Die Maker Name" required>
-        {isConfidentialAllowed() || !existing ? (
+      {/* required, so a new die takes the maker name (write-only); an existing die's maker is never shown back to roles without access */}
+      {(isConfidentialAllowed() || !existing) && (
+        <Field label="Die Maker Name" required>
           <input className="input" value={f.maker} onChange={(e) => set('maker', e.target.value)} />
-        ) : (
-          <input className="input" value={MASK} readOnly disabled title="Confidential" />
-        )}
-      </Field>
+        </Field>
+      )}
       <Field label="Drawing Number">
         <input className="input" value={f.drawingNo} onChange={(e) => set('drawingNo', e.target.value)} />
       </Field>
@@ -676,13 +673,13 @@ export function DieView({ kind, code, onClose }: { kind: DieKind; code: string; 
         <Row k="Main Die" v={<span className="mono">{main.code} · {main.partCode}</span>} />
         <Row k="Material / Grade" v={die.material} />
         <Row k="Making Date" v={fmtDate(die.makingDate)} />
-        <Row k="Die Maker" v={<Conf>{die.maker}</Conf>} />
+        {isConfidentialAllowed() && <Row k="Die Maker" v={die.maker} />}
         <Row k="Top Die (L×W×H)" v={`${fmtDims(die.top)} · ${fmtWt(die.topWeight)}`} />
         <Row k="Bottom Die (L×W×H)" v={`${fmtDims(die.bottom)} · ${fmtWt(die.bottomWeight)}`} />
         <Row k="Drawing No. / Revision" v={`${die.drawingNo || '—'} / ${die.revision || '—'}`} />
         <Row k="Location" v={die.location} />
         <Row k="Pieces Produced" v={die.pieces.toLocaleString('en-IN')} />
-        <Row k={`${KIND_LABEL[kind]} Die Cost`} v={<Conf>{die.cost === undefined ? '' : `₹ ${die.cost.toLocaleString('en-IN')}`}</Conf>} />
+        {isConfidentialAllowed() && <Row k={`${KIND_LABEL[kind]} Die Cost`} v={die.cost === undefined ? '' : `₹ ${die.cost.toLocaleString('en-IN')}`} />}
         <Row k="Last Maintenance" v={die.lastMaintDate ? fmtDate(die.lastMaintDate) : ''} />
         <Row k="Maintenance Remarks" v={die.maintRemarks} />
         {die.replacesCode && <Row k="Replaces" v={<span className="mono">{die.replacesCode}</span>} />}

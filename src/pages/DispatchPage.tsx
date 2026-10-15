@@ -1,4 +1,4 @@
-import { Conf, maskText, searchable } from '../auth/access';
+import { Conf, isConfidentialAllowed, searchable, useAccess } from '../auth/access';
 import { useEffect, useState } from 'react';
 import { ClipboardList, Eye, FileText, PackageOpen, Plus, Printer, Truck, X } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -13,6 +13,7 @@ type Filter = 'all' | 'Ready for Dispatch' | 'Dispatched' | 'today';
 
 export function DispatchPage({ query }: { query: URLSearchParams }) {
   const { state, openTrace, openAction } = useStore();
+  const { conf } = useAccess();
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
   const newDispatch = (fgId = '') => openAction({ kind: 'dispatch', fgId });
@@ -76,7 +77,7 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
               { value: 'today', label: 'Today', count: today.length, tone: 'green' },
             ]}
           />
-          <Search value={q} onChange={setQ} placeholder="Search dispatch, job, customer, vehicle…" />
+          <Search value={q} onChange={setQ} placeholder={conf ? 'Search dispatch, job, customer, vehicle…' : 'Search dispatch, job, vehicle…'} />
         </div>
         {rows.length === 0 ? (
           <Empty icon={Truck} title="No dispatches in this view" text="Create a dispatch from available finished goods." action={<button className="btn btn-primary" onClick={() => newDispatch()}><Plus size={15} /> New Dispatch</button>} />
@@ -87,7 +88,7 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
                 <tr>
                   <th>Dispatch No.</th>
                   <th>Job No.</th>
-                  <th>Customer / Product</th>
+                  <th>{conf ? 'Customer / Product' : 'Product'}</th>
                   <th className="r">Quantity</th>
                   <th className="r">Bags</th>
                   <th className="r">Weight</th>
@@ -104,13 +105,17 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
                     <tr key={d.dispatchNo} className={rowTone(d.status)}>
                       <td>
                         <div className="mono strong">{d.dispatchNo}</div>
-                        <div className="sub"><Conf>{d.invoiceNo}</Conf></div>
+                        <Conf>
+                          <div className="sub">{d.invoiceNo}</div>
+                        </Conf>
                       </td>
                       <td>
                         <JobLink jobNo={d.jobNo} />
                       </td>
                       <td>
-                        <div className="strong"><Conf>{d.customer}</Conf></div>
+                        <Conf>
+                          <div className="strong">{d.customer}</div>
+                        </Conf>
                         <div className="sub">{p.name}</div>
                       </td>
                       <td className="r qty-cell">{fmtNum(d.qty)}</td>
@@ -294,7 +299,7 @@ function ShipModal({ d, onClose }: { d: Dispatch; onClose: () => void }) {
       open
       onClose={onClose}
       title={`Dispatch ${d.dispatchNo}`}
-      subtitle={`${d.qty} PCS · ${d.bags.length} bags · ${fmtKg(d.weight)} → ${maskText(d.customer)}`}
+      subtitle={`${d.qty} PCS · ${d.bags.length} bags · ${fmtKg(d.weight)} ${isConfidentialAllowed() ? ` → ${d.customer}` : ''}`}
       footer={
         <>
           <button className="btn" onClick={onClose}>
@@ -328,7 +333,7 @@ function PackingList({ d, onClose }: { d: Dispatch; onClose: () => void }) {
       onClose={onClose}
       size="lg"
       title={`Packing List — ${d.dispatchNo}`}
-      subtitle={`${maskText(d.customer)} · ${fmtDate(d.date)}`}
+      subtitle={isConfidentialAllowed() ? `${d.customer} · ${fmtDate(d.date)}` : fmtDate(d.date)}
       footer={
         <>
           <button className="btn" onClick={() => printRouteCard(state, d.jobNo)}>
@@ -353,18 +358,16 @@ function PackingList({ d, onClose }: { d: Dispatch; onClose: () => void }) {
           <div className="l">Vehicle</div>
           <div className="v mono">{d.vehicleNo || '—'}</div>
         </div>
-        <div>
-          <div className="l">Invoice</div>
-          <div className="v mono">
-            <Conf>{d.invoiceNo}</Conf>
+        <Conf>
+          <div>
+            <div className="l">Invoice</div>
+            <div className="v mono">{d.invoiceNo}</div>
           </div>
-        </div>
-        <div>
-          <div className="l">Amount</div>
-          <div className="v mono">
-            <Conf>{d.salesRate ? `₹ ${(d.qty * d.salesRate).toLocaleString('en-IN')}` : ''}</Conf>
+          <div>
+            <div className="l">Amount</div>
+            <div className="v mono">{d.salesRate ? `₹ ${(d.qty * d.salesRate).toLocaleString('en-IN')}` : '—'}</div>
           </div>
-        </div>
+        </Conf>
         <div>
           <div className="l">Status</div>
           <div className="v">

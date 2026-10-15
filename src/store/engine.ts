@@ -9,6 +9,7 @@
 //     next stage INPUT = previous stage OUTPUT  (never more)
 // ---------------------------------------------------------------------------
 import { hardnessGrades, isHardnessMaterial } from './hardnessSpecs';
+import { findMaterial } from './materials';
 import type {
   Activity,
   Bag,
@@ -713,4 +714,43 @@ export function saveHardnessReport(s: ERPState, input: HardnessInput, ts: string
   s.hardnessReports.push(rep);
   log(s, ts, 'qc', `Hardness report ${rep.id} recorded for ${component} — ${hardnessVerdict(rep).toLowerCase()}`, rep.jobNo);
   return rep.id;
+}
+
+// --------------------------------------------------------- product master ---
+export type ProductInput = Omit<Product, 'id'>;
+
+/** Creates a product, or updates the one with `id`. Returns its id. Existing jobs keep pointing at the same id. */
+export function saveProduct(s: ERPState, input: ProductInput, id?: string): string {
+  const code = input.code.trim();
+  const name = input.name.trim();
+  if (!code) fail('Enter the product code.');
+  if (!name) fail('Enter the product name.');
+  if (!findMaterial(input.material)) fail('Select the raw material this product is forged from.');
+  const pos = (n: unknown, label: string) => (Number.isFinite(Number(n)) && Number(n) > 0 ? Number(n) : fail(`${label} must be greater than zero.`));
+  const clean: ProductInput = {
+    code,
+    name,
+    material: input.material,
+    od: pos(input.od, 'Bar OD'),
+    cuttingLength: pos(input.cuttingLength, 'Cutting length'),
+    finishedWeight: pos(input.finishedWeight, 'Finished weight'),
+    htTemperature: pos(input.htTemperature, 'Heat treatment temperature'),
+    htSoakMinutes: pos(input.htSoakMinutes, 'Soak time'),
+    htProcess: input.htProcess.trim(),
+    htQuench: input.htQuench.trim(),
+    dieNo: input.dieNo.trim(),
+    defaultCustomer: input.defaultCustomer.trim(),
+    salesRate: input.salesRate && input.salesRate > 0 ? Math.round(input.salesRate * 100) / 100 : undefined,
+  };
+  const dup = s.products.find((p) => p.code.toLowerCase() === code.toLowerCase() && p.id !== id);
+  if (dup) fail(`Product code ${code} already belongs to ${dup.name}.`);
+  if (id) {
+    const old = s.products.find((p) => p.id === id) ?? fail(`Product ${id} not found.`);
+    Object.assign(old, clean);
+    return id;
+  }
+  let newId = `P-${code.toUpperCase().replace(/[^A-Z0-9]+/g, '')}`;
+  while (s.products.some((p) => p.id === newId)) newId += '1';
+  s.products.push({ id: newId, ...clean });
+  return newId;
 }

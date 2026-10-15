@@ -53,7 +53,34 @@ export const tsFor = (date: string, nowTs: string) => {
 
 /** New Job Card — the same header fields as the client's paper Process Route Card. */
 export function NewJobModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { state, run, openTrace, openAction } = useStore();
+  const { state, openAction } = useStore();
+  if (!state.products.length)
+    return (
+      <Modal
+        open={open}
+        onClose={onClose}
+        icon={PackagePlus}
+        title="No products yet"
+        subtitle="A job card is made for a product, so add the product first."
+        footer={
+          <>
+            <button className="btn" onClick={onClose}>
+              Close
+            </button>
+            <button className="btn btn-primary" onClick={() => (onClose(), (window.location.hash = '/products'))}>
+              Go to Product Master
+            </button>
+          </>
+        }
+      >
+        <p>Open <b>Product Master</b> and add your first product (code, raw material, cutting length, finished weight and heat-treatment settings). Director and Plant Head can do this.</p>
+      </Modal>
+    );
+  return <NewJobForm open={open} onClose={onClose} openAction={openAction} />;
+}
+
+function NewJobForm({ open, onClose, openAction }: { open: boolean; onClose: () => void; openAction: ReturnType<typeof useStore>['openAction'] }) {
+  const { state, run, openTrace } = useStore();
   const p0 = state.products[0];
   const [productId, setProductId] = useState(p0.id);
   const product = state.products.find((p) => p.id === productId)!;

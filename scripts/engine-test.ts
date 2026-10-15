@@ -13,7 +13,9 @@ import {
   jobSummary,
   markDispatched,
   materialKey,
+  saveProduct,
   startStage,
+  type ProductInput,
 } from '../src/store/engine';
 import { buildSeed } from '../src/store/seed';
 import { findMaterial, MATERIAL_MASTER, pieceWeightKg } from '../src/store/materials';
@@ -29,6 +31,7 @@ const ts = () => new Date().toISOString();
 const checks = { dimensional: true, visual: true, hardness: true };
 
 const s = buildSeed();
+const flange: ProductInput = { code: '9084', name: '9084 Flange', material: 'EN8 Steel Round Bar', od: 50, cuttingLength: 62, finishedWeight: 0.2469, htTemperature: 850, htSoakMinutes: 60, htProcess: 'Normalising', htQuench: 'Still air', dieNo: 'D-9084-01', defaultCustomer: 'ABC Industries' };
 const EN8 = materialKey('EN8 Steel Round Bar', 50);
 
 console.log('\nStarting data');
@@ -39,7 +42,17 @@ t('no jobs, stage entries, QC, finished goods or dispatches', () => {
 t('no raw material stock, no inward records, no activity', () => {
   assert.equal(s.rawMaterials.length + s.rawInwards.length + s.activity.length + s.movements.length, 0);
 });
-t('product master kept', () => assert.equal(s.products.length, 4));
+t('the app starts with no products', () => assert.equal(s.products.length, 0));
+t('saveProduct adds a product (id from its code) and validates', () => {
+  assert.equal(saveProduct(s, flange), 'P-9084');
+  assert.equal(s.products.length, 1);
+  throws(() => saveProduct(s, { ...flange, name: 'Other' }), /already belongs/);
+  throws(() => saveProduct(s, { ...flange, code: 'X1', od: 0 }), /greater than zero/);
+  throws(() => saveProduct(s, { ...flange, code: 'X2', material: 'Nope' }), /raw material/);
+  assert.equal(saveProduct(s, { ...flange, name: '9084 Flange v2' }, 'P-9084'), 'P-9084');
+  assert.equal(s.products[0].name, '9084 Flange v2');
+  s.products[0].name = '9084 Flange';
+});
 t('a job cannot be created without stock', () =>
   throws(() => createJob(s, { productId: 'P-9084', customer: 'X', plannedQty: 1, materialKey: EN8, cuttingLength: 62, dueDate: '2026-12-01', priority: 'Normal' }, ts()), /only 0 PCS/));
 

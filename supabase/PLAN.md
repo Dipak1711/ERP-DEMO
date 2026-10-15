@@ -41,7 +41,7 @@ applied later to a fresh project with `supabase db push` or by pasting the files
 | **Die Master** `die-master` | Main die (component) register + summary cards; add/edit; Excel/CSV export; print die card | `main_dies`, `dies` | `save_main_die` |
 | **Forging / Trimming Die Master** | Register per kind; add/edit die (dims, weights, maker, drawing, revision, images, status, cost, location, pieces); **replace** (old die kept Retired/Damaged, linked both ways); **maintenance**; **issue** to a press; **return** (adds pieces) | `dies`, `die_*` | `save_die`, `replace_die`, `record_maintenance`, `issue_die`, `return_die` |
 | **Die Details / History** | Per-component view: forging dies, trimming dies, full history timeline, images | `dies`, `die_history`, `die_issues`, `die_maintenance` | — |
-| **Layout / sidebar** | Pending badge per stage, bell menu (= next steps), *Clear all data*, theme | `v_stage_wip` | `reset_transactional_data()` (service role only) |
+| **Layout / sidebar** | Pending badge per stage, bell menu (= next steps), theme | `v_stage_wip` | `reset_transactional_data()` (service role only) |
 
 ## 3. Design decisions
 
@@ -165,7 +165,7 @@ Not yet run against a real Supabase project (no account) — do `supabase db res
 | `director` | full | yes | edit | yes |
 | `plant_head` | full | yes | edit | yes |
 | `accounts` | full (parties, rates, invoices, values, `v_sales_by_customer`) | no | read | yes |
-| `qc`, `operator`, `viewer` | **masked** (`••••••` / `NULL`) | no | read | no |
+| `qc`, `operator`, `viewer` | **hidden** (`NULL`; the app removes the column / line / field) | no | read | no |
 
 New users start as `viewer` (least privilege) until a director sets their role.
 
@@ -176,7 +176,7 @@ New users start as `viewer` (least privilege) until a director sets their role.
 **How it is enforced (server-side, not cosmetic):**
 1. Tables with confidential columns have **no SELECT grant** for clients — `select * from jobs`, `?select=customer`, joins, exports and Realtime on them all fail with *permission denied*.
 2. Clients read **views** (`v_products`, `v_lots`, `v_jobs`, `v_job_summary`, `v_finished_goods`, `v_dispatches`, `v_hardness_reports`, `v_main_dies`, `v_dies`, …).
-   The views run with owner rights and wrap each confidential column in `mask_text()` / `mask_num()`, which check `can_see_confidential()` against the signed-in user's role. A masked user never receives the real value over the wire.
+   The views run with owner rights and wrap each confidential column in `mask_text()` / `mask_num()`, which return `NULL` unless `can_see_confidential()` is true for the signed-in user's role (migration 16 changed the text mask from `••••••` to `NULL` — nothing is blurred or dotted). A hidden-role user never receives the real value over the wire.
 3. `customers` / `suppliers` have an RLS policy `can_see_confidential()` (masked roles see 0 rows). Master-data writes need `can_manage_masters()` (director / plant head); the product master is written only through `save_product()`.
 4. **Write side:** rate entry (`add_inward.p_purchase_rate`, die cost, product rates) is refused for roles that may not see rates. A masked user editing a record cannot overwrite a hidden value
    (`save_die`, `save_main_die`, `save_hardness_report` keep the stored maker / customer / supplier / cost), and the literal mask text `••••••` is never stored (`unmask_keep`).
@@ -184,10 +184,11 @@ New users start as `viewer` (least privilege) until a director sets their role.
    Views also return nothing to `anon` or to inactive users.
 6. Function privileges: the mask / role helpers are executable by `authenticated` because Postgres checks function rights against the *caller* even inside a view; they reveal nothing on their own.
 
-**Frontend (this repo, `src/auth/access.tsx`):** a role switcher (“Viewing as”, top bar) stands in for sign-in until Supabase Auth exists. Masked roles see `••••••` — the real value is **not rendered** (so it cannot be selected, copied or found via inspect),
-searches ignore hidden fields (no probing names by typing), forms never load hidden values, the supplier list is not offered, and **printouts** (route card, hardness report, die card) and **Excel/CSV exports** carry the mask too.
-When the app is wired to Supabase it will read the `v_*` views, so the server does the masking and the demo-side switch is replaced by `v_me`.
-In the localStorage demo the data still sits in the browser, so the demo's masking is presentation-only — real protection starts with the database.
+**Frontend (this repo, `src/auth/`):** sign-in page (`LoginPage.tsx`, six demo accounts in `users.ts`) stands in for Supabase Auth. Roles without access get **no confidential column, line, field or title at all** — not blurred, not dotted: Product Master loses *Default Customer / Sales Rate*, Raw Inventory loses *Supplier / Purchase Rate / Invoice*,
+Dispatch loses the customer line, invoice and amount, Finished Goods / Dashboard / Traceability lose the customer line, the Trace drawer loses customer, supplier and invoice, Die Master loses *Customer* and *Maker*, die details lose *Maker / Cost*, and printouts (route card, hardness report, die card) and Excel/CSV exports omit those cells and columns.
+Search ignores hidden fields, search placeholders stop mentioning them, and edit forms never load them. There is **no page that contains only confidential data**, so no page is removed — the data is hidden inside the pages that mix it with operational data.
+When the app is wired to Supabase it reads the `v_*` views and the `v_me` flags, so the server withholds the values and the UI hides the columns.
+In the localStorage demo the data still sits in the browser, so the demo's hiding is presentation-only — real protection starts with the database.
 
 **Known limits / decisions to confirm**
 * Free-text fields typed by users (remarks, die maintenance notes) are not scanned; the rule is “do not type party names or prices into remarks”.

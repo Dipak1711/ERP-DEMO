@@ -1,4 +1,4 @@
-import { Conf, searchable, useAccess } from '../auth/access';
+import { Conf, searchable, useAccess, isConfidentialAllowed } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { ArrowDownToLine, Boxes, Layers, PackagePlus, Send } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -76,7 +76,7 @@ export function RawInventoryPage() {
             <Empty
               icon={Boxes}
               title="No raw material in stock"
-              text="Record your first inward — material, OD / size, supplier, quantity and weight. Stock appears here by material and OD."
+              text="Record your first inward — material, OD / size, quantity and weight. Stock appears here by material and OD."
               action={
                 <button className="btn btn-primary" onClick={() => openAction({ kind: 'inward' })}>
                   <PackagePlus size={15} /> Add Raw Material Inward
@@ -127,7 +127,7 @@ export function RawInventoryPage() {
               { value: 'issues', label: 'Issues to Production', count: issues.length, tone: 'amber' },
             ]}
           />
-          <Search value={q} onChange={setQ} placeholder="Search material, supplier, lot, heat no…" />
+          <Search value={q} onChange={setQ} placeholder={isConfidentialAllowed() ? 'Search material, supplier, lot, heat no…' : 'Search material, lot, heat no…'} />
           {view === 'stock' && (
             <select className="filter" value={matF} onChange={(e) => setMatF(e.target.value)}>
               <option value="">All materials</option>
@@ -152,8 +152,10 @@ export function RawInventoryPage() {
                     <th>Material</th>
                     <th>Material Type</th>
                     <th>OD / Size</th>
-                    <th>Supplier</th>
-                    <th className="r">Purchase Rate</th>
+                    <Conf>
+                      <th>Supplier</th>
+                      <th className="r">Purchase Rate</th>
+                    </Conf>
                     <th>Inward Date</th>
                     <th className="r">Inward Qty</th>
                     <th className="r">Available Qty</th>
@@ -172,12 +174,10 @@ export function RawInventoryPage() {
                       <td className="strong">{l.material}</td>
                       <td>{l.materialType}</td>
                       <td className="nowrap">OD {l.od} mm</td>
-                      <td>
-                        <Conf>{l.supplier}</Conf>
-                      </td>
-                      <td className="r num nowrap">
-                        <Conf>{l.purchaseRate ? `₹ ${l.purchaseRate.toLocaleString('en-IN')} / kg` : ''}</Conf>
-                      </td>
+                      <Conf>
+                        <td>{l.supplier}</td>
+                        <td className="r num nowrap">{l.purchaseRate ? `₹ ${l.purchaseRate.toLocaleString('en-IN')} / kg` : '—'}</td>
+                      </Conf>
                       <td className="nowrap">{fmtDate(l.inwardDate)}</td>
                       <td className="r num">
                         {fmtNum(l.inwardQty)}
@@ -210,8 +210,10 @@ export function RawInventoryPage() {
                   <th>Lot No.</th>
                   <th>Material</th>
                   <th>OD / Size</th>
-                  <th>Supplier</th>
-                  <th>Invoice</th>
+                  <Conf>
+                    <th>Supplier</th>
+                    <th>Invoice</th>
+                  </Conf>
                   <th className="r">Quantity</th>
                   <th className="r">Weight</th>
                 </tr>
@@ -228,12 +230,10 @@ export function RawInventoryPage() {
                         <div className="sub">{i.materialType}</div>
                       </td>
                       <td>OD {i.od} mm</td>
-                      <td>
-                        <Conf>{i.supplier}</Conf>
-                      </td>
-                      <td className="mono">
-                        <Conf>{i.invoiceNo}</Conf>
-                      </td>
+                      <Conf>
+                        <td>{i.supplier}</td>
+                        <td className="mono">{i.invoiceNo}</td>
+                      </Conf>
                       <td className="r qty-cell">
                         <span className="gain">+{fmtNum(i.qty)}</span>
                       </td>
@@ -323,7 +323,7 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
     if (
       run(
         (d, ts) =>
-          addInward(d, { material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: invoice, purchaseRate: conf && Number(rate) > 0 ? Number(rate) : undefined }, ts),
+          addInward(d, { material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: conf ? invoice : '', purchaseRate: conf && Number(rate) > 0 ? Number(rate) : undefined }, ts),
         {
           title: 'Raw material received',
           message: `${qN} PCS (${wN} KG) of ${material} OD ${od} mm added to stock.`,
@@ -398,16 +398,18 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
               ))}
             </select>
           ) : (
-            /* the supplier list is confidential: masked roles type the name from the challan */
+            /* the supplier list is confidential and not offered; the name is required, so it is typed from the challan (write-only: never shown back) */
             <input className="input" value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="As on the delivery challan" autoComplete="off" />
           )}
         </Field>
         <Field label="Inward Date" required>
           <input className="input" type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
-        <Field label="Supplier Invoice No.">
-          <input className="input mono" value={invoice} onChange={(e) => setInvoice(e.target.value)} placeholder="e.g. INV/2026/0412" />
-        </Field>
+        {conf && (
+          <Field label="Supplier Invoice No.">
+            <input className="input mono" value={invoice} onChange={(e) => setInvoice(e.target.value)} placeholder="e.g. INV/2026/0412" />
+          </Field>
+        )}
         {conf && (
           <Field label="Purchase Rate (₹ / KG)" hint="Confidential — visible to Director, Plant Head and Accounts only">
             <input className="input" type="number" min="0" step="any" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="Optional" />

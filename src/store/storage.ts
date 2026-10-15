@@ -10,14 +10,14 @@
 //   forgeflow.v1.trimming        forgeflow.v1.meta   ({ seededAt, version })
 //   forgeflow.v1.heatTreatment
 //
-// VERSION 6 starts with an empty plant (masters only). A browser still holding older data is reset to it automatically.
+// VERSION 7 starts with an empty plant and no products. A browser still holding older data is reset to it automatically.
 // "Clear all data" empties everything except the masters.
 // ---------------------------------------------------------------------------
 import { buildSeed, emptyState } from './seed';
 import type { CollectionKey, ERPState } from './types';
 
 const PREFIX = 'forgeflow.v1.';
-const VERSION = 6;
+const VERSION = 7;
 const KEYS = Object.keys(emptyState()) as CollectionKey[];
 
 function safeGet(key: string): string | null {

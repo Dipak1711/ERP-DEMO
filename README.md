@@ -18,10 +18,9 @@ npm run test:engine  # headless checks of the quantity engine (runs the worked e
 
 ## Starting data
 
-The app starts **empty**: only the masters are loaded (products, material grades, customers, suppliers, machines, operators, inspectors). There is no stock, no job, no dispatch and no die — everything is entered by the user.
+The app starts **empty**: only the masters are loaded (material grades, customers, suppliers, machines, operators, inspectors). **There are no products** — the Director or Plant Head adds them in Product Master (the Add Product button) before the first job card can be made. There is no stock, no job, no dispatch and no die — everything is entered by the user.
 
 - A browser that still holds data from an older build is reset to this empty state automatically on first load.
-- **Clear all data** (sidebar) empties stock and jobs again (masters kept).
 
 ## Raw material master
 

@@ -6,6 +6,7 @@ import type { ERPState, ProcessStage } from './types';
 /** A shop-floor action that opens its form wherever the user is (page, dashboard, drawer, bell menu). */
 export type Action =
   | { kind: 'newJob' }
+  | { kind: 'product'; id?: string }
   | { kind: 'inward'; material?: string; od?: number }
   | { kind: 'stage'; stage: ProcessStage; jobNo: string }
   | { kind: 'qc'; jobNo: string }

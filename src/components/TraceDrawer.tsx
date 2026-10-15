@@ -1,4 +1,4 @@
-import { Conf, maskText } from '../auth/access';
+import { Conf, isConfidentialAllowed, useAccess } from '../auth/access';
 import { useEffect, type ReactNode } from 'react';
 import { ArrowRight, CheckCircle2, ChevronRight, Printer, Scale, X } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -80,6 +80,7 @@ function reconcile(j: JobSummary) {
 
 export function TraceDrawer() {
   const { state, traceJob, openTrace, openAction } = useStore();
+  const { conf } = useAccess();
 
   useEffect(() => {
     if (!traceJob) return;
@@ -119,7 +120,8 @@ export function TraceDrawer() {
               <div className="k">Job Traceability · Production Order</div>
               <h2>{job.jobNo}</h2>
               <div className="prod">
-                {product.name} · <Conf>{job.customer}</Conf>
+                {product.name}
+                <Conf> · {job.customer}</Conf>
               </div>
             </div>
             <button className="icon-btn no-print" title="Print job card" onClick={() => window.print()}>
@@ -186,7 +188,7 @@ export function TraceDrawer() {
                 <span>
                   {j.status === 'Rejected'
                     ? 'Nothing left to process for this job.'
-                    : `${fmtNum(j.dispatchedQty)} PCS delivered to ${maskText(job.customer.replace(/\.$/, ''))}. Full journey below.`}
+                    : `${fmtNum(j.dispatchedQty)} PCS delivered${isConfidentialAllowed() ? ` to ${job.customer.replace(/\.$/, '')}` : ''}. Full journey below.`}
                 </span>
               </div>
             </div>
@@ -243,7 +245,7 @@ export function TraceDrawer() {
                   <thead>
                     <tr>
                       <th>Lot</th>
-                      <th>Supplier</th>
+                      {conf && <th>Supplier</th>}
                       <th>Heat No.</th>
                       <th>Inward</th>
                       <th className="r">Qty</th>
@@ -256,7 +258,9 @@ export function TraceDrawer() {
                       return (
                         <tr key={is.lotId}>
                           <td className="mono">{is.lotId}</td>
-                          <td><Conf>{l?.supplier}</Conf></td>
+                          <Conf>
+                            <td>{l?.supplier}</td>
+                          </Conf>
                           <td className="mono">{l?.heatNo}</td>
                           <td>{fmtDate(l?.inwardDate)}</td>
                           <td className="r num strong">{is.qty}</td>
@@ -402,12 +406,12 @@ export function TraceDrawer() {
                       </div>
                       <Meta
                         items={[
-                          ['Customer', maskText(d.customer)],
+                          ...(conf ? ([['Customer', d.customer]] as [string, string][]) : []),
                           ['Qty', `${fmtNum(d.qty)} PCS`],
                           ['Vehicle', d.vehicleNo || '—'],
                           ['Bags', `${d.bags.length}`],
                           ['Weight', fmtKg(d.weight)],
-                          ['Invoice', maskText(d.invoiceNo)],
+                          ...(conf ? ([['Invoice', d.invoiceNo]] as [string, string][]) : []),
                         ]}
                       />
                       <div className="bags">

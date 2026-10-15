@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
-// Role-based access to confidential commercial data.
+// Sign-in session + role-based access to confidential commercial data.
 //
 //   Director, Plant Head → everything (confidential data + management dashboards)
 //   Accounts             → confidential data: party names, purchase / sales rates, invoices, financial values
-//   QC, Operator, Viewer → every confidential field is MASKED: the real value is never rendered, printed or exported,
+//   QC, Operator, Viewer → every confidential column / line / field is HIDDEN: it is not rendered, printed or exported at all,
 //                          so there is nothing to select, copy, inspect or download.
 //
 // Confidential = party names (customer, supplier, die maker), invoice numbers, purchase / sales rates, die cost, values.
@@ -11,7 +11,8 @@
 // The demo keeps data in the browser, so this layer is presentation-level only. In the Supabase build the same rules are
 // enforced by the database (supabase/migrations 02, 13, 14) — see supabase/PLAN.md §10.
 // ---------------------------------------------------------------------------
-import { Fragment, createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { demoUserByEmail, findDemoUser } from './users';
 
 export type Role = 'director' | 'plant_head' | 'accounts' | 'qc' | 'operator' | 'viewer';
 
@@ -24,40 +25,48 @@ export const ROLES: { value: Role; label: string; hint: string }[] = [
   { value: 'viewer', label: 'Viewer', hint: 'Confidential data masked' },
 ];
 
-export const MASK = '••••••';
-
 export const canSeeConfidential = (r: Role) => r === 'director' || r === 'plant_head' || r === 'accounts';
 export const canSeeManagement = (r: Role) => r === 'director' || r === 'plant_head';
 
-const KEY = 'forgeflow.role';
-const isRole = (v: unknown): v is Role => ROLES.some((r) => r.value === v);
+const KEY = 'forgeflow.session';
 
-function readRole(): Role {
+export interface Session {
+  email: string;
+  name: string;
+  role: Role;
+}
+
+/** The role is always re-read from the account list, never trusted from storage. */
+function readSession(): Session | null {
   try {
-    const v = localStorage.getItem(KEY);
-    if (isRole(v)) return v;
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    const u = demoUserByEmail((JSON.parse(raw) as { email?: string }).email ?? '');
+    return u ? { email: u.email, name: u.name, role: u.role } : null;
   } catch {
-    /* private mode */
+    return null;
   }
-  return 'director';
 }
 
 // Module-level mirror of the current role, for code that is not a React component (print templates, Excel export).
-// Defaults to the LEAST privileged role, so anything that runs before the provider mounts is masked, never open.
+// Defaults to the LEAST privileged role, so anything that runs while signed out is masked, never open.
 let current: Role = 'viewer';
 export const currentRole = () => current;
 export const isConfidentialAllowed = () => canSeeConfidential(current);
 
-/** Text for printouts / exports: the real value, or the mask. */
-export const maskText = (v: string | number | null | undefined): string => (v == null || v === '' ? '' : isConfidentialAllowed() ? String(v) : MASK);
-/** Numbers for exports: the real number, or the mask text. */
-export const maskNum = (v: number | null | undefined): number | string => (v == null ? '' : isConfidentialAllowed() ? v : MASK);
+/** Text for printouts / exports: the real value, or nothing at all (callers also drop the column / line title). */
+export const maskText = (v: string | number | null | undefined): string => (v == null || v === '' || !isConfidentialAllowed() ? '' : String(v));
 /** For search filters: a masked user must not be able to probe hidden names by typing them. */
 export const searchable = (v: string | undefined): string | undefined => (isConfidentialAllowed() ? v : '');
 
 interface AccessValue {
+  /** null = signed out */
+  user: Session | null;
+  /** least-privileged role while signed out */
   role: Role;
-  setRole: (r: Role) => void;
+  /** returns false for wrong credentials */
+  login: (email: string, password: string) => boolean;
+  logout: () => void;
   /** may see party names, rates, invoices, financial values */
   conf: boolean;
   /** may see management dashboards */
@@ -65,29 +74,38 @@ interface AccessValue {
 }
 const Ctx = createContext<AccessValue | null>(null);
 
-export function RoleProvider({ children, initialRole }: { children: ReactNode; initialRole?: Role }) {
-  const [role, setRoleState] = useState<Role>(() => {
-    const r = initialRole ?? readRole();
-    current = r;
-    return r;
+export function RoleProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<Session | null>(() => {
+    const s = readSession();
+    current = s?.role ?? 'viewer';
+    return s;
   });
-  const setRole = useCallback((r: Role) => {
-    current = r;
+  const login = useCallback((email: string, password: string) => {
+    const u = findDemoUser(email, password);
+    if (!u) return false;
+    const s: Session = { email: u.email, name: u.name, role: u.role };
+    current = s.role;
     try {
-      localStorage.setItem(KEY, r);
+      localStorage.setItem(KEY, JSON.stringify({ email: s.email })); // no password, no role: both are looked up again on load
+    } catch {
+      /* private mode: stays signed in for this tab only */
+    }
+    setUser(s);
+    return true;
+  }, []);
+  const logout = useCallback(() => {
+    current = 'viewer';
+    try {
+      localStorage.removeItem(KEY);
     } catch {
       /* ignore */
     }
-    setRoleState(r);
+    setUser(null);
   }, []);
+  const role = user?.role ?? 'viewer';
   current = role;
-  const value = useMemo(() => ({ role, setRole, conf: canSeeConfidential(role), mgmt: canSeeManagement(role) }), [role, setRole]);
-  // Re-mount the app below on a role switch, so no screen keeps values it rendered under the previous role.
-  return (
-    <Ctx.Provider value={value}>
-      <Fragment key={role}>{children}</Fragment>
-    </Ctx.Provider>
-  );
+  const value = useMemo(() => ({ user, role, login, logout, conf: !!user && canSeeConfidential(role), mgmt: !!user && canSeeManagement(role) }), [user, role, login, logout]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function useAccess() {
@@ -96,14 +114,11 @@ export function useAccess() {
   return v;
 }
 
-/** Renders its children for authorised roles, a non-selectable masked placeholder for everyone else. */
-export function Conf({ children, empty = '—' }: { children?: ReactNode; empty?: ReactNode }) {
+/**
+ * Renders its children only for roles that may see confidential data. For everyone else it renders NOTHING — no blur, no dots —
+ * so wrap the whole column (`<th>` and `<td>`), line or field, title included, not just the value.
+ */
+export function Conf({ children }: { children?: ReactNode }) {
   const { conf } = useAccess();
-  if (children == null || children === '') return <>{empty}</>;
-  if (conf) return <>{children}</>;
-  return (
-    <span className="masked" role="img" aria-label="Confidential — hidden" title="Confidential — you do not have access">
-      {MASK}
-    </span>
-  );
+  return conf ? <>{children}</> : null;
 }

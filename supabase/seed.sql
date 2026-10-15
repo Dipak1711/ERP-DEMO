@@ -1,4 +1,4 @@
--- Master data only (src/store/seed.ts, materials.ts, hardnessSpecs.ts).
+-- Master data only (src/store/seed.ts, materials.ts, hardnessSpecs.ts). No products.
 -- No stock, no jobs, no dies — same as the app's “Clear all data” state. Safe to re-run.
 
 insert into material_master (material, family, grade, density, default_od) values
@@ -33,18 +33,7 @@ insert into hardness_specs (material, min_hardness, max_hardness, scale) values
 on conflict (material) do update
   set min_hardness = excluded.min_hardness, max_hardness = excluded.max_hardness, scale = excluded.scale;
 
-insert into products (id, code, name, material, od, cutting_length, finished_weight, ht_temperature, ht_soak_minutes,
-                      ht_process, ht_quench, die_no, default_customer) values
-  ('P-9084', '9084',  '9084 Flange',                 'EN8 Steel Round Bar', 50, 62, 0.2469, 850, 60, 'Normalising',             'Still air',    'D-9084-01', 'ABC Industries'),
-  ('P-BB45', 'BB-45', 'Brass Bush',                  'Brass Round Bar',     45, 38, 0.1050, 550, 45, 'Stress-relief annealing', 'Still air',    'D-BB45-02', 'Sigma Valves Pvt. Ltd.'),
-  ('P-CU30', 'CU-30', 'Copper Component',            'Copper Round Bar',    30, 45, 0.2620, 600, 40, 'Annealing',               'Water quench', 'D-CU30-03', 'Metro Electricals'),
-  ('P-AL25', 'AL-25', 'Aluminium Forged Component',  'Aluminium Round Bar', 25, 70, 0.0860, 530, 60, 'Solution treatment (T6)', 'Water quench', 'D-AL25-04', 'Apex Auto Components')
-on conflict (id) do update
-  set code = excluded.code, name = excluded.name, material = excluded.material, od = excluded.od,
-      cutting_length = excluded.cutting_length, finished_weight = excluded.finished_weight,
-      ht_temperature = excluded.ht_temperature, ht_soak_minutes = excluded.ht_soak_minutes,
-      ht_process = excluded.ht_process, ht_quench = excluded.ht_quench, die_no = excluded.die_no,
-      default_customer = excluded.default_customer;
+-- No products are seeded: the Director / Plant Head adds them (Product Master → save_product()).
 
 insert into customers (name) values
   ('ABC Industries'), ('Sigma Valves Pvt. Ltd.'), ('Metro Electricals'), ('Apex Auto Components'), ('Nova Hydraulics')

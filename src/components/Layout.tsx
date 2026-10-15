@@ -1,4 +1,4 @@
-import { ROLES, searchable, useAccess, type Role } from '../auth/access';
+import { searchable, useAccess } from '../auth/access';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   BarChart3,
@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ClipboardList,
   Layers,
+  LogOut,
   Scissors,
   Hammer,
   FileClock,
@@ -15,7 +16,6 @@ import {
   Moon,
   Package,
   PanelLeft,
-  RotateCcw,
   ScrollText,
   Search,
   Sun,
@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { jobSummary, STAGE_LABEL } from '../store/engine';
-import { Badge, Confirm, FLOW_STEPS, go, type Icon } from './ui';
+import { Badge, FLOW_STEPS, go, type Icon } from './ui';
 import { pendingSteps } from './workflow';
 
 export interface NavItem {
@@ -84,11 +84,10 @@ function useOutside(ref: React.RefObject<HTMLElement>, open: boolean, close: () 
 }
 
 export function Layout({ route, children }: { route: string; children: ReactNode }) {
-  const { state, reset } = useStore();
+  const { state } = useStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mini, setMini] = useState(() => readLS('forgeflow.sidebar') === 'mini');
   const [closed, setClosed] = useState<Record<string, boolean>>({});
-  const [confirmReset, setConfirmReset] = useState(false);
   const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') ?? 'light');
 
   useEffect(() => {
@@ -168,16 +167,6 @@ export function Layout({ route, children }: { route: string; children: ReactNode
             );
           })}
         </nav>
-        <div className="side-foot">
-          <div className="storage" title="Data is saved in this browser">
-            <span className="dot" />
-            <span className="t">Data saved in this browser</span>
-          </div>
-          <button className="btn btn-sm btn-side" onClick={() => setConfirmReset(true)} title="Clear all data">
-            <RotateCcw size={14} />
-            <span className="t">Clear all data</span>
-          </button>
-        </div>
       </aside>
 
       <div className="main">
@@ -187,7 +176,6 @@ export function Layout({ route, children }: { route: string; children: ReactNode
           </button>
           <JobSearch />
           <div className="top-right">
-            <RoleSwitch />
             <ActionBell />
             <button
               className="round-btn"
@@ -197,28 +185,12 @@ export function Layout({ route, children }: { route: string; children: ReactNode
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <div className="user">
-              <div className="avatar">PM</div>
-              <div className="meta">
-                <div className="name">Plant Manager</div>
-                <div className="role">Production Head</div>
-              </div>
-              <span className="role-badge">Admin</span>
-            </div>
+            <UserCard />
           </div>
         </header>
         <main className="content">{children}</main>
       </div>
 
-      <Confirm
-        open={confirmReset}
-        title="Clear all data?"
-        message="All raw material inward and stock, and every production job, stage entry, QC result, finished good and dispatch will be deleted. Products, material categories and other masters are kept."
-        confirmLabel="Clear all data"
-        tone="danger"
-        onConfirm={reset}
-        onClose={() => setConfirmReset(false)}
-      />
     </div>
   );
 }
@@ -345,20 +317,24 @@ function JobSearch() {
   );
 }
 
-/** Demo stand-in for the sign-in: pick the role you are "logged in" as. In the Supabase build this is profiles.role. */
-function RoleSwitch() {
-  const { role, setRole, conf } = useAccess();
+/** The signed-in user (from the login) and the way out. */
+function UserCard() {
+  const { user, logout } = useAccess();
+  if (!user) return null;
+  const words = user.name.split(/[s/]+/).filter(Boolean);
+  const initials = (words.length > 1 ? words[0][0] + words[1][0] : user.name.slice(0, 2)).toUpperCase();
   return (
-    <label className="role-switch" title={conf ? 'Confidential data visible' : 'Confidential data masked'}>
-      <span className="lbl">Viewing as</span>
-      <select value={role} onChange={(e) => setRole(e.target.value as Role)} aria-label="Viewing as role">
-        {ROLES.map((r) => (
-          <option key={r.value} value={r.value}>
-            {r.label}
-          </option>
-        ))}
-      </select>
-      <span className={`role-pill ${conf ? 'full' : 'masked-role'}`}>{conf ? 'Full access' : 'Masked'}</span>
-    </label>
+    <>
+      <div className="user" title={user.email}>
+        <div className="avatar">{initials}</div>
+        <div className="meta">
+          <div className="name">{user.name}</div>
+          <div className="role">{user.email}</div>
+        </div>
+      </div>
+      <button className="round-btn" onClick={logout} title="Sign out" aria-label="Sign out">
+        <LogOut size={17} />
+      </button>
+    </>
   );
 }

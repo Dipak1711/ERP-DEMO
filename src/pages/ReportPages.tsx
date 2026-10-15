@@ -1,9 +1,11 @@
-import { Conf, searchable } from '../auth/access';
+import { Conf, searchable, isConfidentialAllowed, useAccess } from '../auth/access';
 import { useState } from 'react';
-import { ArrowRight, Eye, ScrollText, Waypoints } from 'lucide-react';
+import { ArrowRight, Eye, Package, Pencil, Plus, ScrollText, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
-import { jobSummary, PROCESS_STAGES, STAGE_LABEL } from '../store/engine';
-import { Badge, Empty, JobLink, PageHeader, Priority, rowTone, Search, Stepper, Tabs } from '../components/ui';
+import { jobSummary, PROCESS_STAGES, STAGE_LABEL, saveProduct } from '../store/engine';
+import { MATERIAL_FAMILIES, MATERIAL_MASTER, findMaterial } from '../store/materials';
+import type { Product } from '../store/types';
+import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, Priority, rowTone, Search, Stepper, Tabs } from '../components/ui';
 import { fmtDate, fmtDateTime, fmtNum, matches, plural } from '../components/format';
 
 // ------------------------------------------------------- Job Traceability ---
@@ -35,7 +37,7 @@ export function TraceabilityPage() {
               { value: 'done', label: 'Dispatched', count: state.jobs.filter((j) => j.currentStage === 'dispatched').length, tone: 'teal' },
             ]}
           />
-          <Search value={q} onChange={setQ} placeholder="Search job, product, customer, stage…" />
+          <Search value={q} onChange={setQ} placeholder={isConfidentialAllowed() ? 'Search job, product, customer, stage…' : 'Search job, product, stage…'} />
         </div>
         {rows.length === 0 ? (
           <Empty icon={Waypoints} title="No jobs match" />
@@ -69,7 +71,8 @@ export function TraceabilityPage() {
                     <td>
                       <div className="strong">{s.product.name}</div>
                       <div className="sub">
-                        <Conf>{s.job.customer}</Conf> · <Priority p={s.job.priority} />
+                        <Conf>{s.job.customer} · </Conf>
+                        <Priority p={s.job.priority} />
                       </div>
                     </td>
                     <td className="r qty-cell">{s.issuedQty ? fmtNum(s.issuedQty) : <span className="muted">—</span>}</td>
@@ -184,14 +187,25 @@ export function LedgerPage() {
 
 // -------------------------------------------------------- Product Master ---
 export function ProductsPage() {
-  const { state } = useStore();
+  const { state, openAction } = useStore();
+  const { mgmt } = useAccess();
+  const add = (
+    <button className="btn btn-primary" onClick={() => openAction({ kind: 'product' })}>
+      <Plus size={15} /> Add Product
+    </button>
+  );
   return (
     <>
-      <PageHeader
-        eyebrow="Masters"
-        title="Product Master"
-      />
+      <PageHeader eyebrow="Masters" title="Product Master" actions={mgmt && state.products.length > 0 ? add : undefined} />
       <div className="card">
+        {state.products.length === 0 ? (
+          <Empty
+            icon={Package}
+            title="No products yet"
+            text={mgmt ? 'Add the components you forge — code, raw material, cutting length, finished weight and heat-treatment settings. Job cards are created from these.' : 'The Director or Plant Head adds products here. Job cards are created from them.'}
+            action={mgmt ? add : undefined}
+          />
+        ) : (
         <div className="table-wrap">
           <table className="tbl">
             <thead>
@@ -204,8 +218,11 @@ export function ProductsPage() {
                 <th>Forging Die</th>
                 <th className="r">HT Temp.</th>
                 <th>HT Process</th>
-                <th>Default Customer</th>
-                <th className="r">Sales Rate</th>
+                <Conf>
+                  <th>Default Customer</th>
+                  <th className="r">Sales Rate</th>
+                </Conf>
+                {mgmt && <th />}
               </tr>
             </thead>
             <tbody>
@@ -227,18 +244,146 @@ export function ProductsPage() {
                       {p.htSoakMinutes} min · {p.htQuench}
                     </div>
                   </td>
-                  <td>
-                    <Conf>{p.defaultCustomer}</Conf>
-                  </td>
-                  <td className="r num nowrap">
-                    <Conf>{p.salesRate ? `₹ ${p.salesRate.toLocaleString('en-IN')} / pc` : ''}</Conf>
-                  </td>
+                  <Conf>
+                    <td>{p.defaultCustomer || '—'}</td>
+                    <td className="r num nowrap">{p.salesRate ? `₹ ${p.salesRate.toLocaleString('en-IN')} / pc` : '—'}</td>
+                  </Conf>
+                  {mgmt && (
+                    <td className="r">
+                      <button className="btn btn-sm" onClick={() => openAction({ kind: 'product', id: p.id })}>
+                        <Pencil size={14} /> Edit
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </>
+  );
+}
+
+// Add / edit a product (Director and Plant Head). Existing jobs keep their product when it is edited.
+export function ProductModal({ id, onClose }: { id?: string; onClose: () => void }) {
+  const { state, run } = useStore();
+  const cur = id ? state.products.find((p) => p.id === id) : undefined;
+  const [f, setF] = useState({
+    code: cur?.code ?? '',
+    name: cur?.name ?? '',
+    material: cur?.material ?? '',
+    od: cur ? String(cur.od) : '',
+    cuttingLength: cur ? String(cur.cuttingLength) : '',
+    finishedWeight: cur ? String(cur.finishedWeight) : '',
+    dieNo: cur?.dieNo ?? '',
+    htTemperature: cur ? String(cur.htTemperature) : '',
+    htSoakMinutes: cur ? String(cur.htSoakMinutes) : '',
+    htProcess: cur?.htProcess ?? '',
+    htQuench: cur?.htQuench ?? '',
+    defaultCustomer: cur?.defaultCustomer ?? '',
+    salesRate: cur?.salesRate ? String(cur.salesRate) : '',
+  });
+  const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
+  const pickMaterial = (m: string) => setF((x) => ({ ...x, material: m, od: x.od || String(findMaterial(m)?.defaultOd ?? '') }));
+  const valid = f.code.trim() && f.name.trim() && f.material && Number(f.od) > 0 && Number(f.cuttingLength) > 0 && Number(f.finishedWeight) > 0 && Number(f.htTemperature) > 0 && Number(f.htSoakMinutes) > 0;
+  const submit = () => {
+    const input: Omit<Product, 'id'> = {
+      code: f.code,
+      name: f.name,
+      material: f.material,
+      od: Number(f.od),
+      cuttingLength: Number(f.cuttingLength),
+      finishedWeight: Number(f.finishedWeight),
+      dieNo: f.dieNo,
+      htTemperature: Number(f.htTemperature),
+      htSoakMinutes: Number(f.htSoakMinutes),
+      htProcess: f.htProcess,
+      htQuench: f.htQuench,
+      defaultCustomer: f.defaultCustomer,
+      salesRate: Number(f.salesRate) > 0 ? Number(f.salesRate) : undefined,
+    };
+    if (run((d) => void saveProduct(d, input, id), { title: id ? 'Product updated' : 'Product added', message: `${f.code.trim()} · ${f.name.trim()}` })) onClose();
+  };
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      icon={Package}
+      title={id ? 'Edit Product' : 'Add Product'}
+      subtitle="Job cards pick these values up automatically: cutting length, die, finished weight and heat-treatment settings."
+      footer={
+        <>
+          <button className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" disabled={!valid} onClick={submit}>
+            {id ? 'Save Changes' : 'Add Product'}
+          </button>
+        </>
+      }
+    >
+      <div className="section-label">Product</div>
+      <div className="form-grid three">
+        <Field label="Product Code" required>
+          <input className="input mono" value={f.code} onChange={(e) => set('code', e.target.value)} placeholder="e.g. BB-45" autoFocus />
+        </Field>
+        <Field label="Product Name" required>
+          <input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Brass Bush" />
+        </Field>
+        <Field label="Forging Die No.">
+          <input className="input mono" value={f.dieNo} onChange={(e) => set('dieNo', e.target.value)} placeholder="e.g. D-BB45-01" />
+        </Field>
+        <Field label="Raw Material" required>
+          <select value={f.material} onChange={(e) => pickMaterial(e.target.value)}>
+            <option value="">Select material…</option>
+            {MATERIAL_FAMILIES.map((fam) => (
+              <optgroup key={fam} label={fam}>
+                {MATERIAL_MASTER.filter((m) => m.family === fam).map((m) => (
+                  <option key={m.material} value={m.material}>
+                    {m.material}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </Field>
+        <Field label="Bar OD" required>
+          <NumInput value={f.od} onChange={(v) => set('od', v)} suffix="mm" step="any" />
+        </Field>
+        <Field label="Cutting Length" required>
+          <NumInput value={f.cuttingLength} onChange={(v) => set('cuttingLength', v)} suffix="mm" step="any" />
+        </Field>
+        <Field label="Finished Weight" required hint="Per piece, after forging / trimming">
+          <NumInput value={f.finishedWeight} onChange={(v) => set('finishedWeight', v)} suffix="kg" step="any" />
+        </Field>
+      </div>
+      <div className="section-label">Heat treatment</div>
+      <div className="form-grid three">
+        <Field label="Temperature" required>
+          <NumInput value={f.htTemperature} onChange={(v) => set('htTemperature', v)} suffix="°C" />
+        </Field>
+        <Field label="Soak Time" required>
+          <NumInput value={f.htSoakMinutes} onChange={(v) => set('htSoakMinutes', v)} suffix="min" />
+        </Field>
+        <Field label="Process">
+          <input className="input" value={f.htProcess} onChange={(e) => set('htProcess', e.target.value)} placeholder="e.g. Normalising" />
+        </Field>
+        <Field label="Quench">
+          <input className="input" value={f.htQuench} onChange={(e) => set('htQuench', e.target.value)} placeholder="e.g. Still air" />
+        </Field>
+      </div>
+      <div className="section-label">Commercial (confidential)</div>
+      <div className="form-grid">
+        <Field label="Default Customer">
+          <input className="input" value={f.defaultCustomer} onChange={(e) => set('defaultCustomer', e.target.value)} />
+        </Field>
+        <Field label="Sales Rate" hint="₹ per piece">
+          <NumInput value={f.salesRate} onChange={(v) => set('salesRate', v)} suffix="₹" step="any" />
+        </Field>
+      </div>
+    </Modal>
   );
 }

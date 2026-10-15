@@ -1,4 +1,4 @@
-import { searchable } from '../auth/access';
+import { searchable, isConfidentialAllowed } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { CheckCircle2, Eye, Play, Plus, SlidersHorizontal, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -108,7 +108,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
               { value: 'Completed', label: 'Completed', count: done.length, tone: 'green' },
             ]}
           />
-          <Search value={q} onChange={setQ} placeholder="Search job, product, customer, machine…" />
+          <Search value={q} onChange={setQ} placeholder={isConfidentialAllowed() ? 'Search job, product, customer, machine…' : 'Search job, product, machine…'} />
           <span className="filter-wrap">
             <SlidersHorizontal size={15} />
             <select className="filter" value={productF} onChange={(e) => setProductF(e.target.value)} aria-label="Filter by product">

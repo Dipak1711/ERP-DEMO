@@ -125,7 +125,7 @@ export function DieMasterPage() {
           <div className="right muted">{rows.length} of {data.mainDies.length} shown</div>
         </div>
         <div className="toolbar">
-          <Search value={q} onChange={setQ} placeholder="Search die, part, customer, forging / trimming die code…" />
+          <Search value={q} onChange={setQ} placeholder={isConfidentialAllowed() ? 'Search die, part, customer, forging / trimming die code…' : 'Search die, part, forging / trimming die code…'} />
           <Select value={metal} onChange={setMetal} all="All metals" options={METALS} />
           <Select value={type} onChange={setType} all="Any die type" options={['forging', 'trimming']} />
           {makers.length > 0 && <Select value={maker} onChange={setMaker} all="All die makers" options={makers} />}
@@ -168,9 +168,9 @@ export function DieMasterPage() {
                     </td>
                     <td>
                       <div className="strong">{m.name}</div>
-                      <div className="sub">
-                        <Conf>{m.customer}</Conf>
-                      </div>
+                      <Conf>
+                        <div className="sub">{m.customer || '—'}</div>
+                      </Conf>
                     </td>
                     <td className="mono">{m.partCode}</td>
                     <td><span className={`chip metal-${m.metal.toLowerCase()}`}>{m.metal}</span></td>
@@ -244,7 +244,7 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
           <div className="right muted">{rows.length} of {dies.length} shown</div>
         </div>
         <div className="toolbar">
-          <Search value={q} onChange={setQ} placeholder={`Search ${kind} die, main die, component, part code, maker…`} />
+          <Search value={q} onChange={setQ} placeholder={`Search ${kind} die, main die, component, part code${isConfidentialAllowed() ? ', maker' : ''}…`} />
           <Select value={metal} onChange={setMetal} all="All metals" options={METALS} />
           {makers.length > 0 && <Select value={maker} onChange={setMaker} all="All die makers" options={makers} />}
           <Select value={status} onChange={setStatus} all="All statuses" options={DIE_STATUSES} />
@@ -270,7 +270,9 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
                   <th>Main Die / Component</th>
                   <th>Material</th>
                   <th>Making Date</th>
-                  <th>Maker</th>
+                  <Conf>
+                    <th>Maker</th>
+                  </Conf>
                   <th>Location</th>
                   <th>Images</th>
                   <th>Status</th>
@@ -290,9 +292,9 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
                     </td>
                     <td>{d.material}</td>
                     <td>{fmtDate(d.makingDate)}</td>
-                    <td>
-                      <Conf>{d.maker}</Conf>
-                    </td>
+                    <Conf>
+                      <td>{d.maker}</td>
+                    </Conf>
                     <td>{d.location || '—'}</td>
                     <td>
                       <div className="thumbs">
@@ -377,7 +379,7 @@ export function DieDetailsPage({ query }: { query: URLSearchParams }) {
     ['Component Name', main.name],
     ['Part Code', <span className="mono">{main.partCode}</span>],
     ['Part Description', main.description || '—'],
-    ['Customer', <Conf>{main.customer}</Conf>],
+    ...(isConfidentialAllowed() ? ([['Customer', main.customer || '—']] as [string, ReactNode][]) : []),
     ['Metal Type', main.metal],
     ['Creation Date', fmtDate(main.createdOn)],
     ['Status', <DieBadge status={main.status} />],
@@ -490,7 +492,9 @@ function DieList({ kind, dies, mainCode }: { kind: DieKind; dies: Die[]; mainCod
                 <th>{label} Die</th>
                 <th>Material</th>
                 <th>Making Date</th>
-                <th>Maker</th>
+                <Conf>
+                    <th>Maker</th>
+                  </Conf>
                 <th>Size (top)</th>
                 <th>Images</th>
                 <th>Status</th>
@@ -507,9 +511,9 @@ function DieList({ kind, dies, mainCode }: { kind: DieKind; dies: Die[]; mainCod
                   </td>
                   <td>{d.material}</td>
                   <td>{fmtDate(d.makingDate)}</td>
-                  <td>
-                      <Conf>{d.maker}</Conf>
-                    </td>
+                  <Conf>
+                      <td>{d.maker}</td>
+                    </Conf>
                   <td>
                     <div>{fmtDims(d.top)}</div>
                     <div className="sub">{fmtWt(d.topWeight)}</div>

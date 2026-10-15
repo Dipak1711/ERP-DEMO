@@ -1,4 +1,4 @@
-import { MASK, isConfidentialAllowed, maskNum, maskText } from '../auth/access';
+import { isConfidentialAllowed } from '../auth/access';
 import { printHtml as printCommon } from '../components/printHtml';
 import { fmtDate } from '../components/format';
 import { KIND_LABEL, type Die, type DieData, type Dims, type MainDie } from './types';
@@ -24,10 +24,10 @@ function dieBlock(die: Die, data: DieData) {
   return `<div class="die"><h2>${KIND_LABEL[die.kind]} Die — ${esc(die.code)} ${die.demo ? '<span class="demo">(demo data)</span>' : ''}</h2>
   <table>
     <tr><th>Status</th><td>${esc(die.status)}</td><th>Material / Grade</th><td>${esc(die.material)}</td></tr>
-    <tr><th>Making date</th><td>${fmtDate(die.makingDate)}</td><th>Die maker</th><td>${esc(maskText(die.maker))}</td></tr>
+    <tr><th>Making date</th><td>${fmtDate(die.makingDate)}</td>${isConfidentialAllowed() ? `<th>Die maker</th><td>${esc(die.maker)}</td>` : '<th></th><td></td>'}</tr>
     <tr><th>Top die (L×W×H)</th><td>${fmtDims(die.top)} · ${fmtWt(die.topWeight)}</td><th>Bottom die (L×W×H)</th><td>${fmtDims(die.bottom)} · ${fmtWt(die.bottomWeight)}</td></tr>
     <tr><th>Drawing no. / Rev.</th><td>${esc(die.drawingNo) || '—'} / ${esc(die.revision) || '—'}</td><th>Location</th><td>${esc(die.location) || '—'}</td></tr>
-    <tr><th>Pieces produced</th><td>${die.pieces.toLocaleString('en-IN')}</td><th>Cost</th><td>${die.cost === undefined ? '—' : isConfidentialAllowed() ? '₹ ' + die.cost.toLocaleString('en-IN') : MASK}</td></tr>
+    <tr><th>Pieces produced</th><td>${die.pieces.toLocaleString('en-IN')}</td>${isConfidentialAllowed() ? `<th>Cost</th><td>${die.cost === undefined ? '—' : '₹ ' + die.cost.toLocaleString('en-IN')}</td>` : '<th></th><td></td>'}</tr>
     <tr><th>Last maintenance</th><td>${die.lastMaintDate ? fmtDate(die.lastMaintDate) : '—'}</td><th>Maintenance remarks</th><td>${esc(die.maintRemarks) || '—'}</td></tr>
     ${die.replacesCode || die.replacedByCode ? `<tr><th>Replaces</th><td>${esc(die.replacesCode) || '—'}</td><th>Replaced by</th><td>${esc(die.replacedByCode) || '—'}</td></tr>` : ''}
     <tr><th>Remarks</th><td colspan="3">${esc(die.remarks) || '—'}</td></tr>
@@ -43,7 +43,7 @@ export function printDieCard(main: MainDie, data: DieData, only?: Die) {
     `<h1>Die Card — ${esc(main.code)}</h1><div class="sub">${esc(main.name)} · Printed ${fmtDate(new Date().toISOString())}</div>
     <table>
       <tr><th>Component</th><td>${esc(main.name)}</td><th>Part code</th><td>${esc(main.partCode)}</td></tr>
-      <tr><th>Customer</th><td>${esc(maskText(main.customer)) || '—'}</td><th>Metal</th><td>${esc(main.metal)}</td></tr>
+      <tr>${isConfidentialAllowed() ? `<th>Customer</th><td>${esc(main.customer) || '—'}</td>` : '<th></th><td></td>'}<th>Metal</th><td>${esc(main.metal)}</td></tr>
       <tr><th>Description</th><td colspan="3">${esc(main.description) || '—'}</td></tr>
       <tr><th>Created</th><td>${fmtDate(main.createdOn)}</td><th>Status</th><td>${esc(main.status)}</td></tr>
     </table>${dies.map((d) => dieBlock(d, data)).join('') || '<p>No dies linked yet.</p>'}`,
@@ -65,8 +65,8 @@ export function exportMainDies(mains: MainDie[], data: DieData) {
   download(
     'die-master.csv',
     csv([
-      ['Sr. No.', 'Main Die Code', 'Die Name', 'Part Code', 'Customer', 'Metal', 'Forging Dies', 'Trimming Dies', 'Status', 'Created On'],
-      ...mains.map((m, i) => [i + 1, m.code, m.name, m.partCode, maskText(m.customer), m.metal, data.forgingDies.filter((d) => d.mainCode === m.code).length, data.trimmingDies.filter((d) => d.mainCode === m.code).length, m.status, m.createdOn]),
+      ['Sr. No.', 'Main Die Code', 'Die Name', 'Part Code', ...(isConfidentialAllowed() ? ['Customer'] : []), 'Metal', 'Forging Dies', 'Trimming Dies', 'Status', 'Created On'],
+      ...mains.map((m, i) => [i + 1, m.code, m.name, m.partCode, ...(isConfidentialAllowed() ? [m.customer] : []), m.metal, data.forgingDies.filter((d) => d.mainCode === m.code).length, data.trimmingDies.filter((d) => d.mainCode === m.code).length, m.status, m.createdOn]),
     ]),
   );
 }
@@ -75,8 +75,8 @@ export function exportDies(kind: 'forging' | 'trimming', dies: Die[], data: DieD
   download(
     `${kind}-die-master.csv`,
     csv([
-      ['Die Code', 'Main Die', 'Component', 'Material', 'Making Date', 'Maker', 'Drawing No.', 'Revision', 'Status', 'Location', 'Pieces Produced', 'Cost'],
-      ...dies.map((d) => [d.code, d.mainCode, data.mainDies.find((m) => m.code === d.mainCode)?.name, d.material, d.makingDate, maskText(d.maker), d.drawingNo, d.revision, d.status, d.location, d.pieces, maskNum(d.cost)]),
+      ['Die Code', 'Main Die', 'Component', 'Material', 'Making Date', ...(isConfidentialAllowed() ? ['Maker'] : []), 'Drawing No.', 'Revision', 'Status', 'Location', 'Pieces Produced', ...(isConfidentialAllowed() ? ['Cost'] : [])],
+      ...dies.map((d) => [d.code, d.mainCode, data.mainDies.find((m) => m.code === d.mainCode)?.name, d.material, d.makingDate, ...(isConfidentialAllowed() ? [d.maker] : []), d.drawingNo, d.revision, d.status, d.location, d.pieces, ...(isConfidentialAllowed() ? [d.cost] : [])]),
     ]),
   );
 }

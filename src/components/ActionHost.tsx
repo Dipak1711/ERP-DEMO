@@ -5,6 +5,7 @@ import { InspectModal } from '../pages/QCPage';
 import { HardnessForm, HardnessSheet } from '../pages/HardnessPage';
 import { NewDispatchModal } from '../pages/DispatchPage';
 import { InwardModal } from '../pages/RawInventoryPage';
+import { ProductModal } from '../pages/ReportPages';
 
 /** Renders whichever shop-floor form was requested via openAction(), on top of any screen. */
 export function ActionHost() {
@@ -14,6 +15,8 @@ export function ActionHost() {
   switch (action.kind) {
     case 'newJob':
       return <NewJobModal open onClose={close} />;
+    case 'product':
+      return <ProductModal key={action.id ?? 'new'} id={action.id} onClose={close} />;
     case 'inward':
       return <InwardModal preset={action} onClose={close} />;
     case 'stage':

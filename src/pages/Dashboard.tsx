@@ -251,7 +251,9 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
                       </td>
                       <td>
                         <div className="strong nowrap">{j.product.name}</div>
-                        <div className="sub nowrap"><Conf>{j.job.customer}</Conf></div>
+                        <Conf>
+                          <div className="sub nowrap">{j.job.customer}</div>
+                        </Conf>
                       </td>
                       <td className="r num">{fmtNum(j.job.plannedQty)}</td>
                       <td>

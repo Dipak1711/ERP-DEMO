@@ -1,4 +1,4 @@
-import { isConfidentialAllowed, maskText, searchable } from '../auth/access';
+import { isConfidentialAllowed, searchable } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { ClipboardCheck, Pencil, Printer, Plus } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
@@ -127,7 +127,7 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
     component: cur?.component ?? '',
     material: cur && isHardnessMaterial(cur.material) ? cur.material : '',
     grade: cur?.grade ?? '',
-    supplier: isConfidentialAllowed() ? cur?.supplier ?? '' : '',   // never load a masked party name into the form
+    supplier: isConfidentialAllowed() ? cur?.supplier ?? '' : '',   // a hidden party name is never loaded into the form
     inwardQty: cur ? String(cur.inwardQty) : '',
     inspectedQty: cur ? String(cur.inspectedQty) : '',
     cycleNo: cur?.cycleNo ?? '',
@@ -218,7 +218,7 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
       }
     >
       <div className="form-grid">
-        <Field label="Production Job (optional)" hint="Pick a job to fill component, material, supplier and qty automatically">
+        <Field label="Production Job (optional)" hint={isConfidentialAllowed() ? 'Pick a job to fill component, material, supplier and qty automatically' : 'Pick a job to fill component, material and qty automatically'}>
           <select value={f.jobNo} onChange={(e) => pickJob(e.target.value)} disabled={!!cur}>
             <option value="">— Not linked to a job —</option>
             {jobs.map((j) => (
@@ -261,13 +261,11 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
         <Field label="No. of Readings" hint={`Rows in the table below (paper sheet: ${DEFAULT_READINGS}, max ${MAX_READINGS})`}>
           <NumInput suffix="rows" min={1} value={count} onChange={setCount} />
         </Field>
-        <Field label="Supplier Name">
-          {isConfidentialAllowed() || !cur ? (
+        {isConfidentialAllowed() && (
+          <Field label="Supplier Name">
             <input className="input" value={f.supplier} onChange={(e) => set('supplier', e.target.value)} />
-          ) : (
-            <input className="input" value="••••••" readOnly disabled title="Confidential" />
-          )}
-        </Field>
+          </Field>
+        )}
         <Field label="Hardness Cycle No.">
           <input className="input" value={f.cycleNo} onChange={(e) => set('cycleNo', e.target.value)} />
         </Field>
@@ -405,7 +403,7 @@ export function sheetHtml(r: HardnessReport) {
     <tr><td colspan="4" class="title">${esc(F.title)}</td></tr>
     <tr><td class="lbl">Component Name :-</td><td class="val">${esc(r.component)}</td><td class="lbl">Inward Qty.</td><td class="val">${r.inwardQty || ''}</td></tr>
     <tr><td class="lbl">Material :-</td><td class="val">${esc(r.material)}${r.grade ? ' · ' + esc(r.grade) : ''}</td><td class="lbl">Inspected Qty. :-</td><td class="val">${r.inspectedQty}</td></tr>
-    <tr><td class="lbl">Date :</td><td class="val">${esc(ddmmyyyy(r.date))}</td><td class="lbl">Supplier Name :-</td><td class="val">${esc(maskText(r.supplier))}</td></tr>
+    <tr><td class="lbl">Date :</td><td class="val">${esc(ddmmyyyy(r.date))}</td>${isConfidentialAllowed() ? `<td class="lbl">Supplier Name :-</td><td class="val">${esc(r.supplier)}</td>` : '<td class="lbl"></td><td class="val"></td>'}</tr>
     <tr><td class="lbl">Hardness Cycle No.</td><td class="val">${esc(r.cycleNo)}</td><td class="lbl">Checked By :-</td><td class="val">${esc(r.checkedBy)}</td></tr>
     <tr><td class="lbl">Drawing No.</td><td class="val" colspan="3">${esc(r.drawingNo)}</td></tr>
   </table>
