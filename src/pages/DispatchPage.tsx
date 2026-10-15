@@ -1,8 +1,9 @@
+import * as api from '../db/api';
 import { Conf, isConfidentialAllowed, searchable, useAccess } from '../auth/access';
 import { useEffect, useState } from 'react';
 import { ClipboardList, Eye, FileText, PackageOpen, Plus, Printer, Truck, X } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
-import { createDispatch, fgAvailable, getProduct, isToday, markDispatched, round3 } from '../store/engine';
+import { fgAvailable, getProduct, isToday, round3 } from '../store/engine';
 import type { Dispatch } from '../store/types';
 import { Badge, Empty, Field, JobLink, Modal, PageHeader, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
@@ -180,21 +181,15 @@ export function NewDispatchModal({ fgId: initial, onClose }: { fgId: string; onC
   });
   const totalQty = rows.reduce((t, r) => t + (r.q > 0 ? r.q : 0), 0);
   const totalKg = round3(rows.reduce((t, r) => t + r.kg, 0));
-  const nextNo = `DSP-${new Date().getFullYear()}-${String(state.counters.dispatch + 1).padStart(4, '0')}`;
   const over = totalQty > avail;
   const invalid = !fg || !vehicle.trim() || totalQty === 0 || over || rows.some((r) => r.bad || !(r.q > 0));
 
   const setBag = (i: number, k: 'qty' | 'weight', v: string) => setBags((list) => list.map((b, j) => (j === i ? { ...b, [k]: v } : b)));
 
-  const submit = () => {
-    const ok = run(
-      (d, now) =>
-        createDispatch(
-          d,
-          { fgId, vehicleNo: vehicle, date, status: 'Dispatched', bags: rows.map((r) => ({ qty: r.q, weight: r.kg })) },
-          tsFor(date, now),
-        ),
-      { title: 'Goods dispatched', message: `${nextNo}: ${totalQty} PCS in ${bags.length} bag${bags.length === 1 ? '' : 's'} on ${vehicle.toUpperCase()}.` },
+  const submit = async () => {
+    const ok = await run(
+      (now) => api.createDispatch({ fgId, vehicleNo: vehicle, date, status: 'Dispatched', bags: rows.map((r) => ({ qty: r.q, weight: r.kg })) }, tsFor(date, now)),
+      { title: 'Goods dispatched', message: `${totalQty} PCS in ${bags.length} bag${bags.length === 1 ? '' : 's'} on ${vehicle.toUpperCase()}.` },
     );
     if (ok) onClose();
   };
@@ -308,8 +303,8 @@ function ShipModal({ d, onClose }: { d: Dispatch; onClose: () => void }) {
           <button
             className="btn btn-success"
             disabled={!vehicle.trim()}
-            onClick={() => {
-              if (run((s, ts) => markDispatched(s, d.dispatchNo, vehicle, ts), { title: 'Goods dispatched', message: `${d.dispatchNo}: ${d.qty} PCS left on ${vehicle.toUpperCase()}.` })) onClose();
+            onClick={async () => {
+              if (await run((ts) => api.markDispatched(d.dispatchNo, vehicle, ts), { title: 'Goods dispatched', message: `${d.dispatchNo}: ${d.qty} PCS left on ${vehicle.toUpperCase()}.` })) onClose();
             }}
           >
             <Truck size={15} /> Confirm Dispatch

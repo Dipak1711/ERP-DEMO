@@ -1,11 +1,20 @@
 # ForgeFlow ERP: Forging & Casting Client Demo
 
-A frontend-only, clickable demo of the full production flow:
+A web ERP for the full production flow, backed by **Supabase** (Postgres + Auth + Storage):
 
 **Raw Inventory → Cutting → Forging → Trimming → Heat Treatment → QC → Finished Goods → Dispatch**
 
 It tracks quantities stage by stage, records loss and rejection, and keeps one job number from raw material through to dispatch.
-There is no backend: all data lives in the browser's `localStorage`.
+Every business rule runs inside the database (`supabase/migrations`), and who may see party names, rates and invoices is enforced there too (Director, Plant Head and Accounts see them; everyone else gets them withheld).
+
+## Connect to Supabase (once)
+
+1. Create the project, then run the files in `supabase/migrations/` in order (`01_…` → `17_…`) in the SQL editor.
+2. Run `supabase/seed.sql` (masters), then — for a demo — `supabase/seed_demo.sql` (demo data + the six demo logins).
+3. Copy `.env.example` to `.env` and fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (Project Settings → API). Only the anon key — never the `service_role` key.
+4. `npm run dev` and sign in. Roles come from the `profiles` table; new users start as `viewer` until a Director sets their role.
+
+See `supabase/PLAN.md` for the design and `supabase/DEMO_GUIDE.md` for the demo walkthrough.
 
 ## Run
 
@@ -18,9 +27,7 @@ npm run test:engine  # headless checks of the quantity engine (runs the worked e
 
 ## Starting data
 
-The app starts **empty**: only the masters are loaded (material grades, customers, suppliers, machines, operators, inspectors). **There are no products** — the Director or Plant Head adds them in Product Master (the Add Product button) before the first job card can be made. There is no stock, no job, no dispatch and no die — everything is entered by the user.
-
-- A browser that still holds data from an older build is reset to this empty state automatically on first load.
+The database starts with the **masters only** (`supabase/seed.sql`: material grades, hardness ranges, customers, suppliers, machines, operators, inspectors). There are no products, stock or jobs — the Director or Plant Head adds products in Product Master, and everything else is entered through the app. `supabase/seed_demo.sql` loads an optional demo dataset.
 
 ## Raw material master
 
@@ -68,9 +75,12 @@ Every form uses only the fields the client already fills on the paper route card
 | Path | Purpose |
 |---|---|
 | `src/store/engine.ts` | All quantity rules (pure functions). Output = Input − Loss; the next stage's input = the previous stage's output; FIFO raw issue; QC balance; FG reserve and dispatch |
-| `src/store/seed.ts` | Master lists only (products, raw-material categories, customers, suppliers, machines, operators); no stock, no jobs |
-| `src/store/storage.ts` | localStorage persistence, one key per collection (`forgeflow.v1.*`) |
-| `src/store/StoreContext.tsx` | React state, toasts and the trace drawer |
+| `src/store/seed.ts` | Empty starting state used by `scripts/engine-test.ts` only |
+| `src/db/client.ts` | Supabase client (URL + anon key from `.env`) |
+| `src/db/load.ts` | Reads every screen's data from the database views and maps it to the app's types |
+| `src/db/api.ts` | One call per business action (inward, job card, stages, QC, dispatch, hardness, product, dies) → a database function |
+| `src/auth/*` | Supabase sign-in, role flags (`v_me`), `<Conf>` that hides confidential columns, login page |
+| `src/store/StoreContext.tsx` | Loaded data, `run()` for actions, toasts and the trace drawer |
 | `src/pages/*` | Dashboard, Raw Inventory, one page shared by the four process stages, QC, Finished Goods, Dispatch, Traceability, Ledger, Product Master |
 | `src/components/TraceDrawer.tsx` | Job traceability timeline, with a Next step button |
 | `src/components/workflow.ts`, `ActionHost.tsx` | Work out each job's next step and open its form from any screen |

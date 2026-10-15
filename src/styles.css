@@ -913,3 +913,12 @@ select.filter:focus-visible { outline: none; border-color: var(--primary); box-s
 .search input { padding-left: 42px; }
 .search svg { top: 16px; left: 15px; }
 select.filter { padding-right: 36px; }
+
+/* ---- Previous / Next stage buttons: same height and weight as the primary action beside them ---- */
+.page-actions .btn { height: 46px; padding: 0 20px; font-size: 14.5px; border-radius: 13px; }
+.step-nav { gap: 10px; }
+.step-link { height: 46px; padding: 0 14px 0 10px; gap: 10px; border-radius: 13px; border-color: var(--border-strong); }
+.step-link.next { padding: 0 12px 0 16px; }
+.step-link span { font-size: 14.5px; font-weight: 700; }
+.step-link small { font-size: 10px; }
+.step-link svg { width: 18px; height: 18px; }

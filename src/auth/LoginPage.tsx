@@ -21,17 +21,15 @@ export function LoginPage() {
     setError('');
   };
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     setBusy(true);
-    // short pause so the button state is visible; real sign-in will be a network call
-    setTimeout(() => {
-      if (!login(email, password)) {
-        setBusy(false);
-        setError('Invalid email or password.');
-      }
-    }, 250);
+    const problem = await login(email, password);
+    if (problem) {
+      setBusy(false);
+      setError(problem);
+    }
   };
 
   const cur = DEMO_USERS.find((u) => u.role === role)!;

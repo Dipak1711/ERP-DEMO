@@ -1,10 +1,10 @@
+import * as api from '../db/api';
 import { searchable } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { ClipboardCheck, Eye, PackageCheck, ShieldCheck } from 'lucide-react';
 import { HardnessRegister } from './HardnessPage';
 import { useStore } from '../store/StoreContext';
-import { completeQC, getJob, getProduct } from '../store/engine';
-import { INSPECTORS } from '../store/seed';
+import { getJob, getProduct } from '../store/engine';
 import { Badge, Empty, Field, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
 import { fmtNum, matches, todayISO } from '../components/format';
@@ -168,7 +168,7 @@ export function QCPage() {
 
 /** QC row of the route card: Inward Date, Received Qty, Rejection Qty, OK Qty, Checked By. */
 export function InspectModal({ jobNo, onClose }: { jobNo: string; onClose: () => void }) {
-  const { state, run } = useStore();
+  const { state, run, masters } = useStore();
   const rec = state.qc.find((r) => r.jobNo === jobNo && r.status === 'QC Pending');
   const job = getJob(state, jobNo);
   const p = getProduct(state, job.productId);
@@ -181,9 +181,9 @@ export function InspectModal({ jobNo, onClose }: { jobNo: string; onClose: () =>
   const a = rec.input - r;
   const bad = rejected === '' || !Number.isInteger(r) || r < 0 || r > rec.input;
 
-  const submit = () => {
-    const ok = run(
-      (d, now) => completeQC(d, jobNo, { accepted: a, rejected: r, inspector: checkedBy, checks: { dimensional: true, visual: true, hardness: true } }, tsFor(date, now)),
+  const submit = async () => {
+    const ok = await run(
+      (now) => api.completeQC(jobNo, { accepted: a, rejected: r, inspector: checkedBy, checks: { dimensional: true, visual: true, hardness: true } }, tsFor(date, now)),
       {
         title: 'QC saved',
         message: a > 0 ? `${jobNo}: ${a} OK PCS moved to Finished Goods${r ? `, ${r} PCS rejected` : ''}.` : `${jobNo}: all ${r} PCS rejected.`,
@@ -227,7 +227,7 @@ export function InspectModal({ jobNo, onClose }: { jobNo: string; onClose: () =>
         <Field label="Checked By">
           <select value={checkedBy} onChange={(e) => setCheckedBy(e.target.value)}>
             <option value="">Select…</option>
-            {INSPECTORS.map((i) => (
+            {masters.inspectors.map((i) => (
               <option key={i}>{i}</option>
             ))}
           </select>

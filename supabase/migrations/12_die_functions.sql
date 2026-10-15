@@ -203,12 +203,18 @@ end $$;
 create function save_die(p_kind die_kind, p_payload jsonb, p_code text default null) returns text
 language plpgsql security definer set search_path = public as $$
 declare
-  r      dies;
-  v_code text;
+  r         dies;
+  v_code    text;
+  v_payload jsonb := p_payload;
 begin
   perform _require_user();
-  perform _validate_die_payload(p_kind, p_payload);
-  r := _die_row(p_kind, p_payload);
+  -- A role that may not see the maker cannot send it when editing (the app never loads it): keep the stored one,
+  -- so the "maker is required" rule applies to NEW dies only for that role.
+  if p_code is not null and not can_see_confidential() then
+    v_payload := jsonb_set(v_payload, '{maker}', to_jsonb(coalesce((select maker from dies where code = p_code), '')));
+  end if;
+  perform _validate_die_payload(p_kind, v_payload);
+  r := _die_row(p_kind, v_payload);
   if not can_see_confidential() then r.cost := null; end if;   -- only privileged roles may enter a die cost
 
   if p_code is null then

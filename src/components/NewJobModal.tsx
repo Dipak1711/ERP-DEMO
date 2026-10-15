@@ -1,9 +1,9 @@
+import * as api from '../db/api';
 import { useMemo, useState } from 'react';
 import { Layers, PackagePlus, Scissors } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
-import { createJob, fifoLots, materialKey, parseMaterialKey } from '../store/engine';
+import { fifoLots, materialKey, parseMaterialKey } from '../store/engine';
 import type { ERPState } from '../store/types';
-import { MACHINES } from '../store/seed';
 import { findMaterial, pieceWeightKg } from '../store/materials';
 import { Field, Modal, NumInput } from './ui';
 import { fmtNum, todayISO } from './format';
@@ -80,7 +80,7 @@ export function NewJobModal({ open, onClose }: { open: boolean; onClose: () => v
 }
 
 function NewJobForm({ open, onClose, openAction }: { open: boolean; onClose: () => void; openAction: ReturnType<typeof useStore>['openAction'] }) {
-  const { state, run, openTrace } = useStore();
+  const { state, masters, run, openTrace } = useStore();
   const p0 = state.products[0];
   const [productId, setProductId] = useState(p0.id);
   const product = state.products.find((p) => p.id === productId)!;
@@ -103,7 +103,9 @@ function NewJobForm({ open, onClose, openAction }: { open: boolean; onClose: () 
     return [...m.entries()];
   }, [state.rawMaterials, state.products]);
 
-  const nextJobNo = `JOB-${new Date().getFullYear()}-${String(state.counters.job + 1).padStart(4, '0')}`;
+  // preview only — the database assigns the real number
+  const year = new Date().getFullYear();
+  const nextJobNo = `JOB-${year}-${String(1 + state.jobs.reduce((m, j) => (j.jobNo.startsWith(`JOB-${year}-`) ? Math.max(m, Number(j.jobNo.split('-')[2]) || 0) : m), 0)).padStart(4, '0')}`;
   const avail = materials.find(([k]) => k === matKey)?.[1] ?? 0;
   const mat = parseMaterialKey(matKey);
   const spec = findMaterial(mat.material);
@@ -122,17 +124,16 @@ function NewJobForm({ open, onClose, openAction }: { open: boolean; onClose: () 
     setWeightG(null);
   };
 
-  const submit = () => {
+  const submit = async () => {
     let created = '';
-    const ok = run(
-      (d, now) => {
-        created = createJob(
-          d,
+    const ok = await run(
+      async (now) => {
+        created = await api.createJob(
           { productId, plannedQty: plannedN, materialKey: matKey, cuttingLength: Number(cutLen), pieceWeightG: Number(weightShown) || undefined, dieNo, machineNo },
           tsFor(date, now),
         );
       },
-      { title: 'Job card created', message: `${nextJobNo}: ${plannedN} PCS of ${product.name} to cut. Enter the cutting result on the Cutting page.` },
+      { title: 'Job card created', message: `${plannedN} PCS of ${product.name} to cut. Enter the cutting result on the Cutting page.` },
     );
     if (ok) {
       onClose();
@@ -213,7 +214,7 @@ function NewJobForm({ open, onClose, openAction }: { open: boolean; onClose: () 
         <Field label="Machine No.">
           <select value={machineNo} onChange={(e) => setMachineNo(e.target.value)}>
             <option value="">Optional</option>
-            {[...MACHINES.cutting, ...MACHINES.forging, ...MACHINES.trimming].map((m) => (
+            {[...masters.machines.cutting, ...masters.machines.forging, ...masters.machines.trimming].map((m) => (
               <option key={m}>{m}</option>
             ))}
           </select>

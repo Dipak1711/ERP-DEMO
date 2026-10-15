@@ -1,3 +1,4 @@
+import * as api from '../db/api';
 import { isConfidentialAllowed, searchable } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { ClipboardCheck, Pencil, Printer, Plus } from 'lucide-react';
@@ -8,11 +9,9 @@ import {
   hardnessVerdict,
   readingResult,
   requiredText,
-  saveHardnessReport,
   getProduct,
   type HardnessVerdict,
 } from '../store/engine';
-import { INSPECTORS } from '../store/seed';
 import { HARDNESS_MATERIALS, hardnessGrades, hardnessSpecForRawMaterial, isHardnessMaterial } from '../store/hardnessSpecs';
 import type { HardnessReport, HardnessScale } from '../store/types';
 import { Badge, Empty, Field, Modal, NumInput, rowTone, Search, Tabs } from '../components/ui';
@@ -20,7 +19,7 @@ import { tsFor } from '../components/NewJobModal';
 import { printHtml } from '../components/printHtml';
 import { fmtDate, matches, todayISO } from '../components/format';
 
-const DEFAULT_READINGS = 10; // the paper sheet has 10 rows
+const DEFAULT_READINGS = 1; // a new report starts with one row; "Add row" adds more (the paper sheet has 10)
 const MAX_READINGS = 50;
 
 // ===================================================== register (QC tab) ===
@@ -119,7 +118,7 @@ export function HardnessRegister() {
 
 // ============================================================ the form ===
 export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: string; onClose: () => void }) {
-  const { state, run } = useStore();
+  const { state, run, masters } = useStore();
   const cur = id ? state.hardnessReports.find((r) => r.id === id) : undefined;
   const [f, setF] = useState(() => ({
     jobNo: cur?.jobNo ?? jobNo ?? '',
@@ -178,23 +177,32 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
     }));
   };
 
-  const submit = () => {
+  const submit = async () => {
     const readings = parsed;
-    const ok = run(
-      (d, now) => {
-        saveHardnessReport(
-          d,
+    const ok = await run(
+      (now) =>
+        api.saveHardnessReport(
           { jobNo: f.jobNo || undefined, date: f.date, component: f.component, material: f.material, grade: f.grade, supplier: isConfidentialAllowed() ? f.supplier : cur?.supplier ?? '', inwardQty: Number(f.inwardQty) || 0, inspectedQty: Number(f.inspectedQty), cycleNo: f.cycleNo, drawingNo: f.drawingNo, checkedBy: f.checkedBy, scale: f.scale, min: limits.min, max: limits.max, readings, remarks: f.remarks },
           tsFor(f.date, now),
           id,
-        );
-      },
+        ),
       { title: id ? 'Hardness report updated' : 'Hardness report saved', message: `${f.component} — ${verdict === 'Pass' ? 'all readings OK' : verdict === 'Fail' ? 'some readings are out of range' : 'readings incomplete'}.` },
     );
     if (ok) onClose();
   };
 
-  const focusNext = (i: number) => (document.querySelector(`[data-reading="${i + 1}"]`) as HTMLInputElement | null)?.focus();
+  const addRow = () => setCount(String(Math.min(MAX_READINGS, n + 1)));
+  const removeRow = () => {
+    setVals((a) => a.slice(0, Math.max(1, n - 1)));
+    setCount(String(Math.max(1, n - 1)));
+  };
+  const focusNext = (i: number) => {
+    const go = () => (document.querySelector(`[data-reading="${i + 1}"]`) as HTMLInputElement | null)?.focus();
+    if (i + 1 >= n && n < MAX_READINGS) {
+      addRow();
+      setTimeout(go, 0);
+    } else go();
+  };
   // only Aluminium / Brass / Copper jobs are reported on this form
   const jobs = state.jobs.filter((j) => j.currentStage !== 'scrapped' && hardnessSpecForRawMaterial(getProduct(state, j.productId).material));
 
@@ -258,9 +266,6 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
         <Field label="Inspected Qty" required>
           <NumInput value={f.inspectedQty} onChange={(v) => set('inspectedQty', v)} />
         </Field>
-        <Field label="No. of Readings" hint={`Rows in the table below (paper sheet: ${DEFAULT_READINGS}, max ${MAX_READINGS})`}>
-          <NumInput suffix="rows" min={1} value={count} onChange={setCount} />
-        </Field>
         {isConfidentialAllowed() && (
           <Field label="Supplier Name">
             <input className="input" value={f.supplier} onChange={(e) => set('supplier', e.target.value)} />
@@ -275,7 +280,7 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
         <Field label="Checked By" required>
           <input className="input" list="hir-checkers" value={f.checkedBy} onChange={(e) => set('checkedBy', e.target.value)} />
           <datalist id="hir-checkers">
-            {INSPECTORS.map((i) => (
+            {masters.inspectors.map((i) => (
               <option key={i} value={i} />
             ))}
           </datalist>
@@ -298,8 +303,8 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
 
       <div className="hir-readings-head">
         <h4>Hardness readings</h4>
-        <span className={`badge ${verdict === 'Pass' ? 'b-green' : verdict === 'Fail' ? 'b-red' : 'b-amber'}`}>{n ? verdict : 'Enter No. of Readings'}</span>
-        <span className="muted">Press Enter to jump to the next reading. Result is worked out from the required range.</span>
+        <span className={`badge ${verdict === 'Pass' ? 'b-green' : verdict === 'Fail' ? 'b-red' : 'b-amber'}`}>{verdict}</span>
+        <span className="muted">Press Enter to move to the next reading (a new row is added after the last one). Result is worked out from the required range.</span>
       </div>
       {n === 0 ? (
         <div className="muted" style={{ padding: '8px 2px' }}>
@@ -356,6 +361,19 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
           </table>
         </div>
       )}
+      <div style={{ display: 'flex', gap: 18, alignItems: 'center', margin: '10px 2px 0' }}>
+        <button type="button" className="btn-link" onClick={addRow} disabled={n >= MAX_READINGS}>
+          + Add row
+        </button>
+        {n > 1 && (
+          <button type="button" className="btn-link" style={{ color: 'var(--text-3)' }} onClick={removeRow}>
+            Remove last row
+          </button>
+        )}
+        <span className="muted" style={{ fontSize: 12.5 }}>
+          {n} {n === 1 ? 'reading' : 'readings'}{n >= MAX_READINGS ? ` (maximum ${MAX_READINGS})` : ''}
+        </span>
+      </div>
       <div className="form-grid" style={{ marginTop: 16 }}>
         <Field label="Remarks" full>
           <textarea value={f.remarks} onChange={(e) => set('remarks', e.target.value)} />

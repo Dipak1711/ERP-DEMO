@@ -1,8 +1,9 @@
+import * as api from '../db/api';
 import { Conf, searchable, isConfidentialAllowed, useAccess } from '../auth/access';
 import { useState } from 'react';
 import { ArrowRight, Eye, Package, Pencil, Plus, ScrollText, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
-import { jobSummary, PROCESS_STAGES, STAGE_LABEL, saveProduct } from '../store/engine';
+import { jobSummary, PROCESS_STAGES, STAGE_LABEL } from '../store/engine';
 import { MATERIAL_FAMILIES, MATERIAL_MASTER, findMaterial } from '../store/materials';
 import type { Product } from '../store/types';
 import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, Priority, rowTone, Search, Stepper, Tabs } from '../components/ui';
@@ -288,7 +289,7 @@ export function ProductModal({ id, onClose }: { id?: string; onClose: () => void
   const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
   const pickMaterial = (m: string) => setF((x) => ({ ...x, material: m, od: x.od || String(findMaterial(m)?.defaultOd ?? '') }));
   const valid = f.code.trim() && f.name.trim() && f.material && Number(f.od) > 0 && Number(f.cuttingLength) > 0 && Number(f.finishedWeight) > 0 && Number(f.htTemperature) > 0 && Number(f.htSoakMinutes) > 0;
-  const submit = () => {
+  const submit = async () => {
     const input: Omit<Product, 'id'> = {
       code: f.code,
       name: f.name,
@@ -304,7 +305,7 @@ export function ProductModal({ id, onClose }: { id?: string; onClose: () => void
       defaultCustomer: f.defaultCustomer,
       salesRate: Number(f.salesRate) > 0 ? Number(f.salesRate) : undefined,
     };
-    if (run((d) => void saveProduct(d, input, id), { title: id ? 'Product updated' : 'Product added', message: `${f.code.trim()} · ${f.name.trim()}` })) onClose();
+    if (await run(() => api.saveProduct(input, state.products, id), { title: id ? 'Product updated' : 'Product added', message: `${f.code.trim()} · ${f.name.trim()}` })) onClose();
   };
   return (
     <Modal

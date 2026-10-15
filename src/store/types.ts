@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // ForgeFlow ERP demo — data model
-// Every collection below is persisted to its own localStorage key (see storage.ts).
+// These shapes are filled from Supabase by src/db/load.ts; changes go through src/db/api.ts.
 // ---------------------------------------------------------------------------
 
 /** The four quantity-transforming process stages handled by the generic stage engine. */

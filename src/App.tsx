@@ -1,4 +1,5 @@
 import { RoleProvider, useAccess } from './auth/access';
+import { dbConfigured } from './db/client';
 import { LoginPage } from './auth/LoginPage';
 import { useCallback, useEffect, useState } from 'react';
 import { Layout } from './components/Layout';
@@ -72,10 +73,35 @@ function Page({ route, query, navigate }: { route: string; query: URLSearchParam
   }
 }
 
+function Splash({ text }: { text: string }) {
+  return (
+    <div className="login-page">
+      <div className="login-card" style={{ gridTemplateColumns: '1fr', maxWidth: 420, padding: 34, textAlign: 'center' }}>
+        <h2 style={{ margin: 0 }}>{text}</h2>
+      </div>
+    </div>
+  );
+}
+
+function SetupNeeded() {
+  return (
+    <div className="login-page">
+      <div className="login-card" style={{ gridTemplateColumns: '1fr', maxWidth: 520, padding: 34 }}>
+        <h2 style={{ margin: '0 0 8px' }}>Database not connected</h2>
+        <p className="muted" style={{ margin: 0 }}>
+          Put your Supabase project URL and anon key in the <b>.env</b> file (<b>VITE_SUPABASE_URL</b>, <b>VITE_SUPABASE_ANON_KEY</b>), then restart <b>npm run dev</b>.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /** Nothing of the ERP is mounted until someone has signed in; a role switch or logout remounts it, so no screen keeps data from the previous user. */
 function Shell() {
   const { route, query, hash, navigate } = useHashRoute();
-  const { user } = useAccess();
+  const { user, loading } = useAccess();
+  if (!dbConfigured) return <SetupNeeded />;
+  if (loading) return <Splash text="Checking your session…" />;
   if (!user) return <LoginPage />;
   return (
     <StoreProvider key={user.email}>

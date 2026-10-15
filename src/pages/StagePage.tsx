@@ -1,10 +1,10 @@
+import * as api from '../db/api';
 import { searchable, isConfidentialAllowed } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { CheckCircle2, Eye, Play, Plus, SlidersHorizontal, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
-import { completeStage, getJob, getProduct, parseMaterialKey, PROCESS_STAGES, STAGE_LABEL, stageRecords } from '../store/engine';
+import { getJob, getProduct, parseMaterialKey, PROCESS_STAGES, STAGE_LABEL, stageRecords } from '../store/engine';
 import type { ProcessStage, StageRecord } from '../store/types';
-import { OPERATORS } from '../store/seed';
 import { Badge, Empty, Field, FLOW_STEPS, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
 import { FifoPreview, tsFor } from '../components/NewJobModal';
 import { nextStep } from '../components/workflow';
@@ -232,7 +232,7 @@ function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
 // ---------------------------------------------------------------------------
 /** One row of the route card: Inward Date, Received Qty, Rejection Qty, OK Qty, Checked By. */
 export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; jobNo: string; onClose: () => void }) {
-  const { state, run } = useStore();
+  const { state, run, masters } = useStore();
   const rec = stageRecords(state, stage).find((r) => r.jobNo === jobNo && r.status !== 'Completed');
   const job = getJob(state, jobNo);
   const p = getProduct(state, job.productId);
@@ -258,12 +258,11 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
   const errTemp = stage === 'heatTreatment' && !(Number(temperature) > 0) ? 'Enter temperature' : null;
   const invalid = !!errIn || !!errRej || !!errTemp;
 
-  const save = () => {
+  const save = async () => {
     if (invalid) return;
-    const done = run(
-      (d, now) =>
-        completeStage(
-          d,
+    const done = await run(
+      (now) =>
+        api.completeStage(
           stage,
           jobNo,
           {
@@ -324,7 +323,7 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
         <Field label="Checked By">
           <select value={checkedBy} onChange={(e) => setCheckedBy(e.target.value)}>
             <option value="">Select…</option>
-            {OPERATORS.map((m) => (
+            {masters.operators.map((m) => (
               <option key={m}>{m}</option>
             ))}
           </select>

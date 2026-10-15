@@ -1,9 +1,9 @@
+import * as api from '../db/api';
 import { Conf, searchable, useAccess, isConfidentialAllowed } from '../auth/access';
 import { useMemo, useState } from 'react';
 import { ArrowDownToLine, Boxes, Layers, PackagePlus, Send } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
-import { addInward, lotAvailableWeight, lotStatus, materialKey } from '../store/engine';
-import { SUPPLIERS } from '../store/seed';
+import { lotAvailableWeight, lotStatus, materialKey } from '../store/engine';
 import { findMaterial, MATERIAL_FAMILIES, MATERIAL_MASTER, pieceWeightKg, STANDARD_OD_MM } from '../store/materials';
 import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
 import { fmtDate, fmtDateTime, fmtKg, fmtNum, matches, todayISO } from '../components/format';
@@ -286,7 +286,7 @@ export function RawInventoryPage() {
 }
 
 export function InwardModal({ preset, onClose }: { preset?: { material?: string; od?: number }; onClose: () => void }) {
-  const { run } = useStore();
+  const { run, masters } = useStore();
   const first = findMaterial(preset?.material ?? '') ?? MATERIAL_MASTER[0];
   const [material, setMaterial] = useState(first.material);
   const [od, setOd] = useState(String(preset?.od ?? first.defaultOd));
@@ -319,16 +319,12 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
     setWeightOverride(null);
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (
-      run(
-        (d, ts) =>
-          addInward(d, { material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: conf ? invoice : '', purchaseRate: conf && Number(rate) > 0 ? Number(rate) : undefined }, ts),
-        {
-          title: 'Raw material received',
-          message: `${qN} PCS (${wN} KG) of ${material} OD ${od} mm added to stock.`,
-        },
-      )
+      await run((ts) => api.addInward({ material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: conf ? invoice : '', purchaseRate: conf && Number(rate) > 0 ? Number(rate) : undefined }, ts), {
+        title: 'Raw material received',
+        message: `${qN} PCS (${wN} KG) of ${material} OD ${od} mm added to stock.`,
+      })
     )
       onClose();
   };
@@ -393,7 +389,7 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
           {conf ? (
             <select value={supplier} onChange={(e) => setSupplier(e.target.value)}>
               <option value="">Select supplier…</option>
-              {SUPPLIERS.map((m) => (
+              {masters.suppliers.map((m) => (
                 <option key={m}>{m}</option>
               ))}
             </select>

@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
-// DEMO sign-in accounts — one per role. They exist only so the app can be shown without a backend.
-// When Supabase Auth is connected, sign-in goes to Supabase and the role comes from profiles.role (see supabase/PLAN.md §10);
-// this file and the demo-credentials card on the login page are then deleted.
+// DEMO credentials shown on the login page (they only pre-fill the form). The accounts themselves live in Supabase Auth
+// (created by supabase/seed_demo.sql) and the role comes from profiles.role. Delete this file and the credentials card
+// on the login page when the demo is over.
 // ---------------------------------------------------------------------------
 import type { Role } from './access';
 
@@ -23,7 +23,3 @@ export const DEMO_USERS: DemoUser[] = [
   { role: 'viewer', email: 'viewer@forgeflow.local', password: 'View@12345', name: 'Viewer', tab: 'Viewer' },
 ];
 
-export const findDemoUser = (email: string, password: string) =>
-  DEMO_USERS.find((u) => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password);
-
-export const demoUserByEmail = (email: string) => DEMO_USERS.find((u) => u.email.toLowerCase() === email.toLowerCase());

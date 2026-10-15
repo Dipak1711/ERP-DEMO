@@ -148,7 +148,7 @@ export function RowMenu({ actions }: { actions: (MenuAction | false)[] }) {
   );
 }
 
-/** Down-scales to a small JPEG so many images fit in localStorage. */
+/** Down-scales to a small JPEG before it is uploaded to Storage. */
 function toDataUrl(file: File, max = 360): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith('image/')) return reject(new Error('Choose an image file (JPG, PNG, WebP).'));
@@ -233,16 +233,30 @@ function DimsInput({ label, value, onChange }: { label: string; value: Record<'l
 const dimsStr = (d: Dims) => ({ l: str(d.l), w: str(d.w), h: str(d.h) });
 const dimsNum = (d: Record<'l' | 'w' | 'h', string>): Dims => ({ l: num(d.l), w: num(d.w), h: num(d.h) });
 
-const Foot = ({ onClose, onSave, label, disabled }: { onClose: () => void; onSave: () => void; label: string; disabled?: boolean }) => (
-  <>
-    <button className="btn" onClick={onClose}>
-      Cancel
-    </button>
-    <button className="btn btn-primary" onClick={onSave} disabled={disabled}>
-      {label}
-    </button>
-  </>
-);
+const Foot = ({ onClose, onSave, label, disabled }: { onClose: () => void; onSave: () => void | Promise<unknown>; label: string; disabled?: boolean }) => {
+  const [busy, setBusy] = useState(false);
+  return (
+    <>
+      <button className="btn" onClick={onClose} disabled={busy}>
+        Cancel
+      </button>
+      <button
+        className="btn btn-primary"
+        disabled={disabled || busy}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            await onSave();
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? 'Saving…' : label}
+      </button>
+    </>
+  );
+};
 
 // -------------------------------------------------------------- Main die ---
 export function MainDieForm({ code, onClose }: { code?: string; onClose: () => void }) {
@@ -261,10 +275,10 @@ export function MainDieForm({ code, onClose }: { code?: string; onClose: () => v
   const [tried, setTried] = useState(false);
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }));
   const miss = (v: string) => (tried && !v.trim() ? 'Required' : null);
-  const submit = () => {
+  const submit = async () => {
     setTried(true);
     if (!f.name.trim() || !f.partCode.trim() || !f.createdOn) return;
-    if (saveMain(f, code)) onClose();
+    if (await saveMain(f, code)) onClose();
   };
   return (
     <Modal open title={cur ? `Edit ${cur.code}` : 'Add New Die'} subtitle="Main die = the component. Forging and trimming dies are added under it." icon={Hammer} onClose={onClose} footer={<Foot onClose={onClose} onSave={submit} label={cur ? 'Save changes' : 'Add Die'} />}>
@@ -463,7 +477,7 @@ export function DieForm({ kind, code, mainCode, onClose }: { kind: DieKind; code
       subtitle={existing ? `Only this ${kind} die changes — other dies of the component are untouched.` : 'A new, independent die record linked to the main die.'}
       icon={kind === 'forging' ? Hammer : Scissors}
       onClose={onClose}
-      footer={<Foot onClose={onClose} label={existing ? 'Save changes' : `Add ${KIND_LABEL[kind]} Die`} onSave={() => saveDie(kind, toInput(), code) && onClose()} />}
+      footer={<Foot onClose={onClose} label={existing ? 'Save changes' : `Add ${KIND_LABEL[kind]} Die`} onSave={async () => (await saveDie(kind, toInput(), code)) && onClose()} />}
     >
       <DieFields f={f} set={set} kind={kind} lockMain={!!existing || !!mainCode} existing={existing} />
     </Modal>
@@ -485,7 +499,7 @@ export function ReplaceForm({ kind, code, onClose }: { kind: DieKind; code: stri
       subtitle={`Creates a new ${kind} die for ${old.mainCode}. ${old.code} is kept for history; ${other} dies are not touched.`}
       icon={ArrowLeftRight}
       onClose={onClose}
-      footer={<Foot onClose={onClose} label="Create replacement die" onSave={() => replaceDie(kind, code, toInput(), oldStatus, reason) && onClose()} />}
+      footer={<Foot onClose={onClose} label="Create replacement die" onSave={async () => (await replaceDie(kind, code, toInput(), oldStatus, reason)) && onClose()} />}
     >
       <div className="replace-old">
         <div>
@@ -510,7 +524,7 @@ export function MaintenanceForm({ kind, code, onClose }: { kind: DieKind; code: 
   const [remarks, setRemarks] = useState('');
   const [status, setStatus] = useState<DieStatus>('Under Maintenance');
   return (
-    <Modal open title={`Maintenance — ${code}`} subtitle="Recorded against this die only." icon={Wrench} onClose={onClose} footer={<Foot onClose={onClose} label="Record maintenance" onSave={() => recordMaintenance(kind, code, { date, remarks, status }) && onClose()} />}>
+    <Modal open title={`Maintenance — ${code}`} subtitle="Recorded against this die only." icon={Wrench} onClose={onClose} footer={<Foot onClose={onClose} label="Record maintenance" onSave={async () => (await recordMaintenance(kind, code, { date, remarks, status })) && onClose()} />}>
       <div className="form-grid">
         <Field label="Maintenance Date" required>
           <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -536,7 +550,7 @@ export function IssueForm({ kind, code, onClose }: { kind: DieKind; code: string
   const [issuedTo, setTo] = useState('');
   const [remarks, setRemarks] = useState('');
   return (
-    <Modal open title={`Issue ${code} to production`} icon={Upload} onClose={onClose} footer={<Foot onClose={onClose} label="Issue die" onSave={() => issueDie(kind, code, { date, issuedTo, remarks }) && onClose()} />}>
+    <Modal open title={`Issue ${code} to production`} icon={Upload} onClose={onClose} footer={<Foot onClose={onClose} label="Issue die" onSave={async () => (await issueDie(kind, code, { date, issuedTo, remarks })) && onClose()} />}>
       <div className="form-grid">
         <Field label="Issue Date" required>
           <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -559,7 +573,7 @@ export function ReturnForm({ kind, code, onClose }: { kind: DieKind; code: strin
   const [remarks, setRemarks] = useState('');
   const [status, setStatus] = useState<DieStatus>('Available');
   return (
-    <Modal open title={`Return ${code} from production`} icon={Undo2} onClose={onClose} footer={<Foot onClose={onClose} label="Mark returned" onSave={() => returnDie(kind, code, { date, pieces: Number(pieces) || 0, remarks, status }) && onClose()} />}>
+    <Modal open title={`Return ${code} from production`} icon={Undo2} onClose={onClose} footer={<Foot onClose={onClose} label="Mark returned" onSave={async () => (await returnDie(kind, code, { date, pieces: Number(pieces) || 0, remarks, status })) && onClose()} />}>
       <div className="form-grid">
         <Field label="Return Date" required>
           <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />

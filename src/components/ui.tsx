@@ -29,7 +29,7 @@ export const FLOW_STEPS: { key: string; label: string; short: string; icon: Icon
   { key: 'forging', label: 'Forging', short: 'Forging', icon: Hammer, route: 'forging' },
   { key: 'trimming', label: 'Trimming', short: 'Trimming', icon: Crop, route: 'trimming' },
   { key: 'heatTreatment', label: 'Heat Treatment', short: 'Heat Treat.', icon: Flame, route: 'heat-treatment' },
-  { key: 'qc', label: 'QC', short: 'QC', icon: ShieldCheck, route: 'qc' },
+  { key: 'qc', label: 'Quality Control', short: 'Quality Control', icon: ShieldCheck, route: 'qc' },
   { key: 'finishedGoods', label: 'Finished Goods', short: 'Finished Goods', icon: PackageCheck, route: 'finished-goods' },
   { key: 'dispatched', label: 'Dispatch', short: 'Dispatch', icon: Truck, route: 'dispatch' },
 ];

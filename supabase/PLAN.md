@@ -203,3 +203,12 @@ In the localStorage demo the data still sits in the browser, so the demo's hidin
   director / plant_head / accounts and `••••••` / `NULL` for qc / operator / viewer; `customers` / `suppliers` 5 / 7 rows vs 0; `v_management_summary` only for director / plant head; `v_sales_by_customer` only for the three privileged roles;
   rate entry refused for qc / operator / viewer; `save_product` refused for accounts and below; masked users' edits leave maker / cost untouched; no party name in activity / ledger / history for anyone; inactive user and `anon` get nothing.
 * **Frontend** — an automated per-role render test was run once (every screen, form, drawer, printout and Excel export for all six roles: authorised roles saw the real values, qc / operator / viewer saw none). It used throw-away demo data, which has since been removed from the repo, so the script is gone too; re-create it when real test data exists.
+
+## 11. Connection status (the app now runs on Supabase)
+
+* **Sign-in:** Supabase Auth (`src/auth/access.tsx`); the role and the confidential / management flags come from the view `v_me`.
+* **Reading:** `src/db/load.ts` reads the masking views (`v_products`, `v_lots`, `v_jobs`, `v_finished_goods`, `v_dispatches`, `v_hardness_reports`, `v_main_dies`, `v_dies`) and the non-confidential tables; hidden columns arrive empty and the screens drop them.
+* **Writing:** `src/db/api.ts` — one database function per action (`add_inward`, `create_job`, `start_stage`, `complete_stage`, `complete_qc`, `create_dispatch`, `mark_dispatched`, `save_hardness_report`, `save_product`, `save_main_die`, `save_die`, `replace_die`, `record_maintenance`, `issue_die`, `return_die`). After each action the screen data is re-read.
+* **Pictures:** die photos upload to the private `die-images` bucket; the app shows short-lived signed links.
+* **Migration 17** (`17_fix_die_edit_for_hidden_roles.sql`) lets qc / operator / viewer edit an existing die without sending the maker (which they cannot see). Run it on projects created before it existed.
+* **Verified:** the app's real loaders and API wrappers were run against a copy of the database (all migrations + both seeds) for operator, qc, accounts and director — 20 end-to-end checks (visibility per role, full job flow inward → dispatch, QC and dispatch rules, hardness, product master, dies incl. replacement). The loaders were also run read-only against the live project for director, accounts and operator.
