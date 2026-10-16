@@ -235,3 +235,8 @@ export const saveSalesRecord = (kind: string, id: number | undefined, payload: R
   call<string>('save_sales_record', { p_kind: kind, p_id: id ?? null, p_payload: payload });
 /** Delete one Sales & Orders record (needs Write on its page). */
 export const deleteSalesRecord = (kind: string, id: number) => call<null>('delete_sales_record', { p_kind: kind, p_id: id });
+
+// ------------------------------------------------------------- units ---
+/** Add or change a unit of measure (Settings → Units; Director / Plant Head). factor = how many reference units (PCS / KG / mm / min) one holds. */
+export const saveUnit = (code: string, name: string, kind: string, factor: number, active: boolean) => call<string>('save_unit', { p_code: code, p_name: name, p_kind: kind, p_factor: factor, p_active: active });
+export const deleteUnit = (code: string) => call<null>('delete_unit', { p_code: code });

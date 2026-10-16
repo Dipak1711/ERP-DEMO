@@ -13,6 +13,7 @@ import { dbMessage } from '../db/client';
 import { loadDieData } from '../db/load';
 import * as api from '../db/api';
 import { emptyDieData } from './seed';
+import { closeForm, dieUiParent, dieUiToHash, hashToDieUi, openForm } from '../store/forms';
 import { KIND_LABEL, KIND_PREFIX, type Die, type DieData, type DieKind, type DieStatus, type Dims, type MainDie } from './types';
 
 // ------------------------------------------------------------------ input ---
@@ -65,6 +66,9 @@ interface DieStore {
   nextDieCode: (kind: DieKind) => string;
 }
 
+/** which page a die form needs Write access on */
+export const dieUiResource = (u: DieUI) => (u.kind === 'main-form' ? { key: 'die_master', label: 'Die Master' } : u.dieKind === 'forging' ? { key: 'forging_dies', label: 'Forging Die Master' } : { key: 'trimming_dies', label: 'Trimming Die Master' });
+
 const Ctx = createContext<DieStore | null>(null);
 
 const collKey = (k: DieKind) => (k === 'forging' ? 'forgingDies' : 'trimmingDies') as 'forgingDies' | 'trimmingDies';
@@ -77,7 +81,14 @@ export function DieProvider({ children }: { children: ReactNode }) {
   const { toast } = useStore();
   const { canWrite } = useAccess();
   const [data, setData] = useState<DieData>(emptyDieData);
-  const [ui, setUI] = useState<DieUI | null>(null);
+  // die forms are pages with their own address (see store/forms.ts); only the die viewer is still a pop-up
+  const [overlay, setOverlay] = useState<DieUI | null>(null);
+  const [hash, setHash] = useState(() => window.location.hash);
+  const hashUi = useMemo(() => {
+    const [route, q = ''] = hash.replace(/^#\/?/, '').split('?');
+    return hashToDieUi(route, new URLSearchParams(q));
+  }, [hash]);
+  const ui = overlay ?? hashUi;
 
   const reload = useCallback(async () => setData(await loadDieData()), []);
 
@@ -87,7 +98,10 @@ export function DieProvider({ children }: { children: ReactNode }) {
   }, [reload]);
 
   useEffect(() => {
-    const close = () => setUI(null);
+    const close = () => {
+      setOverlay(null);
+      setHash(window.location.hash);
+    };
     window.addEventListener('hashchange', close);
     return () => window.removeEventListener('hashchange', close);
   }, []);
@@ -147,13 +161,21 @@ export function DieProvider({ children }: { children: ReactNode }) {
     ui,
     openUI: (u) => {
       if (u && u.kind !== 'die-view') {
-        const res = u.kind === 'main-form' ? { key: 'die_master', label: 'Die Master' } : u.dieKind === 'forging' ? { key: 'forging_dies', label: 'Forging Die Master' } : { key: 'trimming_dies', label: 'Trimming Die Master' };
+        const res = dieUiResource(u);
         if (!canWrite(res.key)) {
           toast({ kind: 'error', title: 'View only', message: `You can view ${res.label} but not change it. Ask the Director or Plant Head for Write access.` });
           return;
         }
       }
-      setUI(u);
+      if (!u) {
+        if (hashUi) closeForm(dieUiParent(hashUi));
+        else setOverlay(null);
+        return;
+      }
+      const to = dieUiToHash(u);
+      setOverlay(null);
+      if (to) openForm(to);
+      else setOverlay(u);
     },
     saveMain,
     saveDie,
@@ -167,7 +189,7 @@ export function DieProvider({ children }: { children: ReactNode }) {
     nextDieCode: (k) => nextCode(KIND_PREFIX[k], data[collKey(k)].map((x) => x.code)),
   };
   // value identity changes with data, which is exactly when consumers need to re-render
-  return <Ctx.Provider value={useMemo(() => value, [data, ui])}>{children}</Ctx.Provider>; // eslint-disable-line react-hooks/exhaustive-deps
+  return <Ctx.Provider value={useMemo(() => value, [data, ui, hashUi])}>{children}</Ctx.Provider>; // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 export function useDies() {

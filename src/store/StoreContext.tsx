@@ -3,6 +3,7 @@ import { dbMessage } from '../db/client';
 import { loadERPState, loadMasters, type Masters } from '../db/load';
 import { useAccess } from '../auth/access';
 import type { ERPState, ProcessStage } from './types';
+import { actionParent, actionToHash, closeForm, hashToAction, openForm } from './forms';
 
 /** A shop-floor action that opens its form wherever the user is (page, dashboard, drawer, bell menu). */
 export type Action =
@@ -23,7 +24,7 @@ export interface Toast {
 }
 
 /** which page an action belongs to — the page whose Write access it needs */
-function actionPage(a: Action): { key: string; label: string } | null {
+export function actionPage(a: Action): { key: string; label: string } | null {
   switch (a.kind) {
     case 'newJob':
       return { key: 'cutting', label: 'Cutting' };
@@ -72,7 +73,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [loadError, setLoadError] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [traceJob, setTraceJob] = useState<string | null>(null);
-  const [action, setAction] = useState<Action | null>(null);
+  // a form is a page with its own address (see forms.ts); only the hardness sheet viewer is still a pop-up
+  const [overlay, setOverlay] = useState<Action | null>(null);
+  const [hash, setHash] = useState(() => window.location.hash);
+  const hashAction = useMemo(() => {
+    const [route, q = ''] = hash.replace(/^#\/?/, '').split('?');
+    return hashToAction(route, new URLSearchParams(q));
+  }, [hash]);
+  const action = overlay ?? hashAction;
   const seq = useRef(0);
 
   const fetchAll = useCallback(async () => {
@@ -89,8 +97,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Navigating to another page closes any open form or job drawer.
   useEffect(() => {
     const close = () => {
-      setAction(null);
+      setOverlay(null);
       setTraceJob(null);
+      setHash(window.location.hash);
     };
     window.addEventListener('hashchange', close);
     return () => window.removeEventListener('hashchange', close);
@@ -138,9 +147,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return;
         }
       }
-      setAction(a);
+      if (!a) {
+        if (hashAction) closeForm(actionParent(hashAction));
+        else setOverlay(null);
+        return;
+      }
+      const to = actionToHash(a);
+      if (to) openForm(to);
+      else setOverlay(a);
     },
-    [canWrite, toast],
+    [canWrite, toast, hashAction],
   );
 
   const value = useMemo(

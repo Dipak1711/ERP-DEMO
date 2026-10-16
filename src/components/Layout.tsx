@@ -4,6 +4,7 @@ import {
   BarChart3,
   Bell,
   Briefcase,
+  Ruler,
   ChevronDown,
   ClipboardList,
   Layers,
@@ -65,7 +66,7 @@ const SECTIONS: { id: string; title: string; icon: Icon; items: NavItem[] }[] = 
   { id: 'reports', title: 'Reports & Masters', icon: BarChart3, items: REPORT_NAV },
 ];
 
-const SETTINGS_SECTION = { id: 'settings', title: 'Settings', icon: Settings, items: [{ route: 'settings', label: 'Access Control', icon: KeyRound }] as NavItem[] };
+const SETTINGS_SECTION = { id: 'settings', title: 'Settings', icon: Settings, items: [{ route: 'settings', label: 'Access Control', icon: KeyRound }, { route: 'units', label: 'Units', icon: Ruler }] as NavItem[] };
 
 const readLS = (k: string) => {
   try {

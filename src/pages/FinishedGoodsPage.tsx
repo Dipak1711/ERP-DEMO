@@ -9,7 +9,7 @@ import { fmtDate, fmtKg, fmtNum, matches } from '../components/format';
 type Filter = 'stock' | 'dispatched' | 'all';
 
 export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void }) {
-  const { state, openTrace } = useStore();
+  const { state, openTrace, openAction } = useStore();
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
   const [productF, setProductF] = useState('all');
@@ -50,7 +50,7 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
         title="Finished Goods"
         flow="finishedGoods"
         actions={
-          <button className="btn btn-primary" onClick={() => navigate('dispatch?new=1')}>
+          <button className="btn btn-primary" onClick={() => openAction({ kind: 'dispatch', fgId: '' })}>
             <Truck size={16} /> New Dispatch
           </button>
         }

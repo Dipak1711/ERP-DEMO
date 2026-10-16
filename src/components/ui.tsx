@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import {
+  ArrowLeft,
   ArrowRight,
   ChevronDown,
   ChevronLeft,
@@ -19,6 +20,7 @@ import {
   type LucideProps,
 } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
+import { useUnits } from '../units/useUnits';
 import { fmtNum } from './format';
 import { useCountUp } from './motion';
 
@@ -442,6 +444,12 @@ export function Tabs<T extends string>({
 }
 
 // ---------------------------------------------------------------- Modal ---
+/**
+ * Create / edit forms are written as <Modal> (title, body, footer). Inside a PageFormCtx they render as a full page instead of a
+ * pop-up — same fields and buttons, but on their own address — so a form can grow without becoming cramped.
+ */
+export const PageFormCtx = createContext<{ eyebrow: string } | null>(null);
+
 export function Modal({
   open,
   title,
@@ -461,13 +469,34 @@ export function Modal({
   size?: 'lg';
   icon?: Icon;
 }) {
+  const pageForm = useContext(PageFormCtx);
   useEffect(() => {
-    if (!open) return;
+    if (!open || pageForm) return;
     const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [open, onClose]);
+  }, [open, onClose, pageForm]);
   if (!open) return null;
+  if (pageForm)
+    return (
+      <>
+        <PageHeader
+          eyebrow={pageForm.eyebrow}
+          title={title}
+          actions={
+            <button className="btn" onClick={onClose}>
+              <ArrowLeft size={15} /> Back
+            </button>
+          }
+        />
+        <div className="card">
+          <div className="card-body form-page">
+            {children}
+            {footer && <div className="form-actions">{footer}</div>}
+          </div>
+        </div>
+      </>
+    );
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={`modal ${size ?? ''}`} role="dialog" aria-modal="true" aria-label={title}>
@@ -510,6 +539,7 @@ export function Confirm({
   onClose: () => void;
 }) {
   return (
+    <PageFormCtx.Provider value={null}>
     <Modal
       open={open}
       title={title}
@@ -533,6 +563,7 @@ export function Confirm({
     >
       <div style={{ lineHeight: 1.55, color: 'var(--text-2)' }}>{message}</div>
     </Modal>
+    </PageFormCtx.Provider>
   );
 }
 
@@ -563,6 +594,13 @@ export function Field({
   );
 }
 
+const trimNum = (n: number) => String(Math.round(n * 1e6) / 1e6);
+
+/**
+ * A number box with its measuring unit on the right. `suffix` is the unit the VALUE is kept in (PCS, KG, g, mm, min …).
+ * When Settings → Units has switched on more units of that kind (BOX, TON, m, inch …) the unit turns into a picker: the person
+ * types in the unit they like, and `value` / `onChange` still speak the box's own unit — so no page needs to know about it.
+ */
 export function NumInput({
   value,
   onChange,
@@ -582,20 +620,67 @@ export function NumInput({
   step?: number | 'any';
   autoFocus?: boolean;
 }) {
+  const { find, optionsFor } = useUnits();
+  const own = find(suffix);
+  const opts = optionsFor(suffix);
+  const picker = !readOnly && !!own && opts.length > 1;
+  const [unit, setUnit] = useState(own?.code ?? suffix);
+  const ratio = (code: string) => (find(code)?.factor ?? 1) / (own?.factor ?? 1); // own units in one of `code`
+  const r = picker && unit !== own?.code ? ratio(unit) : 1;
+  const converting = r !== 1;
+  const [text, setText] = useState('');
+
+  // while converting, keep the typed text in step with a value changed from outside (auto-calculated weights, resets …)
+  useEffect(() => {
+    if (!converting) return;
+    const v = String(value);
+    if (v === '') {
+      if (text !== '') setText('');
+    } else if (Math.abs(Number(v) - Number(text) * r) > 1e-6 * Math.max(1, Math.abs(Number(v)))) setText(trimNum(Number(v) / r));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, r, converting]);
+
+  // changing the unit keeps the number on screen and re-reads it in the new unit (3 → 3 BOX)
+  const changeUnit = (code: string) => {
+    const next = code === own?.code ? 1 : ratio(code);
+    const shown = converting ? text : String(value);
+    setUnit(code);
+    setText(shown);
+    onChange?.(shown === '' ? '' : trimNum(Number(shown) * next));
+  };
+
   return (
-    <div className="input-suffix">
-      <input
-        className={`input num ${bad ? 'bad' : ''}`}
-        type="number"
-        inputMode="decimal"
-        min={min}
-        step={step}
-        value={value}
-        readOnly={readOnly}
-        autoFocus={autoFocus}
-        onChange={(e) => onChange?.(e.target.value)}
-      />
-      <span>{suffix}</span>
-    </div>
+    <>
+      <div className="input-suffix">
+        <input
+          className={`input num ${bad ? 'bad' : ''} ${picker ? 'has-unit' : ''}`}
+          type="number"
+          inputMode="decimal"
+          min={min}
+          step={converting ? 'any' : step}
+          value={converting ? text : value}
+          readOnly={readOnly}
+          autoFocus={autoFocus}
+          onChange={(e) => {
+            const t = e.target.value;
+            if (!converting) return onChange?.(t);
+            setText(t);
+            onChange?.(t === '' ? '' : trimNum(Number(t) * r));
+          }}
+        />
+        {picker ? (
+          <select className="unit-pick" value={unit} onChange={(e) => changeUnit(e.target.value)} aria-label="Unit">
+            {opts.map((u) => (
+              <option key={u.code} value={u.code}>
+                {u.code}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span>{suffix}</span>
+        )}
+      </div>
+      {converting && Number(value) > 0 && <div className="hint">= {trimNum(Number(value))} {own?.code}</div>}
+    </>
   );
 }

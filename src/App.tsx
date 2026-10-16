@@ -1,9 +1,14 @@
 import { ROUTE_RESOURCE, RoleProvider, useAccess } from './auth/access';
+import { actionPage, useStore } from './store/StoreContext';
+import { dieUiResource, useDies } from './dies/DieContext';
+import { formParent } from './store/forms';
 import { SALES_PAGES, SalesDashboard, SalesListPage } from './pages/SalesPages';
 import { dbConfigured } from './db/client';
 import { LoginPage } from './auth/LoginPage';
 import { AccessPage } from './pages/AccessPage';
+import { UnitsPage } from './pages/UnitsPage';
 import { NoAccess } from './pages/NoAccess';
+import { Empty, go } from './components/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Layout } from './components/Layout';
 import { Toasts } from './components/Toasts';
@@ -39,14 +44,44 @@ function useHashRoute() {
   return { route, query: new URLSearchParams(qs), hash, navigate };
 }
 
+/** A shop-floor form as a page (#/form/…): refused for roles without Write access, even by typing the address. */
+function FormRoute() {
+  const { action } = useStore();
+  const { canWrite } = useAccess();
+  if (!action || action.kind === 'hardnessView') return <NotAForm />;
+  const res = actionPage(action);
+  if (res && !canWrite(res.key)) return <NoAccess />;
+  return <ActionHost page />;
+}
+
+/** A die form as a page (#/dieform/…). */
+function DieFormRoute() {
+  const { ui } = useDies();
+  const { canWrite } = useAccess();
+  if (!ui || ui.kind === 'die-view') return <NotAForm />;
+  if (!canWrite(dieUiResource(ui).key)) return <NoAccess />;
+  return <DieHost page />;
+}
+
+function NotAForm() {
+  return (
+    <div className="card">
+      <Empty title="Nothing to show here" text="This form address is not complete." action={<button className="btn btn-primary" onClick={() => go('dashboard')}>Go to the dashboard</button>} />
+    </div>
+  );
+}
+
 function Page({ route, query, navigate }: { route: string; query: URLSearchParams; navigate: (r: string) => void }) {
   const { canRead, canManageAccess } = useAccess();
   // a page that is Hidden for this role cannot be opened, even by typing its address
+  if (route.startsWith('form/')) return <FormRoute />;
+  if (route.startsWith('dieform/')) return <DieFormRoute />;
   if (route === 'settings') return canManageAccess ? <AccessPage /> : <NoAccess />;
+  if (route === 'units') return canManageAccess ? <UnitsPage /> : <NoAccess />;
   const resource = ROUTE_RESOURCE[route] ?? 'dashboard';
   if (!canRead(resource)) return <NoAccess />;
   if (route === 'sales-dashboard') return <SalesDashboard navigate={navigate} />;
-  if (SALES_PAGES.some((p) => p.route === route)) return <SalesListPage route={route} />;
+  if (SALES_PAGES.some((p) => p.route === route)) return <SalesListPage route={route} query={query} />;
   switch (route) {
     case 'raw-inventory':
       return <RawInventoryPage />;
@@ -63,7 +98,7 @@ function Page({ route, query, navigate }: { route: string; query: URLSearchParam
     case 'finished-goods':
       return <FinishedGoodsPage navigate={navigate} />;
     case 'dispatch':
-      return <DispatchPage query={query} />;
+      return <DispatchPage />;
     case 'traceability':
       return <TraceabilityPage />;
     case 'ledger':
@@ -116,7 +151,7 @@ function Shell() {
   return (
     <StoreProvider key={user.email}>
       <DieProvider>
-        <Layout route={route}>
+        <Layout route={formParent(route, query) ?? route}>
           {/* key on full hash so pages reset their local filters/modals on navigation, and replay the arrival */}
           <div className="page-in" key={hash}>
             <Page route={route} query={query} navigate={navigate} />

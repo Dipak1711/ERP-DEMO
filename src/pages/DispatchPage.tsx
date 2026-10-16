@@ -1,6 +1,6 @@
 import * as api from '../db/api';
 import { Conf, canSee, searchable, useAccess, searchableCol } from '../auth/access';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ClipboardList, Eye, FileText, PackageOpen, Plus, Printer, Truck, X } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { fgAvailable, getProduct, isToday, round3 } from '../store/engine';
@@ -12,20 +12,13 @@ import { fmtDate, fmtKg, fmtNum, matches, todayISO } from '../components/format'
 
 type Filter = 'all' | 'Ready for Dispatch' | 'Dispatched' | 'today';
 
-export function DispatchPage({ query }: { query: URLSearchParams }) {
+export function DispatchPage() {
   const { state, openTrace, openAction } = useStore();
   const { can } = useAccess();
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
   const [custF, setCustF] = useState('all');
   const newDispatch = (fgId = '') => openAction({ kind: 'dispatch', fgId });
-  // deep links from Finished Goods: #/dispatch?fg=FG-… or ?new=1
-  useEffect(() => {
-    if (!query.get('fg') && !query.get('new')) return;
-    newDispatch(query.get('fg') ?? '');
-    // drop the one-shot query so a browser refresh doesn't reopen the form
-    window.history.replaceState(null, '', '#/dispatch');
-  }, []);
   const [shipping, setShipping] = useState<Dispatch | null>(null);
   const [viewing, setViewing] = useState<Dispatch | null>(null);
 

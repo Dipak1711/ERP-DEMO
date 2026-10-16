@@ -1,12 +1,13 @@
 import * as api from '../db/api';
 import { useMemo, useState } from 'react';
-import { Eye, Inbox, LayoutGrid, Pencil, Plus, Trash2 } from 'lucide-react';
-import { Conf, Write, canSee, searchable } from '../auth/access';
+import { ArrowLeft, Eye, Inbox, LayoutGrid, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Conf, Write, canSee, searchable, useAccess } from '../auth/access';
+import { NoAccess } from './NoAccess';
 import { useStore } from '../store/StoreContext';
 import { AnimatedNum } from '../components/motion';
 import { Badge, Confirm, Empty, Field, go, Kpi, Modal, NumInput, PageHeader, Search, type Icon, FilterMenu } from '../components/ui';
 import { fmtDate, fmtNum, matches, timeAgo, todayISO } from '../components/format';
-import { COL_LABEL, KIND_BY_ROUTE, SALES_KINDS, type ColKey, type FieldDef, type KindCfg, type SalesRecord } from '../sales/config';
+import { COL_LABEL, KIND_BY_ROUTE, SALES_KINDS, type ColKey, type FieldDef, type FieldKey, type KindCfg, type SalesRecord } from '../sales/config';
 import { useSalesRecords } from '../sales/useSales';
 import { dbMessage } from '../db/client';
 
@@ -60,13 +61,19 @@ function Cell({ r, c }: { r: SalesRecord; c: ColKey }) {
 }
 
 // ------------------------------------------------------------------ list ---
-export function SalesListPage({ route }: { route: string }) {
+/** One Sales & Orders page: the list, or — when the address says ?new=1 / ?edit=<id> — the full-page form. */
+export function SalesListPage({ route, query }: { route: string; query: URLSearchParams }) {
   const cfg = KIND_BY_ROUTE[route];
+  const editId = Number(query.get('edit')) || undefined;
+  if (query.get('new') === '1' || editId) return <SalesFormPage cfg={cfg} editId={editId} />;
+  return <SalesList cfg={cfg} />;
+}
+
+function SalesList({ cfg }: { cfg: KindCfg }) {
   const { rows, loading, error, reload } = useSalesRecords();
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('all');
   const [extra, setExtra] = useState<Record<string, string>>({});
-  const [editing, setEditing] = useState<SalesRecord | 'new' | null>(null);
   const [viewing, setViewing] = useState<SalesRecord | null>(null);
   const [deleting, setDeleting] = useState<SalesRecord | null>(null);
   const { toast } = useStore();
@@ -102,7 +109,7 @@ export function SalesListPage({ route }: { route: string }) {
   };
 
   const add = (
-    <button className="btn btn-primary" onClick={() => setEditing('new')}>
+    <button className="btn btn-primary" onClick={() => go(`${cfg.route}?new=1`)}>
       <Plus size={15} /> Add {cfg.singular}
     </button>
   );
@@ -152,7 +159,7 @@ export function SalesListPage({ route }: { route: string }) {
                               <Eye size={17} />
                             </button>
                             <Write res={cfg.resource}>
-                              <button className="icon-btn" title="Edit" aria-label={`Edit ${r.docNo}`} onClick={() => setEditing(r)}>
+                              <button className="icon-btn" title="Edit" aria-label={`Edit ${r.docNo}`} onClick={() => go(`${cfg.route}?edit=${r.id}`)}>
                                 <Pencil size={17} />
                               </button>
                               <button className="icon-btn danger" title="Delete" aria-label={`Delete ${r.docNo}`} onClick={() => setDeleting(r)}>
@@ -180,17 +187,6 @@ export function SalesListPage({ route }: { route: string }) {
         onConfirm={() => deleting && void remove(deleting)}
         onClose={() => setDeleting(null)}
       />
-      {editing && (
-        <SalesForm
-          cfg={cfg}
-          rec={editing === 'new' ? undefined : editing}
-          onClose={() => setEditing(null)}
-          onSaved={() => {
-            setEditing(null);
-            void reload();
-          }}
-        />
-      )}
     </>
   );
 }
@@ -258,7 +254,45 @@ function SalesView({ cfg, rec, onClose }: { cfg: KindCfg; rec: SalesRecord; onCl
 // ------------------------------------------------------------------ form ---
 const SNAKE: Record<string, string> = { docDate: 'doc_date', dueDate: 'due_date', refNo: 'ref_no', extRef: 'ext_ref' };
 
-function SalesForm({ cfg, rec, onClose, onSaved }: { cfg: KindCfg; rec?: SalesRecord; onClose: () => void; onSaved: () => void }) {
+/** Full-page Add / Edit form for one Sales & Orders record. */
+function SalesFormPage({ cfg, editId }: { cfg: KindCfg; editId?: number }) {
+  const { canWrite } = useAccess();
+  const { rows, loading, error } = useSalesRecords();
+  const back = () => go(cfg.route);
+  if (!canWrite(cfg.resource)) return <NoAccess />;
+  const rec = editId ? rows.find((r) => r.id === editId && r.kind === cfg.kind) : undefined;
+  const title = rec ? `Edit ${cfg.singular} — ${rec.docNo}` : editId ? `Edit ${cfg.singular}` : `Add ${cfg.singular}`;
+  return (
+    <>
+      <PageHeader
+        eyebrow="Sales & Orders"
+        title={title}
+        actions={
+          <button className="btn" onClick={back}>
+            <ArrowLeft size={15} /> Back to {cfg.label}
+          </button>
+        }
+      />
+      {editId && !rec ? (
+        <div className="card">
+          <Empty icon={cfg.icon} title={loading ? 'Loading…' : error ? 'Could not load' : 'Record not found'} text={error ?? (loading ? undefined : 'It may have been deleted.')} action={loading ? undefined : <button className="btn btn-primary" onClick={back}>Back to {cfg.label}</button>} />
+        </div>
+      ) : (
+        <SalesFormBody key={rec?.id ?? 'new'} cfg={cfg} rec={rec} onDone={back} />
+      )}
+    </>
+  );
+}
+
+/** The groups the form is laid out in; a field that belongs to none of them lands in "Other details", so new fields always show. */
+const FORM_SECTIONS: { label: string; keys: FieldKey[] }[] = [
+  { label: 'Customer', keys: ['party', 'contact', 'phone', 'email'] },
+  { label: 'Task', keys: ['title', 'assignee', 'priority'] },
+  { label: 'Item', keys: ['product', 'qty', 'rate'] },
+  { label: 'Reference & dates', keys: ['source', 'refNo', 'extRef', 'dueDate'] },
+];
+
+function SalesFormBody({ cfg, rec, onDone }: { cfg: KindCfg; rec?: SalesRecord; onDone: () => void }) {
   const { toast } = useStore();
   // fields the role may not see are not shown (and the database ignores them anyway)
   const fields = cfg.fields.filter((f) => (colGroup(f.key) === 'party_names' ? canSee('party_names') : colGroup(f.key) === 'sales_rates' ? canSee('sales_rates') : true));
@@ -279,7 +313,7 @@ function SalesForm({ cfg, rec, onClose, onSaved }: { cfg: KindCfg; rec?: SalesRe
       for (const f of fields) payload[SNAKE[f.key] ?? f.key] = (v[f.key] ?? '').trim();
       const no = await api.saveSalesRecord(cfg.kind, rec?.id, payload);
       toast({ kind: 'success', title: rec ? `${cfg.singular} updated` : `${cfg.singular} added`, message: no });
-      onSaved();
+      onDone();
     } catch (e) {
       toast({ kind: 'error', title: 'Action not allowed', message: dbMessage(e) });
       setBusy(false);
@@ -302,52 +336,69 @@ function SalesForm({ cfg, rec, onClose, onSaved }: { cfg: KindCfg; rec?: SalesRe
       );
     return <input className="input" value={v[f.key]} onChange={(e) => set(f.key, e.target.value)} placeholder={f.placeholder} />;
   };
+  const grid = (list: FieldDef[]) => (
+    <div className="form-grid three">
+      {list.map((f) => (
+        <Field key={f.key} label={f.label} required={f.required}>
+          {input(f)}
+        </Field>
+      ))}
+    </div>
+  );
+
+  const placed = new Set<string>(['remarks', ...FORM_SECTIONS.flatMap((s) => s.keys)]);
+  const other = fields.filter((f) => !placed.has(f.key));
+  const remarks = fields.find((f) => f.key === 'remarks');
 
   return (
-    <Modal
-      open
-      onClose={onClose}
-      size="lg"
-      icon={cfg.icon}
-      title={rec ? `Edit ${cfg.singular} — ${rec.docNo}` : `Add ${cfg.singular}`}
-      footer={
-        <>
-          <button className="btn" onClick={onClose}>
+    <div className="card">
+      <div className="card-body form-page">
+        <div className="section-label">Document</div>
+        <div className="form-grid three">
+          <Field label="Date">
+            <input className="input" type="date" value={v.docDate} onChange={(e) => set('docDate', e.target.value)} />
+          </Field>
+          <Field label="Status" required>
+            <select value={v.status} onChange={(e) => set('status', e.target.value)}>
+              {cfg.statuses.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </Field>
+        </div>
+        {FORM_SECTIONS.map((sec) => {
+          const list = fields.filter((f) => sec.keys.includes(f.key));
+          return list.length ? (
+            <div key={sec.label}>
+              <div className="section-label">{sec.label}</div>
+              {grid(list)}
+            </div>
+          ) : null;
+        })}
+        {other.length > 0 && (
+          <div>
+            <div className="section-label">Other details</div>
+            {grid(other)}
+          </div>
+        )}
+        {remarks && (
+          <div>
+            <div className="section-label">Remarks</div>
+            <Field label={remarks.label} full>
+              {input(remarks)}
+            </Field>
+          </div>
+        )}
+        <div className="form-actions">
+          <button className="btn" onClick={onDone}>
             Cancel
           </button>
           <button className="btn btn-primary" disabled={!valid || busy} onClick={submit}>
             {rec ? 'Save Changes' : `Add ${cfg.singular}`}
           </button>
-        </>
-      }
-    >
-      <div className="form-grid">
-        {fields
-          .filter((f) => f.key !== 'remarks')
-          .map((f) => (
-            <Field key={f.key} label={f.label} required={f.required}>
-              {input(f)}
-            </Field>
-          ))}
-        <Field label="Date">
-          <input className="input" type="date" value={v.docDate} onChange={(e) => set('docDate', e.target.value)} />
-        </Field>
-        <Field label="Status" required>
-          <select value={v.status} onChange={(e) => set('status', e.target.value)}>
-            {cfg.statuses.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-        </Field>
-        {fields
-          .filter((f) => f.key === 'remarks')
-          .map((f) => (
-            <Field key={f.key} label={f.label} full>
-              {input(f)}
-            </Field>
-          ))}
+        </div>
       </div>
-    </Modal>
+    </div>
   );
 }
 

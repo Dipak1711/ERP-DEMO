@@ -12,6 +12,7 @@
 // ---------------------------------------------------------------------------
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase, dbConfigured, dbMessage } from '../db/client';
+import { resetUnits } from '../units/useUnits';
 
 export type Role = 'director' | 'plant_head' | 'accounts' | 'qc' | 'operator' | 'viewer';
 
@@ -133,6 +134,7 @@ async function loadSession(): Promise<Session | null> {
 
 /** A new sign-in (or sign-out) always starts on the dashboard, never on the previous user's last page. */
 function goHome() {
+  resetUnits();
   try {
     window.location.hash = '/dashboard';
   } catch {
