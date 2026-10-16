@@ -5,7 +5,7 @@ import { ClipboardCheck, Eye, PackageCheck, ShieldCheck } from 'lucide-react';
 import { HardnessRegister } from './HardnessPage';
 import { useStore } from '../store/StoreContext';
 import { getJob, getProduct } from '../store/engine';
-import { Badge, Empty, Field, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
+import { Badge, Empty, Field, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, rowTone, Search, SummaryLine, Tabs, FilterMenu } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
 import { fmtNum, matches, todayISO } from '../components/format';
 
@@ -16,6 +16,7 @@ export function QCPage() {
   const [view, setView] = useState<'register' | 'hardness'>('register');
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
+  const [productF, setProductF] = useState('all');
 
   const recs = state.qc;
   const pending = recs.filter((r) => r.status === 'QC Pending');
@@ -31,12 +32,13 @@ export function QCPage() {
         .filter((r) =>
           filter === 'all' ? true : filter === 'QC Pending' ? r.status === 'QC Pending' : filter === 'inspected' ? r.status !== 'QC Pending' : r.rejected > 0,
         )
+        .filter((r) => productF === 'all' || getJob(state, r.jobNo).productId === productF)
         .filter((r) => {
           const job = getJob(state, r.jobNo);
           return matches(q, r.jobNo, getProduct(state, job.productId).name, searchable(job.customer), searchableCol(r.inspector, 'qc.inspector'), r.status);
         })
         .sort((a, b) => (a.status === 'QC Pending' ? -1 : 1) - (b.status === 'QC Pending' ? -1 : 1) || (b.inspectedAt ?? b.receivedAt).localeCompare(a.inspectedAt ?? a.receivedAt)),
-    [recs, filter, q, state],
+    [recs, filter, q, productF, state],
   );
 
   return (
@@ -76,17 +78,23 @@ export function QCPage() {
         {view === 'hardness' && <HardnessRegister />}
         {view === 'register' && (<>
         <div className="toolbar">
-          <Tabs
-            value={filter}
-            onChange={setFilter}
-            items={[
-              { value: 'all', label: 'All', count: recs.length, tone: 'blue' },
-              { value: 'QC Pending', label: 'Pending', count: pending.length, tone: 'amber' },
-              { value: 'inspected', label: 'Inspected', count: inspected.length, tone: 'green' },
-              { value: 'Rejections', label: 'With Rejections', count: withRej.length, tone: 'red' },
+          <Search value={q} onChange={setQ} placeholder="Search job, product, inspector…" />
+          <FilterMenu
+            groups={[
+              {
+                label: 'Status',
+                value: filter,
+                onChange: (v) => setFilter(v as Filter),
+                options: [
+                  { value: 'all', label: 'All', count: recs.length },
+                  { value: 'QC Pending', label: 'Pending', count: pending.length },
+                  { value: 'inspected', label: 'Inspected', count: inspected.length },
+                  { value: 'Rejections', label: 'With Rejections', count: withRej.length },
+                ],
+              },
+              { label: 'Product', value: productF, onChange: setProductF, options: [{ value: 'all', label: 'All products' }, ...state.products.map((p) => ({ value: p.id, label: p.name }))] },
             ]}
           />
-          <Search value={q} onChange={setQ} placeholder="Search job, product, inspector…" />
         </div>
         {rows.length === 0 ? (
           <Empty icon={ShieldCheck} title="Nothing to inspect" text="Jobs appear here automatically once Heat Treatment is completed." />

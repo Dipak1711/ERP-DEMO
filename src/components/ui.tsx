@@ -1,6 +1,7 @@
-import { useEffect, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import {
   ArrowRight,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Boxes,
@@ -12,6 +13,7 @@ import {
   Scissors,
   Search as SearchIcon,
   ShieldCheck,
+  SlidersHorizontal,
   Truck,
   X,
   type LucideProps,
@@ -55,6 +57,23 @@ const TONE: Record<string, string> = {
   Incomplete: 'b-amber',
   OK: 'b-green',
   'Not OK': 'b-red',
+  New: 'b-blue',
+  Contacted: 'b-amber',
+  Qualified: 'b-violet',
+  Converted: 'b-green',
+  Lost: 'b-red',
+  Open: 'b-blue',
+  Quoted: 'b-violet',
+  Closed: 'b-neutral',
+  Draft: 'b-neutral',
+  Sent: 'b-blue',
+  Accepted: 'b-green',
+  Expired: 'b-amber',
+  Received: 'b-blue',
+  Confirmed: 'b-violet',
+  'In Production': 'b-blue b-progress',
+  Cancelled: 'b-red',
+  Done: 'b-green',
 };
 export function Badge({ status }: { status: string }) {
   return <span className={`badge ${TONE[status] ?? 'b-neutral'}`}>{status}</span>;
@@ -300,6 +319,74 @@ export function Stepper({ index }: { index: number }) {
         <i key={s.key} className={index === 7 && i === 7 ? 'end' : i < index ? 'done' : i === index ? 'cur' : ''} />
       ))}
     </span>
+  );
+}
+
+// ---------------------------------------------------------- FilterMenu ---
+export interface FilterGroup {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  /** the FIRST option is the "all / no filter" choice */
+  options: { value: string; label: string; count?: number }[];
+}
+
+/** The one filter control used on every list: a "Filters" button that opens a dropdown with one select per filter. */
+export function FilterMenu({ groups }: { groups: FilterGroup[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  const shown = groups.filter((g) => g.options.length > 1);
+  if (shown.length === 0) return null;
+  const isOn = (g: FilterGroup) => g.value !== g.options[0].value;
+  const active = shown.filter(isOn).length;
+  return (
+    <div className="fmenu" ref={ref}>
+      <button className={`btn fmenu-btn ${active ? 'on' : ''}`} onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="true">
+        <SlidersHorizontal size={15} /> Filters
+        {active > 0 && <span className="fcnt">{active}</span>}
+        <ChevronDown size={14} className="fchev" />
+      </button>
+      {open && (
+        <div className="fmenu-pop" role="dialog" aria-label="Filters">
+          <div className="fmenu-head">
+            <b>Filters</b>
+            {active > 0 && (
+              <button className="btn-link" onClick={() => shown.forEach((g) => g.onChange(g.options[0].value))}>
+                Clear all
+              </button>
+            )}
+          </div>
+          <div className="fmenu-body">
+            {shown.map((g) => (
+              <div className="field" key={g.label}>
+                <label>{g.label}</label>
+                <select value={g.value} onChange={(e) => g.onChange(e.target.value)}>
+                  {g.options.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                      {o.count !== undefined ? ` (${o.count})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

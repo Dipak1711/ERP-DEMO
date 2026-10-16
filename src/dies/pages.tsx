@@ -1,7 +1,7 @@
 import { Conf, canSee, searchable, Write, colOk } from '../auth/access';
 import { useMemo, useState, type ReactNode } from 'react';
 import { AlertTriangle, ArrowLeftRight, ChevronRight, Download, FileText, Hammer, History, Layers, Pencil, Plus, Printer, Scissors, Undo2, Upload, Wrench, CheckCircle2, Eye } from 'lucide-react';
-import { Empty, Kpi, PageHeader, Search, Tabs } from '../components/ui';
+import { Empty, Kpi, PageHeader, Search, Tabs, FilterMenu } from '../components/ui';
 import { fmtDate, matches } from '../components/format';
 import { useDies } from './DieContext';
 import { DemoChip, DIE_ROW, DieBadge, HistoryList, KindChip, RowMenu, Thumb } from './components';
@@ -57,15 +57,6 @@ function SummaryCards() {
   );
 }
 
-const Select = ({ value, onChange, all, options }: { value: string; onChange: (v: string) => void; all: string; options: string[] }) => (
-  <select className="filter" value={value} onChange={(e) => onChange(e.target.value)} aria-label={all}>
-    <option value="">{all}</option>
-    {options.map((o) => (
-      <option key={o}>{o}</option>
-    ))}
-  </select>
-);
-
 function ClickRow({ onOpen, tone, children }: { onOpen: () => void; tone: string; children: ReactNode }) {
   return (
     <tr className={`row-click ${tone}`} tabIndex={0} onClick={onOpen} onKeyDown={(e) => e.key === 'Enter' && onOpen()}>
@@ -106,7 +97,6 @@ export function DieMasterPage() {
       <PageHeader
         eyebrow="Die Management"
         title="Die Master"
-        subtitle="Manage main dies and their associated forging and trimming dies."
         actions={
           <>
             <button className="btn" onClick={() => exportMainDies(rows.map((r) => r.m), data)}>
@@ -126,15 +116,14 @@ export function DieMasterPage() {
         </div>
         <div className="toolbar">
           <Search value={q} onChange={setQ} placeholder={canSee('party_names') ? 'Search die, part, customer, forging / trimming die code…' : 'Search die, part, forging / trimming die code…'} />
-          <Select value={metal} onChange={setMetal} all="All metals" options={METALS} />
-          <Select value={type} onChange={setType} all="Any die type" options={['forging', 'trimming']} />
-          {makers.length > 0 && <Select value={maker} onChange={setMaker} all="All die makers" options={makers} />}
-          <Select value={status} onChange={setStatus} all="All statuses" options={['Active', 'Inactive']} />
-          {filtered && (
-            <button className="btn btn-sm btn-ghost" onClick={() => (setQ(''), setMetal(''), setStatus(''), setType(''), setMaker(''))}>
-              Clear filters
-            </button>
-          )}
+          <FilterMenu
+            groups={[
+              { label: 'Metal', value: metal, onChange: setMetal, options: [{ value: '', label: 'All metals' }, ...METALS.map((m) => ({ value: m, label: m }))] },
+              { label: 'Die type', value: type, onChange: setType, options: [{ value: '', label: 'Any die type' }, { value: 'forging', label: 'Forging' }, { value: 'trimming', label: 'Trimming' }] },
+              ...(makers.length ? [{ label: 'Die maker', value: maker, onChange: setMaker, options: [{ value: '', label: 'All die makers' }, ...makers.map((m) => ({ value: m, label: m }))] }] : []),
+              { label: 'Status', value: status, onChange: setStatus, options: [{ value: '', label: 'All statuses' }, { value: 'Active', label: 'Active' }, { value: 'Inactive', label: 'Inactive' }] },
+            ]}
+          />
         </div>
         {rows.length === 0 ? (
           <Empty
@@ -225,7 +214,6 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
       <PageHeader
         eyebrow="Die Management"
         title={`${label} Die Master`}
-        subtitle={`Manage ${kind} dies.`}
         actions={
           <>
             <button className="btn" onClick={() => exportDies(kind, rows, data)}>
@@ -245,14 +233,13 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
         </div>
         <div className="toolbar">
           <Search value={q} onChange={setQ} placeholder={`Search ${kind} die, main die, component, part code${canSee('party_names') ? ', maker' : ''}…`} />
-          <Select value={metal} onChange={setMetal} all="All metals" options={METALS} />
-          {makers.length > 0 && <Select value={maker} onChange={setMaker} all="All die makers" options={makers} />}
-          <Select value={status} onChange={setStatus} all="All statuses" options={DIE_STATUSES} />
-          {filtered && (
-            <button className="btn btn-sm btn-ghost" onClick={() => (setQ(''), setMetal(''), setMaker(''), setStatus(''))}>
-              Clear filters
-            </button>
-          )}
+          <FilterMenu
+            groups={[
+              { label: 'Metal', value: metal, onChange: setMetal, options: [{ value: '', label: 'All metals' }, ...METALS.map((m) => ({ value: m, label: m }))] },
+              ...(makers.length ? [{ label: 'Die maker', value: maker, onChange: setMaker, options: [{ value: '', label: 'All die makers' }, ...makers.map((m) => ({ value: m, label: m }))] }] : []),
+              { label: 'Status', value: status, onChange: setStatus, options: [{ value: '', label: 'All statuses' }, ...DIE_STATUSES.map((s) => ({ value: s, label: s }))] },
+            ]}
+          />
         </div>
         {rows.length === 0 ? (
           <Empty
@@ -347,7 +334,7 @@ export function DieDetailsPage({ query }: { query: URLSearchParams }) {
     return (
       <>
         <Crumbs items={[{ label: 'Die Management' }, { label: 'Die Details / Die History' }]} />
-        <PageHeader eyebrow="Die Management" title="Die Details / Die History" subtitle="Choose a component to see all its forging and trimming dies." />
+        <PageHeader eyebrow="Die Management" title="Die Details / Die History" />
         {id && <div className="banner-bad mb">No main die with code “{id}”. Pick one below.</div>}
         <div className="card">
           <div className="toolbar" style={{ paddingTop: 18 }}>
@@ -556,7 +543,7 @@ function HistoryTab({ f, t, events }: { f: Die[]; t: Die[]; events: ReturnType<t
   return (
     <div className="card-body">
       <div className="toolbar" style={{ padding: '0 0 14px' }}>
-        <Select value={code} onChange={setCode} all="All dies of this component" options={codes} />
+        <FilterMenu groups={[{ label: 'Die', value: code, onChange: setCode, options: [{ value: '', label: 'All dies of this component' }, ...codes.map((c) => ({ value: c, label: c }))] }]} />
       </div>
       <div className="hist-cols">
         {(['forging', 'trimming'] as const).map((k) => (

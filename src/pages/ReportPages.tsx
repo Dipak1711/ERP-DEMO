@@ -6,7 +6,7 @@ import { useStore } from '../store/StoreContext';
 import { jobSummary, PROCESS_STAGES, STAGE_LABEL } from '../store/engine';
 import { MATERIAL_FAMILIES, MATERIAL_MASTER, findMaterial } from '../store/materials';
 import type { Product } from '../store/types';
-import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, Priority, rowTone, Search, Stepper, Tabs } from '../components/ui';
+import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, Priority, rowTone, Search, Stepper, FilterMenu } from '../components/ui';
 import { fmtDate, fmtDateTime, fmtNum, matches, plural } from '../components/format';
 
 // ------------------------------------------------------- Job Traceability ---
@@ -14,9 +14,13 @@ export function TraceabilityPage() {
   const { state, openTrace } = useStore();
   const [q, setQ] = useState('');
   const [f, setF] = useState<'all' | 'wip' | 'done'>('all');
+  const [productF, setProductF] = useState('all');
+  const [stageF, setStageF] = useState('all');
   const rows = state.jobs
     .map((j) => jobSummary(state, j.jobNo))
     .filter((s) => (f === 'all' ? true : f === 'wip' ? s.flowIndex >= 1 && s.flowIndex <= 6 : s.flowIndex === 7))
+    .filter((s) => productF === 'all' || s.product.id === productF)
+    .filter((s) => stageF === 'all' || s.job.currentStage === stageF)
     .filter((s) => matches(q, s.job.jobNo, s.product.name, searchable(s.job.customer), STAGE_LABEL[s.job.currentStage]))
     .reverse();
   const wip = state.jobs.filter((j) => !['dispatched', 'scrapped'].includes(j.currentStage)).length;
@@ -29,16 +33,23 @@ export function TraceabilityPage() {
       />
       <div className="card">
         <div className="toolbar">
-          <Tabs
-            value={f}
-            onChange={setF}
-            items={[
-              { value: 'all', label: 'All jobs', count: state.jobs.length, tone: 'blue' },
-              { value: 'wip', label: 'In production / FG', count: wip, tone: 'violet' },
-              { value: 'done', label: 'Dispatched', count: state.jobs.filter((j) => j.currentStage === 'dispatched').length, tone: 'teal' },
+          <Search value={q} onChange={setQ} placeholder={canSee('party_names') ? 'Search job, product, customer, stage…' : 'Search job, product, stage…'} />
+          <FilterMenu
+            groups={[
+              {
+                label: 'Status',
+                value: f,
+                onChange: (v) => setF(v as 'all' | 'wip' | 'done'),
+                options: [
+                  { value: 'all', label: 'All jobs', count: state.jobs.length },
+                  { value: 'wip', label: 'In production / FG', count: wip },
+                  { value: 'done', label: 'Dispatched', count: state.jobs.filter((j) => j.currentStage === 'dispatched').length },
+                ],
+              },
+              { label: 'Product', value: productF, onChange: setProductF, options: [{ value: 'all', label: 'All products' }, ...state.products.map((p) => ({ value: p.id, label: p.name }))] },
+              { label: 'Current stage', value: stageF, onChange: setStageF, options: [{ value: 'all', label: 'All stages' }, ...[...new Set(state.jobs.map((j) => j.currentStage))].map((s) => ({ value: s, label: STAGE_LABEL[s] ?? s }))] },
             ]}
           />
-          <Search value={q} onChange={setQ} placeholder={canSee('party_names') ? 'Search job, product, customer, stage…' : 'Search job, product, stage…'} />
         </div>
         {rows.length === 0 ? (
           <Empty icon={Waypoints} title="No jobs match" />
@@ -132,7 +143,15 @@ export function TraceabilityPage() {
 export function LedgerPage() {
   const { state } = useStore();
   const [q, setQ] = useState('');
-  const rows = state.movements.filter((m) => matches(q, m.jobNo, m.from, m.to, m.note));
+  const [fromF, setFromF] = useState('all');
+  const [toF, setToF] = useState('all');
+  const [lossF, setLossF] = useState('all');
+  const rows = state.movements
+    .filter((m) => fromF === 'all' || m.from === fromF)
+    .filter((m) => toF === 'all' || m.to === toF)
+    .filter((m) => lossF === 'all' || (lossF === 'loss' ? m.loss > 0 : m.loss === 0))
+    .filter((m) => matches(q, m.jobNo, m.from, m.to, m.note));
+  const distinct = (pick: (m: (typeof state.movements)[number]) => string) => [...new Set(state.movements.map(pick))].sort().map((v) => ({ value: v, label: v }));
   return (
     <>
       <PageHeader
@@ -142,6 +161,13 @@ export function LedgerPage() {
       <div className="card">
         <div className="toolbar">
           <Search value={q} onChange={setQ} placeholder="Search job, stage, lot, vehicle…" />
+          <FilterMenu
+            groups={[
+              { label: 'From', value: fromF, onChange: setFromF, options: [{ value: 'all', label: 'Any' }, ...distinct((m) => m.from)] },
+              { label: 'To', value: toF, onChange: setToF, options: [{ value: 'all', label: 'Any' }, ...distinct((m) => m.to)] },
+              { label: 'Loss', value: lossF, onChange: setLossF, options: [{ value: 'all', label: 'All movements' }, { value: 'loss', label: 'With loss' }, { value: 'none', label: 'No loss' }] },
+            ]}
+          />
           <span className="muted" style={{ marginLeft: 'auto', fontSize: 12.5 }}>
             {plural(rows.length, 'movement')}
           </span>

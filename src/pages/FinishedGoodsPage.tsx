@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { Eye, PackageCheck, Truck } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { fgAvailable, fgStatus, fgWeight, getJob, getProduct } from '../store/engine';
-import { Badge, Empty, JobLink, PageHeader, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
+import { Badge, Empty, JobLink, PageHeader, rowTone, Search, SummaryLine, FilterMenu } from '../components/ui';
 import { fmtDate, fmtKg, fmtNum, matches } from '../components/format';
 
 type Filter = 'stock' | 'dispatched' | 'all';
@@ -12,6 +12,7 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
   const { state, openTrace } = useStore();
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
+  const [productF, setProductF] = useState('all');
   const fgs = state.finishedGoods;
 
   const total = fgs.reduce((t, f) => t + f.qty, 0);
@@ -34,6 +35,7 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
 
   const rows = fgs
     .filter((f) => (filter === 'all' ? true : filter === 'stock' ? f.dispatchedQty < f.qty : f.dispatchedQty === f.qty))
+    .filter((f) => productF === 'all' || f.productId === productF)
     .filter((f) => {
       const job = getJob(state, f.jobNo);
       return matches(q, f.id, f.jobNo, getProduct(state, f.productId).name, searchable(job.customer), searchableCol(f.location, 'fg.location'));
@@ -103,16 +105,22 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
           </div>
         </div>
         <div className="toolbar">
-          <Tabs
-            value={filter}
-            onChange={setFilter}
-            items={[
-              { value: 'all', label: 'All', count: fgs.length, tone: 'blue' },
-              { value: 'stock', label: 'In Stock', count: inStock.length, tone: 'green' },
-              { value: 'dispatched', label: 'Fully Dispatched', count: fgs.length - inStock.length, tone: 'teal' },
+          <Search value={q} onChange={setQ} placeholder="Search lot, job, product…" />
+          <FilterMenu
+            groups={[
+              {
+                label: 'Stock',
+                value: filter,
+                onChange: (v) => setFilter(v as Filter),
+                options: [
+                  { value: 'all', label: 'All', count: fgs.length },
+                  { value: 'stock', label: 'In Stock', count: inStock.length },
+                  { value: 'dispatched', label: 'Fully Dispatched', count: fgs.length - inStock.length },
+                ],
+              },
+              { label: 'Product', value: productF, onChange: setProductF, options: [{ value: 'all', label: 'All products' }, ...state.products.filter((p) => fgs.some((f) => f.productId === p.id)).map((p) => ({ value: p.id, label: p.name }))] },
             ]}
           />
-          <Search value={q} onChange={setQ} placeholder="Search lot, job, product…" />
         </div>
         {rows.length === 0 ? (
           <Empty icon={PackageCheck} title="No finished goods in this view" text="Finished goods are created automatically when QC approves a batch." />

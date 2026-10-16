@@ -1,4 +1,5 @@
 import { ROUTE_RESOURCE, RoleProvider, useAccess } from './auth/access';
+import { SALES_PAGES, SalesDashboard, SalesListPage } from './pages/SalesPages';
 import { dbConfigured } from './db/client';
 import { LoginPage } from './auth/LoginPage';
 import { AccessPage } from './pages/AccessPage';
@@ -44,6 +45,8 @@ function Page({ route, query, navigate }: { route: string; query: URLSearchParam
   if (route === 'settings') return canManageAccess ? <AccessPage /> : <NoAccess />;
   const resource = ROUTE_RESOURCE[route] ?? 'dashboard';
   if (!canRead(resource)) return <NoAccess />;
+  if (route === 'sales-dashboard') return <SalesDashboard navigate={navigate} />;
+  if (SALES_PAGES.some((p) => p.route === route)) return <SalesListPage route={route} />;
   switch (route) {
     case 'raw-inventory':
       return <RawInventoryPage />;

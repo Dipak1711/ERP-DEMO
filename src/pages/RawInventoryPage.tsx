@@ -5,7 +5,7 @@ import { ArrowDownToLine, Boxes, Layers, PackagePlus, Send } from 'lucide-react'
 import { useStore } from '../store/StoreContext';
 import { lotAvailableWeight, lotStatus, materialKey } from '../store/engine';
 import { findMaterial, MATERIAL_FAMILIES, MATERIAL_MASTER, pieceWeightKg, STANDARD_OD_MM } from '../store/materials';
-import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
+import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, rowTone, Search, SummaryLine, Tabs, FilterMenu } from '../components/ui';
 import { fmtDate, fmtDateTime, fmtKg, fmtNum, matches, todayISO } from '../components/format';
 
 type View = 'stock' | 'inward' | 'issues';
@@ -15,6 +15,10 @@ export function RawInventoryPage() {
   const [view, setView] = useState<View>('stock');
   const [q, setQ] = useState('');
   const [matF, setMatF] = useState('');
+  const [statF, setStatF] = useState('');
+  const [inMatF, setInMatF] = useState('');
+  const [supF, setSupF] = useState('');
+  const [toF, setToF] = useState('');
   const lots = state.rawMaterials;
 
   const totalQty = lots.reduce((t, l) => t + l.availableQty, 0);
@@ -38,6 +42,7 @@ export function RawInventoryPage() {
   }, [lots]);
   const stockRows = lots
     .filter((l) => !matF || materialKey(l.material, l.od) === matF)
+    .filter((l) => !statF || lotStatus(l) === statF)
     .filter((l) => matches(q, l.id, l.material, l.materialType, searchable(l.supplier), searchableCol(l.heatNo, 'raw.heat_no'), `${l.od}`))
     .slice()
     .sort((a, b) => a.inwardDate.localeCompare(b.inwardDate) || a.id.localeCompare(b.id));
@@ -128,16 +133,21 @@ export function RawInventoryPage() {
             ]}
           />
           <Search value={q} onChange={setQ} placeholder={canSee('party_names') ? 'Search material, supplier, lot, heat no…' : 'Search material, lot, heat no…'} />
-          {view === 'stock' && (
-            <select className="filter" value={matF} onChange={(e) => setMatF(e.target.value)}>
-              <option value="">All materials</option>
-              {groups.map((g) => (
-                <option key={g.key} value={g.key}>
-                  {g.material} — OD {g.od}
-                </option>
-              ))}
-            </select>
-          )}
+          <FilterMenu
+            groups={
+              view === 'stock'
+                ? [
+                    { label: 'Material', value: matF, onChange: setMatF, options: [{ value: '', label: 'All materials' }, ...groups.map((g) => ({ value: g.key, label: `${g.material} — OD ${g.od}` }))] },
+                    { label: 'Status', value: statF, onChange: setStatF, options: [{ value: '', label: 'All' }, ...['Available', 'Low Stock', 'Consumed'].map((s) => ({ value: s, label: s, count: lots.filter((l) => lotStatus(l) === s).length }))] },
+                  ]
+                : view === 'inward'
+                  ? [
+                      { label: 'Material', value: inMatF, onChange: setInMatF, options: [{ value: '', label: 'All materials' }, ...[...new Set(state.rawInwards.map((i) => i.material))].sort().map((m) => ({ value: m, label: m }))] },
+                      ...(canSee('party_names') ? [{ label: 'Supplier', value: supF, onChange: setSupF, options: [{ value: '', label: 'All suppliers' }, ...[...new Set(state.rawInwards.map((i) => i.supplier).filter(Boolean))].sort().map((s) => ({ value: s, label: s }))] }] : []),
+                    ]
+                  : [{ label: 'Issued to', value: toF, onChange: setToF, options: [{ value: '', label: 'All stages' }, ...[...new Set(issues.map((m) => m.to))].sort().map((s) => ({ value: s, label: s }))] }]
+            }
+          />
         </div>
 
         {view === 'stock' &&
@@ -228,6 +238,7 @@ export function RawInventoryPage() {
               </thead>
               <tbody>
                 {state.rawInwards
+                  .filter((i) => (!inMatF || i.material === inMatF) && (!supF || i.supplier === supF))
                   .filter((i) => matches(q, i.lotId, i.material, searchable(i.supplier), searchable(i.invoiceNo, 'invoices')))
                   .map((i) => (
                     <tr key={i.id}>
@@ -272,6 +283,7 @@ export function RawInventoryPage() {
                 </thead>
                 <tbody>
                   {issues
+                    .filter((m) => !toF || m.to === toF)
                     .filter((m) => matches(q, m.jobNo, m.note))
                     .map((m) => (
                       <tr key={m.id}>

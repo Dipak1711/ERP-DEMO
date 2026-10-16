@@ -1,11 +1,11 @@
 import * as api from '../db/api';
 import { searchable, canSee, Write, Conf, searchableCol } from '../auth/access';
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Eye, Play, Plus, SlidersHorizontal, Waypoints } from 'lucide-react';
+import { CheckCircle2, Eye, Play, Plus, Waypoints } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import { getJob, getProduct, parseMaterialKey, PROCESS_STAGES, STAGE_LABEL, stageRecords } from '../store/engine';
 import type { ProcessStage, StageRecord } from '../store/types';
-import { Badge, Empty, Field, FLOW_STEPS, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
+import { Badge, Empty, Field, FLOW_STEPS, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, rowTone, Search, SummaryLine, FilterMenu } from '../components/ui';
 import { FifoPreview, tsFor } from '../components/NewJobModal';
 import { nextStep } from '../components/workflow';
 import { fmtNum, matches, todayISO } from '../components/format';
@@ -42,7 +42,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
   const recs = stageRecords(state, stage);
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
-  const [productF, setProductF] = useState('');
+  const [productF, setProductF] = useState('all');
 
   // started-but-not-finished records (older data) count as pending: the card has no separate step
   const pending = recs.filter((r) => r.status !== 'Completed');
@@ -58,7 +58,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
       .filter((r) => {
         const job = getJob(state, r.jobNo);
         const p = getProduct(state, job.productId);
-        return (!productF || p.id === productF) && matches(q, r.jobNo, p.name, searchable(job.customer), searchableCol(r.machine, 'stage.machine'), searchableCol(r.operator, 'stage.operator'));
+        return (productF === 'all' || p.id === productF) && matches(q, r.jobNo, p.name, searchable(job.customer), searchableCol(r.machine, 'stage.machine'), searchableCol(r.operator, 'stage.operator'));
       })
       .sort((a, b) => order[a.status] - order[b.status] || (b.completedAt ?? b.receivedAt).localeCompare(a.completedAt ?? a.receivedAt));
   }, [recs, filter, q, productF, state]);
@@ -99,27 +99,22 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
           )}
         </div>
         <div className="toolbar">
-          <Tabs
-            value={filter}
-            onChange={setFilter}
-            items={[
-              { value: 'all', label: 'All', count: recs.length, tone: 'blue' },
-              { value: 'Pending', label: 'Pending', count: pending.length, tone: 'amber' },
-              { value: 'Completed', label: 'Completed', count: done.length, tone: 'green' },
+          <Search value={q} onChange={setQ} placeholder={canSee('party_names') ? 'Search job, product, customer, machine…' : 'Search job, product, machine…'} />
+          <FilterMenu
+            groups={[
+              {
+                label: 'Status',
+                value: filter,
+                onChange: (v) => setFilter(v as Filter),
+                options: [
+                  { value: 'all', label: 'All', count: recs.length },
+                  { value: 'Pending', label: 'Pending', count: pending.length },
+                  { value: 'Completed', label: 'Completed', count: done.length },
+                ],
+              },
+              { label: 'Product', value: productF, onChange: setProductF, options: [{ value: 'all', label: 'All products' }, ...state.products.map((p) => ({ value: p.id, label: p.name }))] },
             ]}
           />
-          <Search value={q} onChange={setQ} placeholder={canSee('party_names') ? 'Search job, product, customer, machine…' : 'Search job, product, machine…'} />
-          <span className="filter-wrap">
-            <SlidersHorizontal size={15} />
-            <select className="filter" value={productF} onChange={(e) => setProductF(e.target.value)} aria-label="Filter by product">
-              <option value="">All products</option>
-              {state.products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </span>
         </div>
         {rows.length === 0 ? (
           <Empty

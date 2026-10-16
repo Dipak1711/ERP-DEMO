@@ -228,3 +228,10 @@ export const resetRoleAccess = (role: string) => call<void>('reset_role_access',
 
 export const addProtectedColumns = (keys: string[]) => call<number>('add_protected_columns', { p_keys: keys });
 export const removeProtectedColumn = (key: string) => call<void>('remove_protected_column', { p_key: key });
+
+// ------------------------------------------------------- sales & orders ---
+/** Create (id undefined) or edit one Sales & Orders record (supabase/migrations/21). Returns its number, e.g. QT-2026-0001. */
+export const saveSalesRecord = (kind: string, id: number | undefined, payload: Record<string, string>) =>
+  call<string>('save_sales_record', { p_kind: kind, p_id: id ?? null, p_payload: payload });
+/** Delete one Sales & Orders record (needs Write on its page). */
+export const deleteSalesRecord = (kind: string, id: number) => call<null>('delete_sales_record', { p_kind: kind, p_id: id });

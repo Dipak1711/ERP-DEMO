@@ -5,7 +5,7 @@ import { ClipboardList, Eye, FileText, PackageOpen, Plus, Printer, Truck, X } fr
 import { useStore } from '../store/StoreContext';
 import { fgAvailable, getProduct, isToday, round3 } from '../store/engine';
 import type { Dispatch } from '../store/types';
-import { Badge, Empty, Field, JobLink, Modal, PageHeader, rowTone, Search, SummaryLine, Tabs } from '../components/ui';
+import { Badge, Empty, Field, JobLink, Modal, PageHeader, rowTone, Search, SummaryLine, FilterMenu } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
 import { printRouteCard } from '../components/routeCard';
 import { fmtDate, fmtKg, fmtNum, matches, todayISO } from '../components/format';
@@ -17,6 +17,7 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
   const { can } = useAccess();
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
+  const [custF, setCustF] = useState('all');
   const newDispatch = (fgId = '') => openAction({ kind: 'dispatch', fgId });
   // deep links from Finished Goods: #/dispatch?fg=FG-… or ?new=1
   useEffect(() => {
@@ -32,10 +33,12 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
   const today = ds.filter((d) => d.status === 'Dispatched' && isToday(d.dispatchedAt));
   const ready = ds.filter((d) => d.status === 'Ready for Dispatch');
   const shipped = ds.filter((d) => d.status === 'Dispatched');
+  const customers = [...new Set(ds.map((d) => d.customer).filter(Boolean))].sort();
   const fgAvail = state.finishedGoods.reduce((t, f) => t + fgAvailable(f), 0);
 
   const rows = ds
     .filter((d) => (filter === 'all' ? true : filter === 'today' ? today.includes(d) : d.status === filter))
+    .filter((d) => custF === 'all' || d.customer === custF)
     .filter((d) => matches(q, d.dispatchNo, d.jobNo, searchable(d.customer), searchableCol(d.vehicleNo, 'dispatch.vehicle'), getProduct(state, d.productId).name, searchable(d.invoiceNo, 'invoices')));
 
   return (
@@ -68,17 +71,23 @@ export function DispatchPage({ query }: { query: URLSearchParams }) {
           )}
         </div>
         <div className="toolbar">
-          <Tabs
-            value={filter}
-            onChange={setFilter}
-            items={[
-              { value: 'all', label: 'All', count: ds.length, tone: 'blue' },
-              ...(ready.length ? [{ value: 'Ready for Dispatch' as const, label: 'Ready for Dispatch', count: ready.length, tone: 'violet' as const }] : []),
-              { value: 'Dispatched', label: 'Dispatched', count: shipped.length, tone: 'teal' },
-              { value: 'today', label: 'Today', count: today.length, tone: 'green' },
+          <Search value={q} onChange={setQ} placeholder={can('party_names') ? 'Search dispatch, job, customer, vehicle…' : 'Search dispatch, job, vehicle…'} />
+          <FilterMenu
+            groups={[
+              {
+                label: 'Status',
+                value: filter,
+                onChange: (v) => setFilter(v as Filter),
+                options: [
+                  { value: 'all', label: 'All', count: ds.length },
+                  ...(ready.length ? [{ value: 'Ready for Dispatch', label: 'Ready for Dispatch', count: ready.length }] : []),
+                  { value: 'Dispatched', label: 'Dispatched', count: shipped.length },
+                  { value: 'today', label: 'Today', count: today.length },
+                ],
+              },
+              ...(can('party_names') && customers.length ? [{ label: 'Customer', value: custF, onChange: setCustF, options: [{ value: 'all', label: 'All customers' }, ...customers.map((c) => ({ value: c, label: c }))] }] : []),
             ]}
           />
-          <Search value={q} onChange={setQ} placeholder={can('party_names') ? 'Search dispatch, job, customer, vehicle…' : 'Search dispatch, job, vehicle…'} />
         </div>
         {rows.length === 0 ? (
           <Empty icon={Truck} title="No dispatches in this view" text="Create a dispatch from available finished goods." action={<button className="btn btn-primary" onClick={() => newDispatch()}><Plus size={15} /> New Dispatch</button>} />

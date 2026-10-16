@@ -30,6 +30,13 @@ export type FieldGroup = 'party_names' | 'invoices' | 'purchase_rates' | 'sales_
 /** sidebar route → the page key used in the database */
 export const ROUTE_RESOURCE: Record<string, string> = {
   dashboard: 'dashboard',
+  'sales-dashboard': 'sales_dashboard',
+  'sales-quotation': 'sales_quotation',
+  leads: 'leads',
+  inquiry: 'inquiries',
+  'purchase-order': 'purchase_orders',
+  'final-order': 'final_orders',
+  'task-assignment': 'task_assignment',
   'raw-inventory': 'raw_inventory',
   cutting: 'cutting',
   forging: 'forging',
@@ -48,7 +55,7 @@ export const ROUTE_RESOURCE: Record<string, string> = {
 };
 
 /** pages where there is something to change (Read vs Write is meaningful) */
-export const WRITABLE_PAGES = new Set(['raw_inventory', 'cutting', 'forging', 'trimming', 'heat_treatment', 'qc', 'dispatch', 'die_master', 'forging_dies', 'trimming_dies', 'products']);
+export const WRITABLE_PAGES = new Set(['raw_inventory', 'cutting', 'forging', 'trimming', 'heat_treatment', 'qc', 'dispatch', 'die_master', 'forging_dies', 'trimming_dies', 'products', 'sales_quotation', 'leads', 'inquiries', 'purchase_orders', 'final_orders', 'task_assignment']);
 
 export interface Session {
   email: string;
@@ -124,6 +131,15 @@ async function loadSession(): Promise<Session | null> {
   return { ...base, role: me.role as Role, pages, fields: Object.fromEntries(ALL_FIELDS.map((g) => [g, !!me.can_see_confidential])), canManageAccess: !!me.can_see_management, legacy: true };
 }
 
+/** A new sign-in (or sign-out) always starts on the dashboard, never on the previous user's last page. */
+function goHome() {
+  try {
+    window.location.hash = '/dashboard';
+  } catch {
+    /* no window — nothing to reset */
+  }
+}
+
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Session | null>(null);
   const [loading, setLoading] = useState(dbConfigured);
@@ -177,6 +193,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         await supabase.auth.signOut();
         return 'Your account is not active. Ask the Director to enable it.';
       }
+      goHome();
       apply(s);
       return null;
     },
@@ -185,6 +202,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
+    goHome();
     apply(null);
   }, [apply]);
 

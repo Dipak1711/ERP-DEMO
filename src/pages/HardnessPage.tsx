@@ -14,7 +14,7 @@ import {
 } from '../store/engine';
 import { HARDNESS_MATERIALS, hardnessGrades, hardnessSpecForRawMaterial, isHardnessMaterial } from '../store/hardnessSpecs';
 import type { HardnessReport, HardnessScale } from '../store/types';
-import { Badge, Empty, Field, Modal, NumInput, rowTone, Search, Tabs } from '../components/ui';
+import { Badge, Empty, Field, Modal, NumInput, rowTone, Search, FilterMenu } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
 import { printHtml } from '../components/printHtml';
 import { fmtDate, matches, todayISO } from '../components/format';
@@ -27,31 +27,39 @@ export function HardnessRegister() {
   const { state, openAction } = useStore();
   const [q, setQ] = useState('');
   const [v, setV] = useState<'all' | HardnessVerdict>('all');
+  const [compF, setCompF] = useState('all');
   const all = state.hardnessReports;
   const count = (x: HardnessVerdict) => all.filter((r) => hardnessVerdict(r) === x).length;
   const rows = useMemo(
     () =>
       all
         .filter((r) => v === 'all' || hardnessVerdict(r) === v)
+        .filter((r) => compF === 'all' || r.component === compF)
         .filter((r) => matches(q, r.id, r.component, r.material, searchableCol(r.cycleNo, 'hardness.cycle_drawing'), r.jobNo, r.checkedBy, searchable(r.supplier)))
         .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
-    [all, q, v],
+    [all, q, v, compF],
   );
 
   return (
     <>
       <div className="toolbar">
-        <Tabs
-          value={v}
-          onChange={setV}
-          items={[
-            { value: 'all', label: 'All', count: all.length, tone: 'blue' },
-            { value: 'Pass', label: 'Pass', count: count('Pass'), tone: 'green' },
-            { value: 'Fail', label: 'Fail', count: count('Fail'), tone: 'red' },
-            { value: 'Incomplete', label: 'Incomplete', count: count('Incomplete'), tone: 'amber' },
+        <Search value={q} onChange={setQ} placeholder="Search report, component, cycle no., job…" />
+        <FilterMenu
+          groups={[
+            {
+              label: 'Result',
+              value: v,
+              onChange: (x) => setV(x as 'all' | HardnessVerdict),
+              options: [
+                { value: 'all', label: 'All', count: all.length },
+                { value: 'Pass', label: 'Pass', count: count('Pass') },
+                { value: 'Fail', label: 'Fail', count: count('Fail') },
+                { value: 'Incomplete', label: 'Incomplete', count: count('Incomplete') },
+              ],
+            },
+            { label: 'Component', value: compF, onChange: setCompF, options: [{ value: 'all', label: 'All components' }, ...[...new Set(all.map((r) => r.component))].sort().map((c) => ({ value: c, label: c }))] },
           ]}
         />
-        <Search value={q} onChange={setQ} placeholder="Search report, component, cycle no., job…" />
       </div>
       {rows.length === 0 ? (
         <Empty
