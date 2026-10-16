@@ -142,7 +142,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
                     <th>Checked By</th>
                   </Conf>
                   <th>Status</th>
-                  <th className="r">Action</th>
+                  <th className="act">Action</th>
                 </tr>
               </thead>
               <tbody>

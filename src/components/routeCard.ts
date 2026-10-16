@@ -26,6 +26,9 @@ body{margin:0;font-family:-apple-system,'Segoe UI','Noto Sans Gujarati','Shruti'
 .rc .sign td{height:46px;font-weight:700;vertical-align:top}.rc .skip{font-size:11px;color:#555;font-weight:600}
 `;
 
+/** the Process Route Card stylesheet — the Sales printouts reuse it so every printed form looks the same */
+export const ROUTE_CARD_CSS = CSS;
+
 export function routeCardHtml(s: ERPState, jobNo: string) {
   const job = getJob(s, jobNo);
   const p = getProduct(s, job.productId);

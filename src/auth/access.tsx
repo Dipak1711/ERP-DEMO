@@ -36,6 +36,7 @@ export const ROUTE_RESOURCE: Record<string, string> = {
   leads: 'leads',
   inquiry: 'inquiries',
   'purchase-order': 'purchase_orders',
+  'sales-order': 'sales_orders',
   'final-order': 'final_orders',
   'task-assignment': 'task_assignment',
   'raw-inventory': 'raw_inventory',
@@ -56,7 +57,7 @@ export const ROUTE_RESOURCE: Record<string, string> = {
 };
 
 /** pages where there is something to change (Read vs Write is meaningful) */
-export const WRITABLE_PAGES = new Set(['raw_inventory', 'cutting', 'forging', 'trimming', 'heat_treatment', 'qc', 'dispatch', 'die_master', 'forging_dies', 'trimming_dies', 'products', 'sales_quotation', 'leads', 'inquiries', 'purchase_orders', 'final_orders', 'task_assignment']);
+export const WRITABLE_PAGES = new Set(['raw_inventory', 'cutting', 'forging', 'trimming', 'heat_treatment', 'qc', 'dispatch', 'die_master', 'forging_dies', 'trimming_dies', 'products', 'sales_quotation', 'leads', 'inquiries', 'purchase_orders', 'sales_orders', 'final_orders', 'task_assignment']);
 
 export interface Session {
   email: string;

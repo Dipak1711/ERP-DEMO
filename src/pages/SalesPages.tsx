@@ -1,6 +1,6 @@
 import * as api from '../db/api';
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Eye, Inbox, LayoutGrid, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Eye, Inbox, LayoutGrid, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
 import { Conf, Write, canSee, searchable, useAccess } from '../auth/access';
 import { NoAccess } from './NoAccess';
 import { useStore } from '../store/StoreContext';
@@ -9,6 +9,7 @@ import { Badge, Confirm, Empty, Field, go, Kpi, Modal, NumInput, PageHeader, Sea
 import { fmtDate, fmtNum, matches, timeAgo, todayISO } from '../components/format';
 import { COL_LABEL, KIND_BY_ROUTE, SALES_KINDS, type ColKey, type FieldDef, type FieldKey, type KindCfg, type SalesRecord } from '../sales/config';
 import { useSalesRecords } from '../sales/useSales';
+import { printSalesRecord } from '../sales/print';
 import { dbMessage } from '../db/client';
 
 export interface SalesPageDef {
@@ -142,7 +143,7 @@ function SalesList({ cfg }: { cfg: KindCfg }) {
                           <th className={NUM_COLS.includes(c) ? 'r' : undefined}>{c === 'party' && cfg.kind === 'lead' ? 'Company / Name' : COL_LABEL[c]}</th>
                         </Conf>
                       ))}
-                      <th className="r">Actions</th>
+                      <th className="act">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -158,6 +159,11 @@ function SalesList({ cfg }: { cfg: KindCfg }) {
                             <button className="icon-btn" title="View" aria-label={`View ${r.docNo}`} onClick={() => setViewing(r)}>
                               <Eye size={17} />
                             </button>
+                            {cfg.printable && (
+                              <button className="icon-btn" title="Print" aria-label={`Print ${r.docNo}`} onClick={() => printSalesRecord(r)}>
+                                <Printer size={17} />
+                              </button>
+                            )}
                             <Write res={cfg.resource}>
                               <button className="icon-btn" title="Edit" aria-label={`Edit ${r.docNo}`} onClick={() => go(`${cfg.route}?edit=${r.id}`)}>
                                 <Pencil size={17} />
@@ -210,9 +216,16 @@ function SalesView({ cfg, rec, onClose }: { cfg: KindCfg; rec: SalesRecord; onCl
       icon={cfg.icon}
       title={`${cfg.singular} — ${rec.docNo}`}
       footer={
-        <button className="btn" onClick={onClose}>
-          Close
-        </button>
+        <>
+          <button className="btn" onClick={onClose}>
+            Close
+          </button>
+          {cfg.printable && (
+            <button className="btn btn-primary" onClick={() => printSalesRecord(rec)}>
+              <Printer size={15} /> Print
+            </button>
+          )}
+        </>
       }
     >
       <div className="kv-grid">
@@ -403,7 +416,7 @@ function SalesFormBody({ cfg, rec, onDone }: { cfg: KindCfg; rec?: SalesRecord; 
 }
 
 // ------------------------------------------------------------- dashboard ---
-const FLOW_ORDER = ['leads', 'inquiry', 'sales-quotation', 'purchase-order', 'final-order', 'task-assignment'];
+const FLOW_ORDER = ['leads', 'inquiry', 'sales-quotation', 'purchase-order', 'sales-order', 'final-order', 'task-assignment'];
 
 export function SalesDashboard({ navigate }: { navigate: (r: string) => void }) {
   const { rows, loading, error } = useSalesRecords();

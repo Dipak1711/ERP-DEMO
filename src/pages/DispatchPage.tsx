@@ -100,7 +100,7 @@ export function DispatchPage() {
                   </Conf>
                   <th>Date</th>
                   <th>Status</th>
-                  <th className="r">Action</th>
+                  <th className="act">Action</th>
                 </tr>
               </thead>
               <tbody>

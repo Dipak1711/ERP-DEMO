@@ -139,7 +139,7 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
                   <th className="r">Dispatched</th>
                   <th className="r">Available</th>
                   <th>Status</th>
-                  <th className="r">Action</th>
+                  <th className="act">Action</th>
                 </tr>
               </thead>
               <tbody>

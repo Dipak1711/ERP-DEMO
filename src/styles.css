@@ -994,7 +994,7 @@ select.filter { padding-right: 36px; }
 
 /* icon-only row actions (view / edit / delete) */
 .icon-actions { display: inline-flex; flex-wrap: nowrap; gap: 2px; align-items: center; justify-content: flex-end; white-space: nowrap; }
-.tbl td.nowrap:has(> .icon-actions) { min-width: 128px; }
+.tbl td.nowrap:has(> .icon-actions) { min-width: 168px; }
 .icon-btn.danger:hover { background: var(--crit-bg); color: var(--crit-ink); }
 
 /* quantity box with a unit picker (Settings → Units) */
@@ -1028,3 +1028,9 @@ select.filter { padding-right: 36px; }
 .form-page .section-label:first-child { margin-top: 0; }
 .form-page textarea { min-height: 110px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--border); }
+
+/* the Action(s) column: heading and icons share one centre line */
+.tbl th.act { text-align: center; }
+.tbl:has(th.act) td:last-child { text-align: center; }
+.tbl:has(th.act) td:last-child .icon-actions, .tbl:has(th.act) td:last-child .row-actions { justify-content: center; }
+.tbl:has(th.act) td:last-child > .icon-btn { margin-inline: auto; }

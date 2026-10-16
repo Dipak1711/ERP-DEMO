@@ -145,7 +145,7 @@ export function DieMasterPage() {
                   <th className="c">Forging Dies</th>
                   <th className="c">Trimming Dies</th>
                   <th>Status</th>
-                  <th className="r">Actions</th>
+                  <th className="act">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -265,7 +265,7 @@ export function DieRegisterPage({ kind }: { kind: DieKind }) {
                   </Conf>
                   <th>Images</th>
                   <th>Status</th>
-                  <th className="r">Actions</th>
+                  <th className="act">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -489,7 +489,7 @@ function DieList({ kind, dies, mainCode }: { kind: DieKind; dies: Die[]; mainCod
                 <th>Size (top)</th>
                 <th>Images</th>
                 <th>Status</th>
-                <th className="r">Actions</th>
+                <th className="act">Actions</th>
               </tr>
             </thead>
             <tbody>

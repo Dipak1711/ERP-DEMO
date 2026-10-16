@@ -1,7 +1,7 @@
-import { ClipboardCheck, FileText, Inbox, ListChecks, ReceiptText, UserPlus } from 'lucide-react';
+import { ClipboardCheck, FileText, Inbox, ListChecks, ReceiptText, ShoppingCart, UserPlus } from 'lucide-react';
 import type { Icon } from '../components/ui';
 
-export type SalesKind = 'lead' | 'inquiry' | 'quotation' | 'purchase_order' | 'final_order' | 'task';
+export type SalesKind = 'lead' | 'inquiry' | 'quotation' | 'purchase_order' | 'sales_order' | 'final_order' | 'task';
 
 /** One row of v_sales_records (party / rate columns are null when the role may not see them). */
 export interface SalesRecord {
@@ -51,6 +51,8 @@ export interface KindCfg {
   statuses: string[];
   /** statuses that count as "still open" on the dashboard */
   openStatuses: string[];
+  /** has a printout (Lead and Task Assignment are internal, so they have none) */
+  printable: boolean;
   fields: FieldDef[];
   cols: ColKey[];
 }
@@ -74,6 +76,7 @@ export const SALES_KINDS: KindCfg[] = [
     icon: FileText,
     statuses: ['Draft', 'Sent', 'Accepted', 'Rejected', 'Expired'],
     openStatuses: ['Draft', 'Sent'],
+    printable: true,
     fields: [party(), { key: 'refNo', label: 'Inquiry no.', placeholder: 'e.g. INQ-2026-0001' }, product(true), qty, rate, { key: 'dueDate', label: 'Valid until' }, remarks],
     cols: ['docNo', 'docDate', 'party', 'product', 'qty', 'rate', 'amount', 'dueDate', 'status'],
   },
@@ -86,6 +89,7 @@ export const SALES_KINDS: KindCfg[] = [
     icon: UserPlus,
     statuses: ['New', 'Contacted', 'Qualified', 'Lost', 'Converted'],
     openStatuses: ['New', 'Contacted', 'Qualified'],
+    printable: false,
     fields: [
       party('Company / Name'),
       { key: 'contact', label: 'Contact person' },
@@ -106,6 +110,7 @@ export const SALES_KINDS: KindCfg[] = [
     icon: Inbox,
     statuses: ['Open', 'Quoted', 'Closed', 'Lost'],
     openStatuses: ['Open'],
+    printable: true,
     fields: [party(), { key: 'contact', label: 'Contact person' }, { key: 'phone', label: 'Phone' }, { key: 'refNo', label: 'Lead no.', placeholder: 'e.g. LD-2026-0001' }, product(), { ...qty, required: false }, { key: 'dueDate', label: 'Required by' }, remarks],
     cols: ['docNo', 'docDate', 'party', 'product', 'qty', 'dueDate', 'refNo', 'status'],
   },
@@ -118,6 +123,20 @@ export const SALES_KINDS: KindCfg[] = [
     icon: ReceiptText,
     statuses: ['Received', 'Accepted', 'Cancelled'],
     openStatuses: ['Received'],
+    printable: true,
+    fields: [{ key: 'extRef', label: 'Customer PO no.', placeholder: 'The number on their order' }, party(), { key: 'refNo', label: 'Quotation no.', placeholder: 'e.g. QT-2026-0001' }, product(true), qty, rate, { key: 'dueDate', label: 'Delivery date' }, remarks],
+    cols: ['docNo', 'extRef', 'docDate', 'party', 'product', 'qty', 'rate', 'amount', 'dueDate', 'status'],
+  },
+  {
+    kind: 'sales_order',
+    route: 'sales-order',
+    resource: 'sales_orders',
+    label: 'Sales Order',
+    singular: 'Sales Order',
+    icon: ShoppingCart,
+    statuses: ['Draft', 'Confirmed', 'Delivered', 'Cancelled'],
+    openStatuses: ['Draft', 'Confirmed'],
+    printable: true,
     fields: [{ key: 'extRef', label: 'Customer PO no.', placeholder: 'The number on their order' }, party(), { key: 'refNo', label: 'Quotation no.', placeholder: 'e.g. QT-2026-0001' }, product(true), qty, rate, { key: 'dueDate', label: 'Delivery date' }, remarks],
     cols: ['docNo', 'extRef', 'docDate', 'party', 'product', 'qty', 'rate', 'amount', 'dueDate', 'status'],
   },
@@ -130,6 +149,7 @@ export const SALES_KINDS: KindCfg[] = [
     icon: ClipboardCheck,
     statuses: ['Confirmed', 'In Production', 'Completed', 'Cancelled'],
     openStatuses: ['Confirmed', 'In Production'],
+    printable: true,
     fields: [party(), { key: 'refNo', label: 'PO no.', placeholder: 'e.g. PO-2026-0001' }, product(true), qty, rate, { key: 'dueDate', label: 'Delivery date' }, remarks],
     cols: ['docNo', 'docDate', 'party', 'product', 'qty', 'rate', 'amount', 'dueDate', 'refNo', 'status'],
   },
@@ -142,6 +162,7 @@ export const SALES_KINDS: KindCfg[] = [
     icon: ListChecks,
     statuses: ['Open', 'In Progress', 'Done', 'Cancelled'],
     openStatuses: ['Open', 'In Progress'],
+    printable: false,
     fields: [
       { key: 'title', label: 'Task', required: true, placeholder: 'What has to be done' },
       { key: 'assignee', label: 'Assigned to', placeholder: 'Name' },
