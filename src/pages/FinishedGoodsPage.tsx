@@ -13,14 +13,16 @@ export function FinishedGoodsPage(_props: { navigate: (r: string) => void }) {
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
   const [productF, setProductF] = useState('all');
-  const fgs = state.finishedGoods;
+  const allFgs = state.finishedGoods; // the table lists customers' job-work parts too (tagged)
+  // the totals and 'stock by product' are OUR finished goods only
+  const fgs = allFgs.filter((f) => !state.jobWork.some((w) => w.jobNo === f.jobNo));
 
   const total = fgs.reduce((t, f) => t + f.qty, 0);
   const avail = fgs.reduce((t, f) => t + fgAvailable(f), 0);
   const reserved = fgs.reduce((t, f) => t + f.reservedQty, 0);
   const dispatched = fgs.reduce((t, f) => t + f.dispatchedQty, 0);
   const availKg = fgs.reduce((t, f) => t + fgWeight(state, f, fgAvailable(f)), 0);
-  const inStock = fgs.filter((f) => f.dispatchedQty < f.qty);
+  const inStock = allFgs.filter((f) => f.dispatchedQty < f.qty);
 
   const byProduct = useMemo(() => {
     return state.products
@@ -33,7 +35,7 @@ export function FinishedGoodsPage(_props: { navigate: (r: string) => void }) {
       .filter((x) => x.a + x.r > 0 || fgs.some((f) => f.productId === x.p.id));
   }, [state.products, fgs]);
 
-  const rows = fgs
+  const rows = allFgs
     .filter((f) => (filter === 'all' ? true : filter === 'stock' ? f.dispatchedQty < f.qty : f.dispatchedQty === f.qty))
     .filter((f) => productF === 'all' || f.productId === productF)
     .filter((f) => {
@@ -113,12 +115,12 @@ export function FinishedGoodsPage(_props: { navigate: (r: string) => void }) {
                 value: filter,
                 onChange: (v) => setFilter(v as Filter),
                 options: [
-                  { value: 'all', label: 'All', count: fgs.length },
+                  { value: 'all', label: 'All', count: allFgs.length },
                   { value: 'stock', label: 'In Stock', count: inStock.length },
-                  { value: 'dispatched', label: 'Fully Dispatched', count: fgs.length - inStock.length },
+                  { value: 'dispatched', label: 'Fully Dispatched', count: allFgs.length - inStock.length },
                 ],
               },
-              { label: 'Product', value: productF, onChange: setProductF, options: [{ value: 'all', label: 'All products' }, ...state.products.filter((p) => fgs.some((f) => f.productId === p.id)).map((p) => ({ value: p.id, label: p.name }))] },
+              { label: 'Product', value: productF, onChange: setProductF, options: [{ value: 'all', label: 'All products' }, ...state.products.filter((p) => allFgs.some((f) => f.productId === p.id)).map((p) => ({ value: p.id, label: p.name }))] },
             ]}
           />
         </div>

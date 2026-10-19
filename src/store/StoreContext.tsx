@@ -8,6 +8,7 @@ import { actionParent, actionToHash, closeForm, hashToAction, openForm } from '.
 /** A shop-floor action that opens its form wherever the user is (page, dashboard, drawer, bell menu). */
 export type Action =
   | { kind: 'newJob' }
+  | { kind: 'jobWork' }
   | { kind: 'product'; id?: string }
   | { kind: 'inward'; material?: string; od?: number; /** a lot to correct (edit) instead of a new inward */ id?: string }
   | { kind: 'stage'; stage: ProcessStage; jobNo: string }
@@ -28,6 +29,8 @@ export function actionPage(a: Action): { key: string; label: string } | null {
   switch (a.kind) {
     case 'newJob':
       return { key: 'cutting', label: 'Cutting' };
+    case 'jobWork':
+      return { key: 'job_work', label: 'Job Work' };
     case 'product':
       return { key: 'products', label: 'Product Master' };
     case 'inward':

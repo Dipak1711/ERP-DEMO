@@ -68,9 +68,11 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
     ) as Record<string, { jobs: number; pending: number; wip: number; input: number; out: number; loss: number }>;
     const qcOpen = s.qc.filter((r) => r.status === 'QC Pending');
     const qcDone = s.qc.filter((r) => r.status !== 'QC Pending');
-    const fgAvail = s.finishedGoods.reduce((t, f) => t + fgAvailable(f), 0);
-    const fgReserved = s.finishedGoods.reduce((t, f) => t + f.reservedQty, 0);
-    const fgIn = s.finishedGoods.reduce((t, f) => t + f.qty, 0);
+    // customers' parts (job work) are not our finished goods
+    const ownFg = s.finishedGoods.filter((f) => !s.jobWork.some((w) => w.jobNo === f.jobNo));
+    const fgAvail = ownFg.reduce((t, f) => t + fgAvailable(f), 0);
+    const fgReserved = ownFg.reduce((t, f) => t + f.reservedQty, 0);
+    const fgIn = ownFg.reduce((t, f) => t + f.qty, 0);
     const shipped = s.dispatches.filter((x) => x.status === 'Dispatched');
     const today = shipped.filter((x) => isToday(x.dispatchedAt));
     return {

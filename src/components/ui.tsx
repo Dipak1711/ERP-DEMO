@@ -114,8 +114,10 @@ export function Priority({ p }: { p: string }) {
 
 // -------------------------------------------------------------- JobLink ---
 export function JobLink({ jobNo }: { jobNo: string }) {
-  const { openTrace } = useStore();
+  const { openTrace, state } = useStore();
+  const jobWork = state.jobWork.some((w) => w.jobNo === jobNo);
   return (
+    <>
     <button
       className="job-link"
       title="View complete job traceability"
@@ -127,6 +129,8 @@ export function JobLink({ jobNo }: { jobNo: string }) {
     >
       {jobNo}
     </button>
+    {jobWork && <span className="chip chip-jw">Job work</span>}
+    </>
   );
 }
 

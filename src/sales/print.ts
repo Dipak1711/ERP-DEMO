@@ -6,13 +6,13 @@ import { printHtml } from '../components/printHtml';
 import { ROUTE_CARD_CSS } from '../components/routeCard';
 import type { SalesKind, SalesRecord } from './config';
 
-const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
-const dmy = (iso?: string | null) => {
+export const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+export const dmy = (iso?: string | null) => {
   if (!iso) return '';
   const d = new Date(iso.length === 10 ? iso + 'T00:00:00' : iso);
   return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getFullYear()).slice(2)}`;
 };
-const inr = (n: number) => `₹ ${n.toLocaleString('en-IN')}`;
+export const inr = (n: number) => `₹ ${n.toLocaleString('en-IN')}`;
 
 // ---- amount in words (Indian system: thousand, lakh, crore)
 const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -76,12 +76,12 @@ const REF_LABEL: Record<SalesKind, string> = {
 };
 
 /** label, value (undefined = hidden for this role, the pair is dropped), full width? */
-type Pair = [label: string, value: string | undefined, full?: boolean];
+export type Pair = [label: string, value: string | undefined, full?: boolean];
 /** a value only for roles that may see it */
-const party = (v: string): string | undefined => (canSee('party_names') ? v : undefined);
+export const party = (v: string): string | undefined => (canSee('party_names') ? v : undefined);
 
 /** the ruled detail table: two fields per line, full-width ones on their own line */
-function detailTable(pairs: Pair[]) {
+export function detailTable(pairs: Pair[]) {
   const list = pairs.filter((p) => p[1] !== undefined);
   const lines: Pair[][] = [];
   let open: Pair[] = [];

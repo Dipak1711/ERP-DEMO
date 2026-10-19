@@ -32,6 +32,27 @@ export interface Product {
   salesRate?: number; // CONFIDENTIAL — ₹ per piece
 }
 
+/** A job-work batch: the customer's parts brought in for only some of the processes (supabase/migrations/26). */
+export interface JobWork {
+  jobNo: string;
+  challanNo: string;
+  challanDate: string;
+  itemDescription: string;
+  receivedQty: number;
+  receivedWeight?: number; // KG
+  /** whose material: the customer's (our stock is not used) or ours (Cutting issues from raw inventory) */
+  materialSource: 'customer' | 'own';
+  /** which processes this batch goes through — the others are skipped */
+  processes: Record<ProcessStage, boolean>;
+  qcRequired: boolean;
+  chargeBasis: 'none' | 'piece' | 'kg' | 'process';
+  rate?: number; // CONFIDENTIAL — ₹ per piece or per kg
+  processRates?: Record<string, number>; // CONFIDENTIAL — ₹ per piece, per process
+  billableQty: number;
+  amount?: number; // CONFIDENTIAL — worked out by the database
+  createdAt: string;
+}
+
 /** One inward lot of raw material (round bar billets). FIFO is applied across lots of the same material + OD. */
 export interface RawMaterialLot {
   id: string; // RM-2026-001
@@ -215,6 +236,8 @@ export interface ERPState {
   rawMaterials: RawMaterialLot[];
   rawInwards: RawInward[];
   jobs: Job[];
+  /** job-work batches (a job card with a job_work row beside it) */
+  jobWork: JobWork[];
   cutting: StageRecord[];
   forging: StageRecord[];
   trimming: StageRecord[];

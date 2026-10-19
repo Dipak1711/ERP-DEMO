@@ -290,9 +290,11 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
   const inN = editableInput ? Number(received) : rec.input;
   const rejN = Number(rejection);
   const ok = inN - rejN;
+  // job work on the customer's material never touches our raw inventory
+  const ownStock = (state.jobWork.find((w) => w.jobNo === jobNo)?.materialSource ?? 'own') === 'own';
   const rawAvail = state.rawMaterials.filter((l) => `${l.material}|${l.od}` === job.materialKey).reduce((t, l) => t + l.availableQty, 0);
 
-  const errIn = editableInput ? (!(inN > 0) || !Number.isInteger(inN) ? 'Enter a whole quantity' : inN > rawAvail ? `Only ${rawAvail} PCS in raw stock` : null) : null;
+  const errIn = editableInput ? (!(inN > 0) || !Number.isInteger(inN) ? 'Enter a whole quantity' : ownStock && inN > rawAvail ? `Only ${rawAvail} PCS in raw stock` : null) : null;
   const errRej = rejection === '' || rejN < 0 || !Number.isInteger(rejN) ? 'Whole number' : rejN > inN ? `Cannot exceed ${inN}` : null;
   const tempErr = (v: string) => (stage === 'heatTreatment' && !(Number(v) > 0) ? 'Enter temperature' : null);
   const errTemp = temps.some((v) => tempErr(v));
@@ -358,7 +360,7 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
         <Field label="Inward Date">
           <input className="input" type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
-        <Field label="Received Qty" required error={errIn} hint={editableInput ? `Cut qty · ${fmtNum(rawAvail)} PCS in raw stock` : `OK qty from ${cfg.from}`}>
+        <Field label="Received Qty" required error={errIn} hint={editableInput ? (ownStock ? `Cut qty · ${fmtNum(rawAvail)} PCS in raw stock` : "Customer's material · not taken from our stock") : `OK qty from ${cfg.from}`}>
           <NumInput value={editableInput ? received : rec.input} onChange={setReceived} readOnly={!editableInput} bad={!!errIn} />
         </Field>
         <Field label="Rejection Qty" required error={errRej}>
@@ -386,7 +388,7 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
       <div style={{ marginTop: 18 }}>
         <QtyFlow input={Number.isFinite(inN) ? inN : 0} loss={Number.isFinite(rejN) ? rejN : 0} output={Number.isFinite(ok) && ok >= 0 ? ok : '—'} />
       </div>
-      {editableInput && <FifoPreview keyId={job.materialKey} qty={inN} />}
+      {editableInput && ownStock && <FifoPreview keyId={job.materialKey} qty={inN} />}
     </Modal>
   );
 }

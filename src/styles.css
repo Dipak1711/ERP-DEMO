@@ -1038,3 +1038,6 @@ select.filter { padding-right: 36px; }
 /* an action that is not possible for this row (the tooltip says why) */
 .icon-btn:disabled { opacity: 0.32; cursor: not-allowed; }
 .icon-btn.danger:disabled:hover { background: none; color: var(--text-2); }
+
+/* the "Job work" tag next to a job number */
+.chip-jw { margin-left: 6px; padding: 1px 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; border-radius: 999px; background: var(--violet-bg, #ede9fe); color: var(--violet, #6d28d9); vertical-align: middle; white-space: nowrap; }

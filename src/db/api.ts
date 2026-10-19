@@ -267,3 +267,44 @@ export const deleteProduct = (id: string) => call<null>('delete_product', { p_id
 export const deleteJob = (jobNo: string, ts?: string) => call<null>('delete_job', { p_job_no: jobNo, p_ts: ts });
 export const deleteHardnessReport = (id: string) => call<null>('delete_hardness_report', { p_id: id });
 export const deleteDispatch = (dispatchNo: string, ts?: string) => call<null>('delete_dispatch', { p_dispatch_no: dispatchNo, p_ts: ts });
+
+// ------------------------------------------------------------ job work ---
+export interface JobWorkInput {
+  productId: string;
+  customer: string;
+  challanNo: string;
+  challanDate: string;
+  itemDescription: string;
+  receivedQty: number;
+  receivedWeight?: number;
+  materialSource: 'customer' | 'own';
+  processes: { cutting: boolean; forging: boolean; trimming: boolean; heatTreatment: boolean };
+  qcRequired: boolean;
+  chargeBasis: 'none' | 'piece' | 'kg' | 'process';
+  rate?: number;
+  processRates?: Record<string, number>;
+  dueDate?: string;
+}
+
+/** Receives a customer's parts: creates the job card at the first process that was ticked (supabase/migrations/26). */
+export const createJobWork = (i: JobWorkInput, ts?: string) =>
+  call<string>('create_job_work', {
+    p_payload: {
+      product_id: i.productId,
+      customer: i.customer.trim(),
+      challan_no: i.challanNo.trim(),
+      challan_date: i.challanDate || null,
+      item_description: i.itemDescription.trim(),
+      received_qty: i.receivedQty,
+      received_weight: i.receivedWeight ?? null,
+      material_source: i.materialSource,
+      processes: i.processes,
+      qc_required: i.qcRequired,
+      charge_basis: i.chargeBasis,
+      rate: i.rate ?? null,
+      process_rates: i.processRates ?? {},
+      due_date: i.dueDate || null,
+    },
+    p_ts: ts,
+  });
+export const deleteJobWork = (jobNo: string, ts?: string) => call<null>('delete_job_work', { p_job_no: jobNo, p_ts: ts });

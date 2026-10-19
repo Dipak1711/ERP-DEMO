@@ -7,6 +7,7 @@ import { dbConfigured } from './db/client';
 import { LoginPage } from './auth/LoginPage';
 import { AccessPage } from './pages/AccessPage';
 import { UnitsPage } from './pages/UnitsPage';
+import { JobWorkPage } from './pages/JobWorkPage';
 import { NoAccess } from './pages/NoAccess';
 import { Empty, go } from './components/ui';
 import { useCallback, useEffect, useState } from 'react';
@@ -80,6 +81,7 @@ function Page({ route, query, navigate }: { route: string; query: URLSearchParam
   if (route === 'units') return canManageAccess ? <UnitsPage /> : <NoAccess />;
   const resource = ROUTE_RESOURCE[route] ?? 'dashboard';
   if (!canRead(resource)) return <NoAccess />;
+  if (route === 'job-work') return <JobWorkPage />;
   if (route === 'sales-dashboard') return <SalesDashboard navigate={navigate} />;
   if (SALES_PAGES.some((p) => p.route === route)) return <SalesListPage route={route} query={query} />;
   switch (route) {

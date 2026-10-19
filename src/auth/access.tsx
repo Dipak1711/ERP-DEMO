@@ -32,6 +32,7 @@ export type FieldGroup = 'party_names' | 'invoices' | 'purchase_rates' | 'sales_
 export const ROUTE_RESOURCE: Record<string, string> = {
   dashboard: 'dashboard',
   'sales-dashboard': 'sales_dashboard',
+  'job-work': 'job_work',
   'sales-quotation': 'sales_quotation',
   leads: 'leads',
   inquiry: 'inquiries',
@@ -57,7 +58,7 @@ export const ROUTE_RESOURCE: Record<string, string> = {
 };
 
 /** pages where there is something to change (Read vs Write is meaningful) */
-export const WRITABLE_PAGES = new Set(['raw_inventory', 'cutting', 'forging', 'trimming', 'heat_treatment', 'qc', 'dispatch', 'die_master', 'forging_dies', 'trimming_dies', 'products', 'sales_quotation', 'leads', 'inquiries', 'purchase_orders', 'sales_orders', 'final_orders', 'task_assignment']);
+export const WRITABLE_PAGES = new Set(['raw_inventory', 'cutting', 'forging', 'trimming', 'heat_treatment', 'qc', 'dispatch', 'die_master', 'forging_dies', 'trimming_dies', 'products', 'sales_quotation', 'leads', 'inquiries', 'purchase_orders', 'sales_orders', 'final_orders', 'task_assignment', 'job_work']);
 
 export interface Session {
   email: string;

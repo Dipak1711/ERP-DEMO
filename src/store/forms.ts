@@ -23,6 +23,8 @@ export function actionToHash(a: Action): string {
   switch (a.kind) {
     case 'newJob':
       return 'form/new-job';
+    case 'jobWork':
+      return 'form/job-work';
     case 'product':
       return 'form/product' + qs({ id: a.id });
     case 'inward':
@@ -44,6 +46,8 @@ export function hashToAction(route: string, q: URLSearchParams): Action | null {
   switch (route) {
     case 'form/new-job':
       return { kind: 'newJob' };
+    case 'form/job-work':
+      return { kind: 'jobWork' };
     case 'form/product':
       return { kind: 'product', id: q.get('id') ?? undefined };
     case 'form/inward': {
@@ -71,6 +75,8 @@ export function actionParent(a: Action): string {
   switch (a.kind) {
     case 'newJob':
       return 'cutting';
+    case 'jobWork':
+      return 'job-work';
     case 'product':
       return 'products';
     case 'inward':

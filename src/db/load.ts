@@ -20,6 +20,7 @@ import type {
   RawInward,
   RawMaterialLot,
   StageRecord,
+  JobWork,
 } from '../store/types';
 import type { Level } from '../auth/access';
 import type { Die, DieData, HistoryEvent, IssueRecord, MaintenanceRecord, MainDie } from '../dies/types';
@@ -182,8 +183,17 @@ const toHardness = (r: Row): HardnessReport => ({
   updatedAt: r.updated_at,
 });
 
+/** Job-work batches; empty when migration 26 has not been run yet. */
+async function readJobWork(): Promise<Row[]> {
+  try {
+    return await read('v_job_work', [['created_at', true]]);
+  } catch {
+    return [];
+  }
+}
+
 export async function loadERPState(): Promise<ERPState> {
-  const [products, lots, inwards, jobs, issues, stages, qc, hardness, fg, disp, bags, mov, act] = await Promise.all([
+  const [products, lots, inwards, jobs, issues, stages, qc, hardness, fg, disp, bags, mov, act, jobWork] = await Promise.all([
     read('v_products', [['code', true]]),
     read('v_lots', [['inward_date', true], ['id', true]]),
     read('v_raw_inwards', [['date', false], ['lot_id', false]]),
@@ -197,6 +207,7 @@ export async function loadERPState(): Promise<ERPState> {
     read('dispatch_bags', [['bag_no', true]]),
     read('movements', [['ts', false], ['id', false]], 1000),
     read('activity', [['ts', false], ['id', false]], 300),
+    readJobWork(),
   ]);
 
   const issuesByJob = new Map<string, Job['issues']>();
@@ -275,6 +286,25 @@ export async function loadERPState(): Promise<ERPState> {
       (r): Movement => ({ id: String(r.id), ts: r.ts, jobNo: r.job_no ?? '—', from: r.from_loc, to: r.to_loc, qty: num0(r.qty), loss: num0(r.loss), note: str(r.note) }),
     ),
     activity: act.map((r): Activity => ({ id: String(r.id), ts: r.ts, jobNo: r.job_no ?? undefined, kind: r.kind, text: r.text })),
+    jobWork: jobWork.map(
+      (r): JobWork => ({
+        jobNo: r.job_no,
+        challanNo: str(r.challan_no),
+        challanDate: str(r.challan_date),
+        itemDescription: str(r.item_description),
+        receivedQty: num0(r.received_qty),
+        receivedWeight: num(r.received_weight),
+        materialSource: r.material_source === 'own' ? 'own' : 'customer',
+        processes: { cutting: !!r.do_cutting, forging: !!r.do_forging, trimming: !!r.do_trimming, heatTreatment: !!r.do_heat_treatment },
+        qcRequired: !!r.qc_required,
+        chargeBasis: (['piece', 'kg', 'process'].includes(r.charge_basis) ? r.charge_basis : 'none') as JobWork['chargeBasis'],
+        rate: num(r.rate),
+        processRates: r.process_rates && typeof r.process_rates === 'object' ? (r.process_rates as Record<string, number>) : undefined,
+        billableQty: num0(r.billable_qty),
+        amount: num(r.amount),
+        createdAt: str(r.created_at),
+      }),
+    ),
     counters: { job: 0, dispatch: 0, lot: 0, fg: 0, seq: 0 }, // numbering is done by the database
   };
   for (const r of stages.map(toStage)) (state[r.stage] as StageRecord[]).push(r);

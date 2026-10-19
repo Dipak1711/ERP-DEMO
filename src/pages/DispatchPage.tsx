@@ -1,7 +1,8 @@
 import * as api from '../db/api';
 import { Conf, Write, canSee, searchable, useAccess, searchableCol } from '../auth/access';
 import { useState } from 'react';
-import { ClipboardList, Eye, FileText, PackageOpen, Plus, Printer, Truck, X, Trash2 } from 'lucide-react';
+import { ClipboardList, Eye, FileText, Handshake, PackageOpen, Plus, Printer, Truck, X, Trash2 } from 'lucide-react';
+import { printJobWorkReturn } from '../jobwork/print';
 import { useStore } from '../store/StoreContext';
 import { dispatchDeleteReason } from '../store/deletable';
 import { fgAvailable, getProduct, isToday, round3 } from '../store/engine';
@@ -147,6 +148,14 @@ export function DispatchPage() {
                         <button className="icon-btn" style={{ display: 'inline-grid', verticalAlign: 'middle', marginLeft: 4 }} title="Print process route card" onClick={() => printRouteCard(state, d.jobNo)}>
                           <ClipboardList size={16} />
                         </button>
+                        {(() => {
+                          const jw = state.jobWork.find((w) => w.jobNo === d.jobNo);
+                          return jw ? (
+                            <button className="icon-btn" style={{ display: 'inline-grid', verticalAlign: 'middle' }} title="Print return challan (job work)" onClick={() => printJobWorkReturn(state, d, jw)}>
+                              <Handshake size={16} />
+                            </button>
+                          ) : null;
+                        })()}
                         <button className="icon-btn" style={{ display: 'inline-grid', verticalAlign: 'middle' }} title="Packing list" onClick={() => setViewing(d)}>
                           <FileText size={16} />
                         </button>

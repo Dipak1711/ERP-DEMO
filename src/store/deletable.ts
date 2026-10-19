@@ -28,3 +28,16 @@ export function productDeleteReason(s: ERPState, id: string): string | null {
   const n = s.jobs.filter((j) => j.productId === id).length;
   return n ? `Used by ${n} job card${n === 1 ? '' : 's'}` : null;
 }
+
+/** a job-work batch can go only before any work has started on it (the skipped-stage rows written on arrival do not count) */
+export function jobWorkDeleteReason(s: ERPState, jobNo: string): string | null {
+  const job = s.jobs.find((j) => j.jobNo === jobNo);
+  if (!job) return 'Job card not found';
+  const worked =
+    job.issues.length > 0 ||
+    [s.cutting, s.forging, s.trimming, s.heatTreatment].some((list) => list.some((r) => r.jobNo === jobNo && r.status !== 'Pending' && !r.params.auto)) ||
+    s.qc.some((r) => r.jobNo === jobNo) ||
+    s.finishedGoods.some((f) => f.jobNo === jobNo) ||
+    s.hardnessReports.some((h) => h.jobNo === jobNo);
+  return worked ? 'Work on this batch has already started' : null;
+}

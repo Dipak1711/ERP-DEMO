@@ -3,7 +3,7 @@ import { ROUTE_RESOURCE, useAccess } from '../auth/access';
 import { Empty, go, PageHeader } from '../components/ui';
 
 /** Order the menu lists pages in: where to send someone whose page is hidden */
-const ORDER = ['dashboard', 'sales-dashboard', 'sales-quotation', 'leads', 'inquiry', 'purchase-order', 'sales-order', 'final-order', 'task-assignment', 'raw-inventory', 'cutting', 'forging', 'trimming', 'heat-treatment', 'qc', 'finished-goods', 'dispatch', 'die-master', 'forging-die-master', 'trimming-die-master', 'die-details', 'traceability', 'ledger', 'products'];
+const ORDER = ['dashboard', 'sales-dashboard', 'sales-quotation', 'leads', 'inquiry', 'purchase-order', 'sales-order', 'final-order', 'task-assignment', 'raw-inventory', 'cutting', 'job-work', 'forging', 'trimming', 'heat-treatment', 'qc', 'finished-goods', 'dispatch', 'die-master', 'forging-die-master', 'trimming-die-master', 'die-details', 'traceability', 'ledger', 'products'];
 
 export function firstAllowedRoute(canRead: (resource: string) => boolean) {
   return ORDER.find((r) => canRead(ROUTE_RESOURCE[r]));

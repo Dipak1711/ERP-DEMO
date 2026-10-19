@@ -4,6 +4,7 @@ import {
   BarChart3,
   Bell,
   Briefcase,
+  Handshake,
   Ruler,
   ChevronDown,
   ClipboardList,
@@ -43,7 +44,7 @@ const WORKFLOW_NAV: NavItem[] = FLOW_STEPS.map((s) => ({
   route: s.route,
   label: s.key === 'forging' ? 'Forging / Manufacturing' : s.label,
   icon: s.icon,
-}));
+})).concat([{ route: 'job-work', label: 'Job Work', icon: Handshake }]);
 const SALES_NAV: NavItem[] = SALES_PAGES.map((p) => ({ route: p.route, label: p.label, icon: p.icon }));
 const REPORT_NAV: NavItem[] = [
   { route: 'traceability', label: 'Job Traceability', icon: Waypoints },

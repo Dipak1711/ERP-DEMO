@@ -8,9 +8,11 @@ import { HardnessForm, HardnessSheet } from '../pages/HardnessPage';
 import { NewDispatchModal } from '../pages/DispatchPage';
 import { InwardModal } from '../pages/RawInventoryPage';
 import { ProductModal } from '../pages/ReportPages';
+import { JobWorkForm } from '../pages/JobWorkPage';
 
 const EYEBROW: Record<string, string> = {
   newJob: 'Workflow · Cutting',
+  jobWork: 'Workflow · Job Work',
   product: 'Masters · Product Master',
   inward: 'Workflow · Raw Inventory',
   qc: 'Workflow · Quality Control',
@@ -34,6 +36,9 @@ export function ActionHost({ page }: { page?: boolean }) {
   switch (action.kind) {
     case 'newJob':
       body = <NewJobModal open onClose={close} />;
+      break;
+    case 'jobWork':
+      body = <JobWorkForm onClose={close} />;
       break;
     case 'product':
       body = <ProductModal key={action.id ?? 'new'} id={action.id} onClose={close} />;
