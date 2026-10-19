@@ -26,7 +26,7 @@ export function actionToHash(a: Action): string {
     case 'product':
       return 'form/product' + qs({ id: a.id });
     case 'inward':
-      return 'form/inward' + qs({ material: a.material, od: a.od });
+      return 'form/inward' + qs({ material: a.material, od: a.od, id: a.id });
     case 'stage':
       return 'form/stage' + qs({ job: a.jobNo, stage: a.stage });
     case 'qc':
@@ -48,7 +48,7 @@ export function hashToAction(route: string, q: URLSearchParams): Action | null {
       return { kind: 'product', id: q.get('id') ?? undefined };
     case 'form/inward': {
       const od = Number(q.get('od'));
-      return { kind: 'inward', material: q.get('material') ?? undefined, od: od > 0 ? od : undefined };
+      return { kind: 'inward', material: q.get('material') ?? undefined, od: od > 0 ? od : undefined, id: q.get('id') ?? undefined };
     }
     case 'form/stage': {
       const stage = q.get('stage') as ProcessStage | null;

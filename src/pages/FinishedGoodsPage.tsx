@@ -8,7 +8,7 @@ import { fmtDate, fmtKg, fmtNum, matches } from '../components/format';
 
 type Filter = 'stock' | 'dispatched' | 'all';
 
-export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void }) {
+export function FinishedGoodsPage(_props: { navigate: (r: string) => void }) {
   const { state, openTrace, openAction } = useStore();
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
@@ -178,7 +178,7 @@ export function FinishedGoodsPage({ navigate }: { navigate: (r: string) => void 
                       </td>
                       <td className="r nowrap">
                         {a > 0 && (
-                          <button className="btn btn-sm btn-primary" onClick={() => navigate(`dispatch?fg=${f.id}`)}>
+                          <button className="btn btn-sm btn-primary" onClick={() => openAction({ kind: 'dispatch', fgId: f.id })}>
                             <Truck size={13} /> Dispatch
                           </button>
                         )}

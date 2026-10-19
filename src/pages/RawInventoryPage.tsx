@@ -1,17 +1,21 @@
 import * as api from '../db/api';
 import { Conf, searchable, useAccess, canSee, Write, searchableCol } from '../auth/access';
 import { useMemo, useState } from 'react';
-import { ArrowDownToLine, Boxes, Layers, PackagePlus, Send } from 'lucide-react';
+import { ArrowDownToLine, Boxes, Eye, Layers, PackagePlus, Pencil, Send, Trash2 } from 'lucide-react';
+import type { RawMaterialLot } from '../store/types';
+import { lotDeleteReason } from '../store/deletable';
 import { useStore } from '../store/StoreContext';
 import { lotAvailableWeight, lotStatus, materialKey } from '../store/engine';
 import { findMaterial, MATERIAL_FAMILIES, MATERIAL_MASTER, pieceWeightKg, STANDARD_OD_MM } from '../store/materials';
-import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, rowTone, Search, SummaryLine, Tabs, FilterMenu } from '../components/ui';
+import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, rowTone, Search, SummaryLine, Tabs, FilterMenu, Confirm } from '../components/ui';
 import { fmtDate, fmtDateTime, fmtKg, fmtNum, matches, todayISO } from '../components/format';
 
 type View = 'stock' | 'inward' | 'issues';
 
 export function RawInventoryPage() {
-  const { state, openAction } = useStore();
+  const { state, openAction, run } = useStore();
+  const [viewing, setViewing] = useState<RawMaterialLot | null>(null);
+  const [deleting, setDeleting] = useState<RawMaterialLot | null>(null);
   const [view, setView] = useState<View>('stock');
   const [q, setQ] = useState('');
   const [matF, setMatF] = useState('');
@@ -174,6 +178,7 @@ export function RawInventoryPage() {
                     <th className="r">Available Weight</th>
                     <th>Unit</th>
                     <th>Status</th>
+                    <th className="act">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -210,6 +215,21 @@ export function RawInventoryPage() {
                       <td>
                         <Badge status={lotStatus(l)} />
                       </td>
+                      <td className="r nowrap">
+                        <div className="icon-actions">
+                          <button className="icon-btn" title="View" aria-label={`View ${l.id}`} onClick={() => setViewing(l)}>
+                            <Eye size={16} />
+                          </button>
+                          <Write res="raw_inventory">
+                            <button className="icon-btn" title="Edit" aria-label={`Edit ${l.id}`} onClick={() => openAction({ kind: 'inward', id: l.id })}>
+                              <Pencil size={16} />
+                            </button>
+                            <button className="icon-btn danger" title={lotDeleteReason(l) ?? 'Delete'} aria-label={`Delete ${l.id}`} disabled={!!lotDeleteReason(l)} onClick={() => setDeleting(l)}>
+                              <Trash2 size={16} />
+                            </button>
+                          </Write>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -234,6 +254,7 @@ export function RawInventoryPage() {
                   </Conf>
                   <th className="r">Quantity</th>
                   <th className="r">Weight</th>
+                  <th className="act">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -259,6 +280,28 @@ export function RawInventoryPage() {
                         <span className="gain">+{fmtNum(i.qty)}</span>
                       </td>
                       <td className="r num">{fmtKg(i.weight)}</td>
+                      {(() => {
+                        const lot = state.rawMaterials.find((x) => x.id === i.lotId);
+                        return lot ? (
+                          <td className="r nowrap">
+                            <div className="icon-actions">
+                              <button className="icon-btn" title="View" aria-label={`View ${lot.id}`} onClick={() => setViewing(lot)}>
+                                <Eye size={16} />
+                              </button>
+                              <Write res="raw_inventory">
+                                <button className="icon-btn" title="Edit" aria-label={`Edit ${lot.id}`} onClick={() => openAction({ kind: 'inward', id: lot.id })}>
+                                  <Pencil size={16} />
+                                </button>
+                                <button className="icon-btn danger" title={lotDeleteReason(lot) ?? 'Delete'} aria-label={`Delete ${lot.id}`} disabled={!!lotDeleteReason(lot)} onClick={() => setDeleting(lot)}>
+                                  <Trash2 size={16} />
+                                </button>
+                              </Write>
+                            </div>
+                          </td>
+                        ) : (
+                          <td />
+                        );
+                      })()}
                     </tr>
                   ))}
               </tbody>
@@ -303,24 +346,119 @@ export function RawInventoryPage() {
             </div>
           ))}
       </div>
+      {viewing && <LotView lot={viewing} onClose={() => setViewing(null)} />}
+      <Confirm
+        open={!!deleting}
+        title="Delete raw material inward"
+        message={deleting ? `Delete lot ${deleting.id} — ${fmtNum(deleting.inwardQty)} PCS of ${deleting.material}? Nothing has been issued from it, so it is removed from stock and the quantity ledger.` : ''}
+        confirmLabel="Delete"
+        tone="danger"
+        onConfirm={() => deleting && void run((ts) => api.deleteInward(deleting.id, ts), { title: 'Inward deleted', message: `${deleting.id} · ${fmtNum(deleting.inwardQty)} PCS ${deleting.material}` })}
+        onClose={() => setDeleting(null)}
+      />
     </>
   );
 }
 
-export function InwardModal({ preset, onClose }: { preset?: { material?: string; od?: number }; onClose: () => void }) {
-  const { run, masters } = useStore();
-  const first = findMaterial(preset?.material ?? '') ?? MATERIAL_MASTER[0];
+/** Read-only details of one inward lot. */
+function LotView({ lot, onClose }: { lot: RawMaterialLot; onClose: () => void }) {
+  const issued = lot.inwardQty - lot.availableQty;
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      icon={Boxes}
+      title={`Raw Material Inward — ${lot.id}`}
+      footer={
+        <button className="btn" onClick={onClose}>
+          Close
+        </button>
+      }
+    >
+      <div className="kv-grid">
+        <div className="kv">
+          <span>Material</span>
+          <b>{lot.material}</b>
+        </div>
+        <div className="kv">
+          <span>Grade / Specification</span>
+          <b>{lot.materialType || '—'}</b>
+        </div>
+        <div className="kv">
+          <span>OD / Size</span>
+          <b>{lot.od} mm</b>
+        </div>
+        <Conf g="party_names">
+          <div className="kv">
+            <span>Supplier</span>
+            <b>{lot.supplier || '—'}</b>
+          </div>
+        </Conf>
+        <Conf g="invoices">
+          <div className="kv">
+            <span>Invoice No.</span>
+            <b>{lot.invoiceNo || '—'}</b>
+          </div>
+        </Conf>
+        <Conf g="purchase_rates">
+          <div className="kv">
+            <span>Purchase Rate</span>
+            <b>{lot.purchaseRate ? `₹ ${lot.purchaseRate.toLocaleString('en-IN')} / kg` : '—'}</b>
+          </div>
+        </Conf>
+        <Conf col="raw.heat_no">
+          <div className="kv">
+            <span>Heat No.</span>
+            <b>{lot.heatNo || '—'}</b>
+          </div>
+        </Conf>
+        <div className="kv">
+          <span>Inward Date</span>
+          <b>{fmtDate(lot.inwardDate)}</b>
+        </div>
+        <div className="kv">
+          <span>Inward Qty</span>
+          <b>
+            {fmtNum(lot.inwardQty)} PCS · {fmtKg(lot.inwardWeight)}
+          </b>
+        </div>
+        <div className="kv">
+          <span>Available</span>
+          <b>{fmtNum(lot.availableQty)} PCS</b>
+        </div>
+        <div className="kv">
+          <span>Issued to production</span>
+          <b>{fmtNum(issued)} PCS</b>
+        </div>
+        <div className="kv">
+          <span>Status</span>
+          <b>
+            <Badge status={lotStatus(lot)} />
+          </b>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+export function InwardModal({ preset, onClose }: { preset?: { material?: string; od?: number; id?: string }; onClose: () => void }) {
+  const { state, run, masters } = useStore();
+  // editing an existing inward: every field can be corrected; what is already issued to production limits quantity, material and size
+  const lot = preset?.id ? state.rawMaterials.find((l) => l.id === preset.id) : undefined;
+  const issued = lot ? lot.inwardQty - lot.availableQty : 0;
+  const first = findMaterial(lot?.material ?? preset?.material ?? '') ?? MATERIAL_MASTER[0];
   const [material, setMaterial] = useState(first.material);
-  const [od, setOd] = useState(String(preset?.od ?? first.defaultOd));
-  const [supplier, setSupplier] = useState('');
-  const [date, setDate] = useState(todayISO());
-  const [invoice, setInvoice] = useState('');
-  const [rate, setRate] = useState('');
+  const [od, setOd] = useState(String(lot?.od ?? preset?.od ?? first.defaultOd));
+  const [supplier, setSupplier] = useState(lot?.supplier ?? '');
+  const [date, setDate] = useState(lot?.inwardDate ?? todayISO());
+  const [invoice, setInvoice] = useState(lot?.invoiceNo ?? '');
+  const [rate, setRate] = useState(lot?.purchaseRate ? String(lot.purchaseRate) : '');
   const { can } = useAccess();
-  const [heatNo, setHeatNo] = useState('');
-  const [qty, setQty] = useState('');
+  const [heatNo, setHeatNo] = useState(lot?.heatNo ?? '');
+  const [qty, setQty] = useState(lot ? String(lot.inwardQty) : '');
   const [pieceLength, setPieceLength] = useState('');
-  const [weightOverride, setWeightOverride] = useState<string | null>(null);
+  const [weightOverride, setWeightOverride] = useState<string | null>(lot ? String(lot.inwardWeight) : null);
 
   const spec = findMaterial(material) ?? first;
   const qN = Number(qty);
@@ -331,8 +469,9 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
   const weight = weightOverride ?? (theoretical ? String(theoretical) : '');
   const wN = Number(weight);
 
-  const errQty = qty !== '' && (!(qN > 0) || !Number.isInteger(qN)) ? 'Enter a whole number of pieces' : null;
-  const valid = !!supplier && odN > 0 && qN > 0 && Number.isInteger(qN) && wN > 0;
+  const errQty = qty !== '' && (!(qN > 0) || !Number.isInteger(qN)) ? 'Enter a whole number of pieces' : qty !== '' && qN < issued ? `At least ${fmtNum(issued)} PCS — that much is already issued to production` : null;
+  // roles that cannot see supplier names type it write-only; when correcting a lot they may leave it empty (the stored name is kept)
+  const valid = (!!supplier || (!!lot && !can('party_names'))) && !errQty && odN > 0 && qN > 0 && Number.isInteger(qN) && wN > 0;
 
   const pickMaterial = (m: string) => {
     setMaterial(m);
@@ -342,6 +481,10 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
   };
 
   const submit = async () => {
+    if (lot) {
+      if (await run((ts) => api.updateInward(lot.id, { material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: can('invoices') ? invoice : '', purchaseRate: can('purchase_rates') && Number(rate) > 0 ? Number(rate) : undefined }, ts), { title: 'Inward updated', message: `${lot.id} · ${qN} PCS (${wN} KG) of ${material} OD ${od} mm.` })) onClose();
+      return;
+    }
     if (
       await run((ts) => api.addInward({ material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: can('invoices') ? invoice : '', purchaseRate: can('purchase_rates') && Number(rate) > 0 ? Number(rate) : undefined }, ts), {
         title: 'Raw material received',
@@ -357,7 +500,7 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
       onClose={onClose}
       size="lg"
       icon={PackagePlus}
-      title="Add Raw Material Inward"
+      title={lot ? `Edit Raw Material Inward — ${lot.id}` : 'Add Raw Material Inward'}
       subtitle="Creates a new stock lot. Lots are consumed oldest-first (FIFO) when Cutting starts."
       footer={
         <>
@@ -365,7 +508,7 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
             Cancel
           </button>
           <button className="btn btn-primary" disabled={!valid} onClick={submit}>
-            <ArrowDownToLine size={15} /> Save Inward
+            <ArrowDownToLine size={15} /> {lot ? 'Save Changes' : 'Save Inward'}
           </button>
         </>
       }
@@ -373,7 +516,7 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
       <div className="section-label">Material</div>
       <div className="form-grid three">
         <Field label="Material" required>
-          <select value={material} onChange={(e) => pickMaterial(e.target.value)}>
+          <select value={material} disabled={issued > 0} onChange={(e) => pickMaterial(e.target.value)}>
             {MATERIAL_FAMILIES.map((fam) => (
               <optgroup key={fam} label={fam}>
                 {MATERIAL_MASTER.filter((m) => m.family === fam).map((m) => (
@@ -388,15 +531,16 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
         <Field label="Grade / Specification" hint={`Density ${spec.density} g/cm³`}>
           <input className="input" readOnly value={spec.grade} />
         </Field>
-        <Field label="OD / Size" required hint="Standard bar diameters">
+        <Field label="OD / Size" required hint={issued > 0 ? 'Locked — some of this lot is already issued' : 'Standard bar diameters'}>
           <select
             value={od}
+            disabled={issued > 0}
             onChange={(e) => {
               setOd(e.target.value);
               setWeightOverride(null);
             }}
           >
-            {STANDARD_OD_MM.map((d) => (
+            {[...new Set([...STANDARD_OD_MM, Number(od)])].sort((x, y) => x - y).map((d) => (
               <option key={d} value={String(d)}>
                 {d} mm
               </option>
@@ -441,7 +585,7 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
       <div className="section-label">Quantity &amp; weight</div>
       <div className="form-grid three">
         <Field label="Quantity" required error={errQty}>
-          <NumInput value={qty} onChange={(v) => { setQty(v); setWeightOverride(null); }} bad={!!errQty} autoFocus />
+          <NumInput value={qty} onChange={(v) => { setQty(v); if (!lot || lenN > 0) setWeightOverride(null); }} bad={!!errQty} autoFocus />
         </Field>
         <Field label="Piece Length" hint="Length of each bar / billet — used to calculate weight">
           <NumInput value={pieceLength} onChange={(v) => { setPieceLength(v); setWeightOverride(null); }} suffix="mm" step="any" />

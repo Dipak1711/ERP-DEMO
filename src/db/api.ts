@@ -240,3 +240,30 @@ export const deleteSalesRecord = (kind: string, id: number) => call<null>('delet
 /** Add or change a unit of measure (Settings → Units; Director / Plant Head). factor = how many reference units (PCS / KG / mm / min) one holds. */
 export const saveUnit = (code: string, name: string, kind: string, factor: number, active: boolean) => call<string>('save_unit', { p_code: code, p_name: name, p_kind: kind, p_factor: factor, p_active: active });
 export const deleteUnit = (code: string) => call<null>('delete_unit', { p_code: code });
+
+// ------------------------------------------------------ editable inward ---
+/** Corrects an existing inward lot (supabase/migrations/24). The database keeps quantity ≥ what is already issued and locks material / size once issued. */
+export const updateInward = (lotId: string, i: InwardInput, ts?: string) =>
+  call<string>('update_inward', {
+    p_lot_id: lotId,
+    p_material: i.material,
+    p_material_type: i.materialType,
+    p_od: i.od,
+    p_supplier: i.supplier,
+    p_inward_date: i.inwardDate,
+    p_qty: i.qty,
+    p_weight: i.weight,
+    p_heat_no: emptyToNull(i.heatNo),
+    p_invoice_no: emptyToNull(i.invoiceNo),
+    p_purchase_rate: i.purchaseRate ?? null,
+    p_ts: ts,
+  });
+
+// ------------------------------------------------------------ deletes ---
+// Each is one database function that checks the page's Write level and refuses anything already part of the flow
+// (supabase/migrations/25): the reason comes back as the error message.
+export const deleteInward = (lotId: string, ts?: string) => call<null>('delete_inward', { p_lot_id: lotId, p_ts: ts });
+export const deleteProduct = (id: string) => call<null>('delete_product', { p_id: id });
+export const deleteJob = (jobNo: string, ts?: string) => call<null>('delete_job', { p_job_no: jobNo, p_ts: ts });
+export const deleteHardnessReport = (id: string) => call<null>('delete_hardness_report', { p_id: id });
+export const deleteDispatch = (dispatchNo: string, ts?: string) => call<null>('delete_dispatch', { p_dispatch_no: dispatchNo, p_ts: ts });

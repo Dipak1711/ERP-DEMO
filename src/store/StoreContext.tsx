@@ -9,7 +9,7 @@ import { actionParent, actionToHash, closeForm, hashToAction, openForm } from '.
 export type Action =
   | { kind: 'newJob' }
   | { kind: 'product'; id?: string }
-  | { kind: 'inward'; material?: string; od?: number }
+  | { kind: 'inward'; material?: string; od?: number; /** a lot to correct (edit) instead of a new inward */ id?: string }
   | { kind: 'stage'; stage: ProcessStage; jobNo: string }
   | { kind: 'qc'; jobNo: string }
   | { kind: 'hardness'; id?: string; jobNo?: string }

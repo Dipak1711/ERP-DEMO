@@ -28,6 +28,12 @@ export const todayISO = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
+/** Heat Treatment temperatures: "850 / 840 / 835 / 830 °C" for T1–T4 (or the single older "850 °C"). */
+export function heatTempText(p: Record<string, string | number>) {
+  const four = ['t1', 't2', 't3', 't4'].map((k) => p[k]).filter((v) => v !== undefined && v !== '');
+  const list = four.length ? four : p.temperature !== undefined ? [p.temperature] : [];
+  return list.length ? `${list.join(' / ')} °C` : '—';
+}
 export const matches = (q: string, ...fields: (string | number | undefined)[]) => {
   const n = q.trim().toLowerCase();
   return !n || fields.some((f) => String(f ?? '').toLowerCase().includes(n));

@@ -1034,3 +1034,7 @@ select.filter { padding-right: 36px; }
 .tbl:has(th.act) td:last-child { text-align: center; }
 .tbl:has(th.act) td:last-child .icon-actions, .tbl:has(th.act) td:last-child .row-actions { justify-content: center; }
 .tbl:has(th.act) td:last-child > .icon-btn { margin-inline: auto; }
+
+/* an action that is not possible for this row (the tooltip says why) */
+.icon-btn:disabled { opacity: 0.32; cursor: not-allowed; }
+.icon-btn.danger:disabled:hover { background: none; color: var(--text-2); }

@@ -6,7 +6,7 @@ import { fgAvailable, fgStatus, jobSummary, parseMaterialKey, PROCESS_STAGES, ST
 import type { ProcessStage, StageRecord } from '../store/types';
 import { Badge, FLOW_STEPS, go, QtyFlow } from './ui';
 import { nextStep } from './workflow';
-import { fmtDate, fmtDateTime, fmtKg, fmtNum } from './format';
+import { fmtDate, fmtDateTime, fmtKg, fmtNum, heatTempText } from './format';
 
 type NodeState = 'done' | 'current' | 'upcoming' | 'final';
 
@@ -36,7 +36,7 @@ function stageParams(r: StageRecord) {
   if (r.stage === 'forging' && p.dieNo && colOk('product.die_no')) items.push(['Die', p.dieNo]);
   if (r.stage === 'trimming' && p.trimDie) items.push(['Trim die', p.trimDie]);
   if (r.stage === 'heatTreatment') {
-    items.push(['Temperature', <b style={{ color: 'var(--crit)' }}>{p.temperature}°C</b>]);
+    if (!p.skipped) items.push([p.t1 !== undefined ? 'Temperatures (T1 / T2 / T3 / T4)' : 'Temperature', <b style={{ color: 'var(--crit)' }}>{heatTempText(p)}</b>]);
     if (p.soakMinutes) items.push(['Soak', `${p.soakMinutes} min`]);
     if (p.process) items.push(['Process', p.process]);
     if (p.quench) items.push(['Cooling', p.quench]);

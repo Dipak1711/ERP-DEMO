@@ -1,17 +1,19 @@
 import * as api from '../db/api';
-import { Conf, searchable, canSee, useAccess } from '../auth/access';
+import { Conf, Write, searchable, canSee, useAccess } from '../auth/access';
 import { useState } from 'react';
-import { ArrowRight, Eye, Package, Pencil, Plus, ScrollText, Waypoints } from 'lucide-react';
+import { ArrowRight, Eye, Package, Pencil, Plus, ScrollText, Waypoints, Trash2 } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
+import { jobDeleteReason, productDeleteReason } from '../store/deletable';
 import { jobSummary, PROCESS_STAGES, STAGE_LABEL } from '../store/engine';
 import { MATERIAL_FAMILIES, MATERIAL_MASTER, findMaterial } from '../store/materials';
 import type { Product } from '../store/types';
-import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, Priority, rowTone, Search, Stepper, FilterMenu } from '../components/ui';
+import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, Priority, rowTone, Search, Stepper, FilterMenu, Confirm } from '../components/ui';
 import { fmtDate, fmtDateTime, fmtNum, matches, plural } from '../components/format';
 
 // ------------------------------------------------------- Job Traceability ---
 export function TraceabilityPage() {
-  const { state, openTrace } = useStore();
+  const { state, openTrace, run } = useStore();
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [f, setF] = useState<'all' | 'wip' | 'done'>('all');
   const [productF, setProductF] = useState('all');
@@ -70,7 +72,7 @@ export function TraceabilityPage() {
                   <th className="r">Dispatched</th>
                   <th>Progress</th>
                   <th>Status</th>
-                  <th />
+                  <th className="act">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -123,10 +125,17 @@ export function TraceabilityPage() {
                     <td>
                       <Badge status={s.status} />
                     </td>
-                    <td className="r">
-                      <button className="btn btn-sm btn-primary" onClick={() => openTrace(s.job.jobNo)}>
-                        <Eye size={14} /> View Job
-                      </button>
+                    <td className="r nowrap">
+                      <div className="icon-actions">
+                        <button className="icon-btn" title="View" aria-label={`View ${s.job.jobNo}`} onClick={() => openTrace(s.job.jobNo)}>
+                          <Eye size={16} />
+                        </button>
+                        <Write res="cutting">
+                          <button className="icon-btn danger" title={jobDeleteReason(state, s.job.jobNo) ?? 'Delete job card'} aria-label={`Delete ${s.job.jobNo}`} disabled={!!jobDeleteReason(state, s.job.jobNo)} onClick={() => setDeleting(s.job.jobNo)}>
+                            <Trash2 size={16} />
+                          </button>
+                        </Write>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -135,6 +144,15 @@ export function TraceabilityPage() {
           </div>
         )}
       </div>
+      <Confirm
+        open={!!deleting}
+        title="Delete job card"
+        message={deleting ? `Delete job card ${deleting}? It has not started in production, so nothing has been issued or entered against it.` : ''}
+        confirmLabel="Delete"
+        tone="danger"
+        onConfirm={() => deleting && void run((ts) => api.deleteJob(deleting, ts), { title: 'Job card deleted', message: deleting })}
+        onClose={() => setDeleting(null)}
+      />
     </>
   );
 }
@@ -214,7 +232,9 @@ export function LedgerPage() {
 
 // -------------------------------------------------------- Product Master ---
 export function ProductsPage() {
-  const { state, openAction } = useStore();
+  const { state, openAction, run } = useStore();
+  const [viewing, setViewing] = useState<Product | null>(null);
+  const [deleting, setDeleting] = useState<Product | null>(null);
   const { canWrite } = useAccess();
   const mgmt = canWrite('products');
   const add = (
@@ -254,7 +274,7 @@ export function ProductsPage() {
                 <Conf g="sales_rates">
                   <th className="r">Sales Rate</th>
                 </Conf>
-                {mgmt && <th />}
+                <th className="act">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -284,13 +304,23 @@ export function ProductsPage() {
                   <Conf g="sales_rates">
                     <td className="r num nowrap">{p.salesRate ? `₹ ${p.salesRate.toLocaleString('en-IN')} / pc` : '—'}</td>
                   </Conf>
-                  {mgmt && (
-                    <td className="r">
-                      <button className="btn btn-sm" onClick={() => openAction({ kind: 'product', id: p.id })}>
-                        <Pencil size={14} /> Edit
+                  <td className="r nowrap">
+                    <div className="icon-actions">
+                      <button className="icon-btn" title="View" aria-label={`View ${p.code}`} onClick={() => setViewing(p)}>
+                        <Eye size={16} />
                       </button>
-                    </td>
-                  )}
+                      {mgmt && (
+                        <>
+                          <button className="icon-btn" title="Edit" aria-label={`Edit ${p.code}`} onClick={() => openAction({ kind: 'product', id: p.id })}>
+                            <Pencil size={16} />
+                          </button>
+                          <button className="icon-btn danger" title={productDeleteReason(state, p.id) ?? 'Delete'} aria-label={`Delete ${p.code}`} disabled={!!productDeleteReason(state, p.id)} onClick={() => setDeleting(p)}>
+                            <Trash2 size={16} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -298,7 +328,76 @@ export function ProductsPage() {
         </div>
         )}
       </div>
+      {viewing && <ProductView p={viewing} onClose={() => setViewing(null)} />}
+      <Confirm
+        open={!!deleting}
+        title="Delete product"
+        message={deleting ? `Delete ${deleting.code} · ${deleting.name}? No job card has been made from it.` : ''}
+        confirmLabel="Delete"
+        tone="danger"
+        onConfirm={() => deleting && void run(() => api.deleteProduct(deleting.id), { title: 'Product deleted', message: `${deleting.code} · ${deleting.name}` })}
+        onClose={() => setDeleting(null)}
+      />
     </>
+  );
+}
+
+/** Read-only details of one product. */
+function ProductView({ p, onClose }: { p: Product; onClose: () => void }) {
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      icon={Package}
+      title={`${p.code} · ${p.name}`}
+      footer={
+        <button className="btn" onClick={onClose}>
+          Close
+        </button>
+      }
+    >
+      <div className="kv-grid">
+        <div className="kv">
+          <span>Raw Material</span>
+          <b>{p.material}</b>
+        </div>
+        <div className="kv">
+          <span>Bar OD</span>
+          <b>{p.od} mm</b>
+        </div>
+        <div className="kv">
+          <span>Cutting Length</span>
+          <b>{p.cuttingLength} mm</b>
+        </div>
+        <div className="kv">
+          <span>Finished Weight</span>
+          <b>{p.finishedWeight} kg</b>
+        </div>
+        <Conf col="product.die_no">
+          <div className="kv">
+            <span>Forging Die</span>
+            <b>{p.dieNo || '—'}</b>
+          </div>
+        </Conf>
+        <div className="kv">
+          <span>Heat Treatment</span>
+          <b>{`${p.htTemperature}°C · ${p.htSoakMinutes} min${p.htProcess ? ' · ' + p.htProcess : ''}${p.htQuench ? ' · ' + p.htQuench : ''}`}</b>
+        </div>
+        <Conf g="party_names">
+          <div className="kv">
+            <span>Default Customer</span>
+            <b>{p.defaultCustomer || '—'}</b>
+          </div>
+        </Conf>
+        <Conf g="sales_rates">
+          <div className="kv">
+            <span>Sales Rate</span>
+            <b>{p.salesRate ? `₹ ${p.salesRate.toLocaleString('en-IN')} / pc` : '—'}</b>
+          </div>
+        </Conf>
+      </div>
+    </Modal>
   );
 }
 

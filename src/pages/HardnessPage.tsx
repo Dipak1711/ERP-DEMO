@@ -1,7 +1,7 @@
 import * as api from '../db/api';
 import { canSee, searchable, Write, Conf, colOk, searchableCol } from '../auth/access';
 import { useMemo, useState } from 'react';
-import { ClipboardCheck, Pencil, Printer, Plus } from 'lucide-react';
+import { ClipboardCheck, Eye, Pencil, Printer, Plus, Trash2 } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import {
   HARDNESS_FORM,
@@ -14,7 +14,7 @@ import {
 } from '../store/engine';
 import { HARDNESS_MATERIALS, hardnessGrades, hardnessSpecForRawMaterial, isHardnessMaterial } from '../store/hardnessSpecs';
 import type { HardnessReport, HardnessScale } from '../store/types';
-import { Badge, Empty, Field, Modal, NumInput, rowTone, Search, FilterMenu } from '../components/ui';
+import { Badge, Empty, Field, Modal, NumInput, rowTone, Search, FilterMenu, Confirm } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
 import { printHtml } from '../components/printHtml';
 import { fmtDate, matches, todayISO } from '../components/format';
@@ -24,7 +24,8 @@ const MAX_READINGS = 50;
 
 // ===================================================== register (QC tab) ===
 export function HardnessRegister() {
-  const { state, openAction } = useStore();
+  const { state, openAction, run } = useStore();
+  const [deleting, setDeleting] = useState<HardnessReport | null>(null);
   const [q, setQ] = useState('');
   const [v, setV] = useState<'all' | HardnessVerdict>('all');
   const [compF, setCompF] = useState('all');
@@ -91,6 +92,7 @@ export function HardnessRegister() {
                 <th>Readings</th>
                 <th>Checked By</th>
                 <th>Result</th>
+                <th className="act">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -117,6 +119,34 @@ export function HardnessRegister() {
                     <td>
                       <Badge status={verdict} />
                     </td>
+                    <td className="r nowrap">
+                      <div className="icon-actions">
+                        <button
+                          className="icon-btn"
+                          title="View"
+                          aria-label={`View ${r.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            open();
+                          }}
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <Write res="qc">
+                          <button
+                            className="icon-btn danger"
+                            title="Delete"
+                            aria-label={`Delete ${r.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleting(r);
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </Write>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -124,6 +154,15 @@ export function HardnessRegister() {
           </table>
         </div>
       )}
+      <Confirm
+        open={!!deleting}
+        title="Delete hardness report"
+        message={deleting ? `Delete ${deleting.id} · ${deleting.component}? Its readings are deleted with it.` : ''}
+        confirmLabel="Delete"
+        tone="danger"
+        onConfirm={() => deleting && void run(() => api.deleteHardnessReport(deleting.id), { title: 'Hardness report deleted', message: `${deleting.id} · ${deleting.component}` })}
+        onClose={() => setDeleting(null)}
+      />
     </>
   );
 }

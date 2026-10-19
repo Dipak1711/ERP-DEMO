@@ -1,11 +1,12 @@
 import * as api from '../db/api';
-import { Conf, canSee, searchable, useAccess, searchableCol } from '../auth/access';
+import { Conf, Write, canSee, searchable, useAccess, searchableCol } from '../auth/access';
 import { useState } from 'react';
-import { ClipboardList, Eye, FileText, PackageOpen, Plus, Printer, Truck, X } from 'lucide-react';
+import { ClipboardList, Eye, FileText, PackageOpen, Plus, Printer, Truck, X, Trash2 } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
+import { dispatchDeleteReason } from '../store/deletable';
 import { fgAvailable, getProduct, isToday, round3 } from '../store/engine';
 import type { Dispatch } from '../store/types';
-import { Badge, Empty, Field, JobLink, Modal, PageHeader, rowTone, Search, SummaryLine, FilterMenu } from '../components/ui';
+import { Badge, Empty, Field, JobLink, Modal, PageHeader, rowTone, Search, SummaryLine, FilterMenu, Confirm } from '../components/ui';
 import { tsFor } from '../components/NewJobModal';
 import { printRouteCard } from '../components/routeCard';
 import { fmtDate, fmtKg, fmtNum, matches, todayISO } from '../components/format';
@@ -13,7 +14,8 @@ import { fmtDate, fmtKg, fmtNum, matches, todayISO } from '../components/format'
 type Filter = 'all' | 'Ready for Dispatch' | 'Dispatched' | 'today';
 
 export function DispatchPage() {
-  const { state, openTrace, openAction } = useStore();
+  const { state, openTrace, openAction, run } = useStore();
+  const [deleting, setDeleting] = useState<Dispatch | null>(null);
   const { can } = useAccess();
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
@@ -151,6 +153,11 @@ export function DispatchPage() {
                         <button className="icon-btn" style={{ display: 'inline-grid', verticalAlign: 'middle' }} title="View traceability" onClick={() => openTrace(d.jobNo)}>
                           <Eye size={16} />
                         </button>
+                        <Write res="dispatch">
+                          <button className="icon-btn danger" style={{ display: 'inline-grid', verticalAlign: 'middle' }} title={dispatchDeleteReason(d) ?? 'Delete dispatch'} aria-label={`Delete ${d.dispatchNo}`} disabled={!!dispatchDeleteReason(d)} onClick={() => setDeleting(d)}>
+                            <Trash2 size={16} />
+                          </button>
+                        </Write>
                       </td>
                     </tr>
                   );
@@ -163,6 +170,15 @@ export function DispatchPage() {
 
       {shipping && <ShipModal d={shipping} onClose={() => setShipping(null)} />}
       {viewing && <PackingList d={viewing} onClose={() => setViewing(null)} />}
+      <Confirm
+        open={!!deleting}
+        title="Delete dispatch"
+        message={deleting ? `Delete ${deleting.dispatchNo}? It has not left the plant, so its ${fmtNum(deleting.qty)} PCS go back to available finished goods.` : ''}
+        confirmLabel="Delete"
+        tone="danger"
+        onConfirm={() => deleting && void run((ts) => api.deleteDispatch(deleting.dispatchNo, ts), { title: 'Dispatch deleted', message: `${deleting.dispatchNo} · ${fmtNum(deleting.qty)} PCS back to finished goods` })}
+        onClose={() => setDeleting(null)}
+      />
     </>
   );
 }

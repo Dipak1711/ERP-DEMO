@@ -1,14 +1,15 @@
 import * as api from '../db/api';
 import { searchable, canSee, Write, Conf, searchableCol } from '../auth/access';
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Eye, Play, Plus, Waypoints } from 'lucide-react';
+import { CheckCircle2, Eye, Play, Plus, Waypoints, Trash2 } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
+import { jobDeleteReason } from '../store/deletable';
 import { getJob, getProduct, parseMaterialKey, PROCESS_STAGES, STAGE_LABEL, stageRecords } from '../store/engine';
 import type { ProcessStage, StageRecord } from '../store/types';
-import { Badge, Empty, Field, FLOW_STEPS, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, rowTone, Search, SummaryLine, FilterMenu } from '../components/ui';
+import { Badge, Empty, Field, FLOW_STEPS, InlineQty, JobLink, Modal, NumInput, PageHeader, QtyFlow, rowTone, Search, SummaryLine, FilterMenu, Confirm } from '../components/ui';
 import { FifoPreview, tsFor } from '../components/NewJobModal';
 import { nextStep } from '../components/workflow';
-import { fmtNum, matches, todayISO } from '../components/format';
+import { fmtNum, heatTempText, matches, todayISO } from '../components/format';
 
 const CFG: Record<ProcessStage, { title: string; from: string; to: string }> = {
   cutting: {
@@ -35,11 +36,19 @@ const CFG: Record<ProcessStage, { title: string; from: string; to: string }> = {
 
 type Filter = 'all' | 'Pending' | 'Completed';
 
+/** did the Forging form tick Skip Trimming / Skip Heat Treatment for this batch? (then it never reaches that stage) */
+const batchSkips = (forging: { jobNo: string; params: Record<string, string | number> }[], jobNo: string, stage: ProcessStage) => {
+  const f = forging.find((r) => r.jobNo === jobNo);
+  return !!f && ((stage === 'trimming' && !!f.params.skipTrimming) || (stage === 'heatTreatment' && !!f.params.skipHeatTreatment));
+};
+
 export function StagePage({ stage }: { stage: ProcessStage }) {
-  const { state, openAction } = useStore();
+  const { state, openAction, run } = useStore();
+  const [deleting, setDeleting] = useState<string | null>(null);
   const cfg = CFG[stage];
   const step = FLOW_STEPS.find((s) => s.key === stage)!;
-  const recs = stageRecords(state, stage);
+  // a batch that skipped this stage (ticked at Forging) never shows here — its skipped row only appears on the route card and traceability
+  const recs = stageRecords(state, stage).filter((r) => !r.params.auto);
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
   const [productF, setProductF] = useState('all');
@@ -65,7 +74,9 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
 
   // Jobs still upstream — they will arrive here later (demonstrates parallel stages)
   const idx = PROCESS_STAGES.indexOf(stage);
-  const upstream = state.jobs.filter((j) => PROCESS_STAGES.indexOf(j.currentStage as ProcessStage) > -1 && PROCESS_STAGES.indexOf(j.currentStage as ProcessStage) < idx);
+  const upstream = state.jobs
+    .filter((j) => PROCESS_STAGES.indexOf(j.currentStage as ProcessStage) > -1 && PROCESS_STAGES.indexOf(j.currentStage as ProcessStage) < idx)
+    .filter((j) => !batchSkips(state.forging, j.jobNo, stage));
 
   return (
     <>
@@ -136,7 +147,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
                   <th>Job Card No.</th>
                   <th>Item</th>
                   {stage === 'cutting' && <th>Material</th>}
-                  {stage === 'heatTreatment' && <th className="r">Temp.</th>}
+                  {stage === 'heatTreatment' && <th className="r">Temp. (T1 / T2 / T3 / T4)</th>}
                   <th>Received → Rejection → OK</th>
                   <Conf col="stage.operator">
                     <th>Checked By</th>
@@ -147,7 +158,7 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <Row key={r.id} r={r} onProcess={() => openAction({ kind: 'stage', stage, jobNo: r.jobNo })} />
+                  <Row key={r.id} r={r} onProcess={() => openAction({ kind: 'stage', stage, jobNo: r.jobNo })} deleteReason={jobDeleteReason(state, r.jobNo)} onDelete={() => setDeleting(r.jobNo)} />
                 ))}
               </tbody>
             </table>
@@ -156,12 +167,21 @@ export function StagePage({ stage }: { stage: ProcessStage }) {
       </div>
 
       {upstream.length > 0 && <UpstreamJobs jobNos={upstream.map((j) => j.jobNo)} />}
+      <Confirm
+        open={!!deleting}
+        title="Delete job card"
+        message={deleting ? `Delete job card ${deleting}? It has not started in production, so nothing has been issued or entered against it.` : ''}
+        confirmLabel="Delete"
+        tone="danger"
+        onConfirm={() => deleting && void run((ts) => api.deleteJob(deleting, ts), { title: 'Job card deleted', message: deleting })}
+        onClose={() => setDeleting(null)}
+      />
 
     </>
   );
 }
 
-function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
+function Row({ r, onProcess, deleteReason, onDelete }: { r: StageRecord; onProcess: () => void; deleteReason: string | null; onDelete: () => void }) {
   const { state, openTrace } = useStore();
   const job = getJob(state, r.jobNo);
   const p = getProduct(state, job.productId);
@@ -193,7 +213,7 @@ function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
           </div>
         </td>
       )}
-      {r.stage === 'heatTreatment' && <td className="r strong nowrap">{r.params.temperature}°C</td>}
+      {r.stage === 'heatTreatment' && <td className="r strong nowrap">{r.params.skipped ? '—' : heatTempText(r.params)}</td>}
       <td>
         {r.params.skipped ? (
           <span className="chip chip-skip">Not required — skipped</span>
@@ -212,17 +232,33 @@ function Row({ r, onProcess }: { r: StageRecord; onProcess: () => void }) {
         <Badge status={r.status === 'Completed' ? 'Completed' : 'Pending'} />
       </td>
       <td className="r nowrap">
-        <button
-          className="icon-btn"
-          style={{ display: 'inline-grid', verticalAlign: 'middle' }}
-          title="View traceability"
-          onClick={(e) => {
-            e.stopPropagation();
-            openTrace(r.jobNo);
-          }}
-        >
-          <Eye size={16} />
-        </button>
+        <div className="icon-actions">
+          <button
+            className="icon-btn"
+            title="View"
+            aria-label={`View ${r.jobNo}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              openTrace(r.jobNo);
+            }}
+          >
+            <Eye size={16} />
+          </button>
+          <Write res="cutting">
+            <button
+              className="icon-btn danger"
+              title={deleteReason ?? 'Delete job card'}
+              aria-label={`Delete ${r.jobNo}`}
+              disabled={!!deleteReason}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+            >
+              <Trash2 size={16} />
+            </button>
+          </Write>
+        </div>
       </td>
     </tr>
   );
@@ -241,21 +277,28 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
   const [rejection, setRejection] = useState('0');
   const [checkedBy, setCheckedBy] = useState(rec?.operator ?? '');
   const [date, setDate] = useState(todayISO());
-  const [temperature, setTemperature] = useState(String(rec?.params.temperature ?? p.htTemperature));
-  const [skip, setSkip] = useState(false);
+  // T1–T4: the four temperatures recorded when a batch is heat-treated (each starts at the item's standard, or the saved value)
+  const [temps, setTemps] = useState<string[]>(() => ['t1', 't2', 't3', 't4'].map((k) => String(rec?.params[k] ?? rec?.params.temperature ?? p.htTemperature)));
+  const setTemp = (i: number, v: string) => setTemps((t) => t.map((x, j) => (j === i ? v : x)));
+  // Forging only: send the batch past Trimming and / or Heat Treatment
+  const [skipTrim, setSkipTrim] = useState(false);
+  const [skipHT, setSkipHT] = useState(false);
 
   if (!rec) return null;
   // Cutting: the received qty is the cut qty, issued from raw stock (editable until issued)
   const editableInput = stage === 'cutting' && rec.status === 'Pending';
   const inN = editableInput ? Number(received) : rec.input;
-  const rejN = skip ? 0 : Number(rejection);
+  const rejN = Number(rejection);
   const ok = inN - rejN;
   const rawAvail = state.rawMaterials.filter((l) => `${l.material}|${l.od}` === job.materialKey).reduce((t, l) => t + l.availableQty, 0);
 
   const errIn = editableInput ? (!(inN > 0) || !Number.isInteger(inN) ? 'Enter a whole quantity' : inN > rawAvail ? `Only ${rawAvail} PCS in raw stock` : null) : null;
   const errRej = rejection === '' || rejN < 0 || !Number.isInteger(rejN) ? 'Whole number' : rejN > inN ? `Cannot exceed ${inN}` : null;
-  const errTemp = stage === 'heatTreatment' && !(Number(temperature) > 0) ? 'Enter temperature' : null;
-  const invalid = !!errIn || !!errRej || !!errTemp;
+  const tempErr = (v: string) => (stage === 'heatTreatment' && !(Number(v) > 0) ? 'Enter temperature' : null);
+  const errTemp = temps.some((v) => tempErr(v));
+  const invalid = !!errIn || !!errRej || errTemp;
+  // where the batch goes next (Forging can skip Trimming and / or Heat Treatment)
+  const to = stage === 'forging' ? (skipTrim ? (skipHT ? 'QC' : 'Heat Treatment') : 'Trimming') : cfg.to;
 
   const save = async () => {
     if (invalid) return;
@@ -268,14 +311,13 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
             inputQty: editableInput ? inN : undefined,
             loss: rejN,
             operator: checkedBy,
-            remarks: skip ? 'Not required — skipped' : undefined,
-            params: stage === 'heatTreatment' ? { temperature: Number(temperature) } : skip ? { skipped: 1 } : undefined,
+            params: stage === 'forging' ? (skipTrim || skipHT ? { ...(skipTrim ? { skipTrimming: 1 } : {}), ...(skipHT ? { skipHeatTreatment: 1 } : {}) } : undefined) : stage === 'heatTreatment' ? { temperature: Number(temps[0]), t1: Number(temps[0]), t2: Number(temps[1]), t3: Number(temps[2]), t4: Number(temps[3]) } : undefined,
           },
           tsFor(date, now),
         ),
       {
-        title: skip ? `${STAGE_LABEL[stage]} skipped` : `${STAGE_LABEL[stage]} saved`,
-        message: ok > 0 ? `${jobNo}: ${inN} received − ${rejN} rejected = ${ok} OK, sent to ${cfg.to}.` : `${jobNo}: entire batch rejected.`,
+        title: `${STAGE_LABEL[stage]} saved`,
+        message: ok > 0 ? `${jobNo}: ${inN} received − ${rejN} rejected = ${ok} OK, sent to ${to}.` : `${jobNo}: entire batch rejected.`,
       },
     );
     if (done) onClose();
@@ -295,16 +337,22 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
             Cancel
           </button>
           <button className="btn btn-success" disabled={invalid} onClick={save}>
-            <CheckCircle2 size={15} /> Save &amp; send {ok > 0 ? `${fmtNum(ok)} PCS ` : ''}to {cfg.to}
+            <CheckCircle2 size={15} /> Save &amp; send {ok > 0 ? `${fmtNum(ok)} PCS ` : ''}to {to}
           </button>
         </>
       }
     >
-      {stage === 'trimming' && (
-        <label className={`check ${skip ? 'on' : ''}`} style={{ marginBottom: 16 }}>
-          <input type="checkbox" checked={skip} onChange={(e) => setSkip(e.target.checked)} />
-          Trimming not required for this job (send all {fmtNum(rec.input)} PCS to Heat Treatment)
-        </label>
+      {stage === 'forging' && (
+        <div className="check-row" style={{ marginBottom: 16 }}>
+          <label className={`check ${skipTrim ? 'on' : ''}`}>
+            <input type="checkbox" checked={skipTrim} onChange={(e) => setSkipTrim(e.target.checked)} />
+            Skip Trimming — this batch does not go to Trimming
+          </label>
+          <label className={`check ${skipHT ? 'on' : ''}`}>
+            <input type="checkbox" checked={skipHT} onChange={(e) => setSkipHT(e.target.checked)} />
+            Skip Heat Treatment — this batch does not go to Heat Treatment
+          </label>
+        </div>
       )}
       <div className="form-grid three">
         <Field label="Inward Date">
@@ -313,8 +361,8 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
         <Field label="Received Qty" required error={errIn} hint={editableInput ? `Cut qty · ${fmtNum(rawAvail)} PCS in raw stock` : `OK qty from ${cfg.from}`}>
           <NumInput value={editableInput ? received : rec.input} onChange={setReceived} readOnly={!editableInput} bad={!!errIn} />
         </Field>
-        <Field label="Rejection Qty" required error={skip ? null : errRej}>
-          <NumInput value={skip ? '0' : rejection} onChange={setRejection} readOnly={skip} bad={!skip && !!errRej} autoFocus={!editableInput} />
+        <Field label="Rejection Qty" required error={errRej}>
+          <NumInput value={rejection} onChange={setRejection} bad={!!errRej} autoFocus={!editableInput} />
         </Field>
         <Field label="OK Qty" hint="Received − Rejection">
           <NumInput value={Number.isFinite(ok) && ok >= 0 ? ok : ''} readOnly />
@@ -327,11 +375,12 @@ export function StageModal({ stage, jobNo, onClose }: { stage: ProcessStage; job
             ))}
           </select>
         </Field>
-        {stage === 'heatTreatment' && (
-          <Field label="Temperature" required error={errTemp} hint={`${p.name} standard: ${p.htTemperature}°C`}>
-            <NumInput value={temperature} onChange={setTemperature} suffix="°C" />
-          </Field>
-        )}
+        {stage === 'heatTreatment' &&
+          temps.map((t, i) => (
+            <Field key={i} label={`T${i + 1}`} required error={tempErr(t)} hint={i === 0 ? `${p.name} standard: ${p.htTemperature}°C` : undefined}>
+              <NumInput value={t} onChange={(v) => setTemp(i, v)} suffix="°C" />
+            </Field>
+          ))}
       </div>
 
       <div style={{ marginTop: 18 }}>
