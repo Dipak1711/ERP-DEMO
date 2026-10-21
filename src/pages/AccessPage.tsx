@@ -112,7 +112,15 @@ export function AccessPage() {
   const visibleFields = builtIn.filter((g) => cur.fields[g.key]).length;
   const addedKeys = new Set(added.map((g) => g.catalogKey));
   const catalogPages = [...new Set(matrix.catalog.map((c) => c.pageLabel))];
-  const sections = [...new Set(matrix.resources.map((r) => r.section))];
+  const SECTION_ORDER = ['Main Menu', 'Sales & Orders', 'Purchase & Procurement', 'Workflow', 'Die Management', 'Reports & Masters'];
+  const sections = [...new Set(matrix.resources.map((r) => r.section))].sort((a, b) => {
+    const ia = SECTION_ORDER.indexOf(a);
+    const ib = SECTION_ORDER.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a.localeCompare(b);
+  });
 
   const setAllPages = (level: Level) =>
     edit((d) => {

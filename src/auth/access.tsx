@@ -55,7 +55,7 @@ export const ROUTE_RESOURCE: Record<string, string> = {
   traceability: 'traceability',
   ledger: 'ledger',
   products: 'products',
-  'purchase-dashboard': 'procurement_po',
+  'purchase-dashboard': 'purchase_dashboard',
   'purchase-orders': 'procurement_po',
   suppliers: 'suppliers',
 };

@@ -4,11 +4,12 @@
 
 -- ============ 0. ACCESS CONTROL REGISTRATION ============
 INSERT INTO app_resources (key, label, section, sort, writable) VALUES
-  ('procurement_po',    'Purchase Orders',    'Purchase & Procurement', 50, true),
-  ('purchase_approvals', 'Purchase Approvals', 'Purchase & Procurement', 51, true),
-  ('suppliers',          'Supplier Master',    'Purchase & Procurement', 52, true)
+  ('purchase_dashboard', 'Purchase Dashboard', 'Purchase & Procurement', 19, false),
+  ('procurement_po',     'Purchase Orders',    'Purchase & Procurement', 20, true),
+  ('purchase_approvals', 'Purchase Approvals', 'Purchase & Procurement', 21, true),
+  ('suppliers',          'Supplier Master',    'Purchase & Procurement', 22, true)
 ON CONFLICT (key) DO UPDATE
-  SET label = EXCLUDED.label, section = EXCLUDED.section, writable = EXCLUDED.writable;
+  SET label = EXCLUDED.label, section = EXCLUDED.section, sort = EXCLUDED.sort, writable = EXCLUDED.writable;
 
 -- Helper to check write access cleanly
 CREATE OR REPLACE FUNCTION has_write_access(p_res TEXT) RETURNS BOOLEAN
