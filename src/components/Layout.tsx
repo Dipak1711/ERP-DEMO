@@ -4,7 +4,9 @@ import {
   BarChart3,
   Bell,
   Briefcase,
+  Building2,
   Handshake,
+  ReceiptText,
   Ruler,
   ChevronDown,
   ClipboardList,
@@ -20,6 +22,7 @@ import {
   PanelLeft,
   ScrollText,
   Search,
+  ShoppingBag,
   Sun,
   Waypoints,
   Workflow,
@@ -45,6 +48,11 @@ const WORKFLOW_NAV: NavItem[] = FLOW_STEPS.map((s) => ({
   icon: s.icon,
 })).concat([{ route: 'job-work', label: 'Job Work', icon: Handshake }]);
 const SALES_NAV: NavItem[] = SALES_PAGES.map((p) => ({ route: p.route, label: p.label, icon: p.icon }));
+const PURCHASE_NAV: NavItem[] = [
+  { route: 'purchase-dashboard', label: 'Purchase Dashboard', icon: LayoutGrid },
+  { route: 'purchase-orders', label: 'Purchase Orders', icon: ReceiptText },
+  { route: 'suppliers', label: 'Supplier Master', icon: Building2 },
+];
 const REPORT_NAV: NavItem[] = [
   { route: 'traceability', label: 'Job Traceability', icon: Waypoints },
   { route: 'ledger', label: 'Quantity Ledger', icon: ScrollText },
@@ -61,6 +69,7 @@ export const ALL_NAV: NavItem[] = [{ route: 'dashboard', label: 'Dashboard', ico
 const SECTIONS: { id: string; title: string; icon: Icon; items: NavItem[] }[] = [
   { id: 'main', title: 'Main Menu', icon: LayoutGrid, items: [ALL_NAV[0]] },
   { id: 'sales', title: 'Sales & Orders', icon: Briefcase, items: SALES_NAV },
+  { id: 'purchase', title: 'Purchase & Procurement', icon: ShoppingBag, items: PURCHASE_NAV },
   { id: 'flow', title: 'Workflow', icon: Workflow, items: WORKFLOW_NAV },
   { id: 'dies', title: 'Die Management', icon: Cog, items: DIE_NAV },
   { id: 'reports', title: 'Reports & Masters', icon: BarChart3, items: REPORT_NAV },

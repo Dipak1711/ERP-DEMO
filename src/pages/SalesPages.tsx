@@ -416,7 +416,7 @@ function SalesFormBody({ cfg, rec, onDone }: { cfg: KindCfg; rec?: SalesRecord; 
 }
 
 // ------------------------------------------------------------- dashboard ---
-const FLOW_ORDER = ['leads', 'inquiry', 'sales-quotation', 'purchase-order', 'sales-order', 'final-order', 'task-assignment'];
+const FLOW_ORDER = ['leads', 'inquiry', 'sales-quotation', 'sales-order', 'final-order', 'task-assignment'];
 
 export function SalesDashboard({ navigate }: { navigate: (r: string) => void }) {
   const { rows, loading, error } = useSalesRecords();

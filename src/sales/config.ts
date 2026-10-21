@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileText, Inbox, ListChecks, ReceiptText, ShoppingCart, UserPlus } from 'lucide-react';
+import { ClipboardCheck, FileText, Inbox, ListChecks, ShoppingCart, UserPlus } from 'lucide-react';
 import type { Icon } from '../components/ui';
 
 export type SalesKind = 'lead' | 'inquiry' | 'quotation' | 'purchase_order' | 'sales_order' | 'final_order' | 'task';
@@ -113,19 +113,6 @@ export const SALES_KINDS: KindCfg[] = [
     printable: true,
     fields: [party(), { key: 'contact', label: 'Contact person' }, { key: 'phone', label: 'Phone' }, { key: 'refNo', label: 'Lead no.', placeholder: 'e.g. LD-2026-0001' }, product(), { ...qty, required: false }, { key: 'dueDate', label: 'Required by' }, remarks],
     cols: ['docNo', 'docDate', 'party', 'product', 'qty', 'dueDate', 'refNo', 'status'],
-  },
-  {
-    kind: 'purchase_order',
-    route: 'purchase-order',
-    resource: 'purchase_orders',
-    label: 'Purchase Order',
-    singular: 'Purchase Order',
-    icon: ReceiptText,
-    statuses: ['Received', 'Accepted', 'Cancelled'],
-    openStatuses: ['Received'],
-    printable: true,
-    fields: [{ key: 'extRef', label: 'Customer PO no.', placeholder: 'The number on their order' }, party(), { key: 'refNo', label: 'Quotation no.', placeholder: 'e.g. QT-2026-0001' }, product(true), qty, rate, { key: 'dueDate', label: 'Delivery date' }, remarks],
-    cols: ['docNo', 'extRef', 'docDate', 'party', 'product', 'qty', 'rate', 'amount', 'dueDate', 'status'],
   },
   {
     kind: 'sales_order',

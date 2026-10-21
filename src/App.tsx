@@ -26,6 +26,9 @@ import { StoreProvider } from './store/StoreContext';
 import { DieProvider } from './dies/DieContext';
 import { DieHost } from './dies/DieHost';
 import { DieDetailsPage, DieMasterPage, DieRegisterPage } from './dies/pages';
+import { SupplierMasterPage } from './purchase/pages/SupplierMasterPage';
+import { PurchaseOrderRouter } from './purchase/pages/PurchaseOrderListPage';
+import { PurchaseDashboardPage } from './purchase/pages/PurchaseDashboardPage';
 import './dies/dies.css';
 
 /** Minimal hash router: #/route?query — survives refresh, no server config needed. */
@@ -83,6 +86,9 @@ function Page({ route, query, navigate }: { route: string; query: URLSearchParam
   if (!canRead(resource)) return <NoAccess />;
   if (route === 'job-work') return <JobWorkPage />;
   if (route === 'sales-dashboard') return <SalesDashboard navigate={navigate} />;
+  if (route === 'purchase-dashboard') return <PurchaseDashboardPage navigate={navigate} />;
+  if (route === 'purchase-orders') return <PurchaseOrderRouter query={query} navigate={navigate} />;
+  if (route === 'suppliers') return <SupplierMasterPage />;
   if (SALES_PAGES.some((p) => p.route === route)) return <SalesListPage route={route} query={query} />;
   switch (route) {
     case 'raw-inventory':

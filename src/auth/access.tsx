@@ -55,10 +55,13 @@ export const ROUTE_RESOURCE: Record<string, string> = {
   traceability: 'traceability',
   ledger: 'ledger',
   products: 'products',
+  'purchase-dashboard': 'procurement_po',
+  'purchase-orders': 'procurement_po',
+  suppliers: 'suppliers',
 };
 
 /** pages where there is something to change (Read vs Write is meaningful) */
-export const WRITABLE_PAGES = new Set(['raw_inventory', 'cutting', 'forging', 'trimming', 'heat_treatment', 'qc', 'dispatch', 'die_master', 'forging_dies', 'trimming_dies', 'products', 'sales_quotation', 'leads', 'inquiries', 'purchase_orders', 'sales_orders', 'final_orders', 'task_assignment', 'job_work']);
+export const WRITABLE_PAGES = new Set(['raw_inventory', 'cutting', 'forging', 'trimming', 'heat_treatment', 'qc', 'dispatch', 'die_master', 'forging_dies', 'trimming_dies', 'products', 'sales_quotation', 'leads', 'inquiries', 'purchase_orders', 'sales_orders', 'final_orders', 'task_assignment', 'job_work', 'procurement_po', 'purchase_approvals', 'suppliers']);
 
 export interface Session {
   email: string;

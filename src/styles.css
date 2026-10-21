@@ -211,13 +211,16 @@ a { color: var(--primary); text-decoration: none; }
 .content { padding: 30px 36px 56px; max-width: 1640px; width: 100%; }
 
 /* =========================================================== page header */
-.page-head { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
-.page-head .ph-text { flex: 1 1 420px; min-width: 0; }
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
+.page-head .ph-text { flex: 1 1 380px; min-width: 0; }
 .eyebrow { display: flex; align-items: center; gap: 12px; font-size: 12px; font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase; color: var(--text-3); }
 .eyebrow::before { content: ''; width: 32px; height: 3px; border-radius: 3px; background: var(--primary); }
 .page-head h1 { margin: 10px 0 0; font-size: 38px; letter-spacing: -0.035em; font-weight: 800; line-height: 1.1; }
 .page-head p { margin: 10px 0 0; color: var(--text-2); max-width: 780px; line-height: 1.55; font-size: 15px; }
-.page-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.page-actions { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-left: auto; }
+.page-actions .btn { height: 34px; padding: 0 14px; font-size: 13px; border-radius: 9px; gap: 7px; flex-shrink: 0; }
+.page-actions > * + * { margin-left: 4px; }
+.page-actions .btn + .btn { margin-left: 8px; }
 .live { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; color: var(--good); background: var(--surface); border: 1px solid var(--border); padding: 9px 16px; border-radius: 999px; box-shadow: var(--shadow-sm); white-space: nowrap; }
 
 /* previous / next stage buttons under the page title */
@@ -231,17 +234,17 @@ a { color: var(--primary); text-decoration: none; }
 .sum.bad b { color: var(--crit); }
 .sum.info { background: var(--primary-50); }
 .sum.info b { color: var(--primary); }
-.step-link { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px 0 8px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; text-align: left; color: var(--text); box-shadow: var(--shadow-sm); transition: border-color 0.12s, background 0.12s; }
-.step-link.next { padding: 0 8px 0 12px; }
+.step-link { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 11px 0 8px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; text-align: left; color: var(--text); box-shadow: var(--shadow-sm); transition: border-color 0.12s, background 0.12s; }
+.step-link.next { padding: 0 8px 0 11px; }
 .step-link:hover { border-color: var(--primary-100); background: var(--primary-50); }
 .step-link svg { color: var(--primary); }
-.step-link span { display: flex; flex-direction: column; font-weight: 650; font-size: 13px; line-height: 1.2; }
+.step-link span { display: flex; flex-direction: column; font-weight: 650; font-size: 12.5px; line-height: 1.2; }
 .step-link small { font-size: 10px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
 
 /* =============================================================== buttons */
 .btn {
-  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 12px;
-  border: 1px solid var(--border-strong); background: var(--surface); font-weight: 600; font-size: 13.5px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 11px; border-radius: 8px;
+  border: 1px solid var(--border-strong); background: var(--surface); font-weight: 600; font-size: 12.5px; cursor: pointer;
   white-space: nowrap; color: var(--text); transition: background 0.12s, border-color 0.12s, box-shadow 0.12s, transform 0.08s;
 }
 .btn:hover { background: var(--surface-3); }
@@ -256,9 +259,17 @@ a { color: var(--primary); text-decoration: none; }
 .btn-danger:hover { background: #b91c1c; }
 .btn-ghost { border-color: transparent; background: transparent; }
 .btn-ghost:hover { background: var(--surface-3); }
+.btn-subtle { background: var(--surface); border: 1px solid var(--border-strong); color: var(--text); box-shadow: var(--shadow-sm); }
+.btn-subtle:hover { background: var(--surface-3); border-color: var(--text-3); }
 .btn-soft { background: var(--primary-50); border-color: transparent; color: var(--primary); }
 .btn-soft:hover { background: var(--primary-100); }
-.btn-sm { height: 32px; padding: 0 12px; font-size: 12.5px; border-radius: 9px; gap: 6px; }
+.btn-sm { height: 29px; padding: 0 10px; font-size: 12px; border-radius: 7px; gap: 5px; }
+.btn-del-row {
+  width: 32px; height: 32px; min-width: 32px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--crit); display: inline-grid; place-items: center;
+  cursor: pointer; font-size: 16px; font-weight: 700; line-height: 1; transition: all .15s ease;
+}
+.btn-del-row:hover { background: var(--crit-bg); border-color: var(--crit-bd); color: var(--crit); transform: scale(1.05); }
 .btn-link { border: 0; background: none; padding: 0; color: var(--primary); font-weight: 600; cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
 .btn-link:hover { text-decoration: underline; }
 .icon-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid transparent; background: none; display: grid; place-items: center; cursor: pointer; color: var(--text-2); }
@@ -266,11 +277,14 @@ a { color: var(--primary); text-decoration: none; }
 
 /* ================================================================= cards */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
-.card-head { display: flex; align-items: center; gap: 12px; padding: 20px 22px 16px; flex-wrap: wrap; }
-.card-head h3 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.015em; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 22px 14px; }
+.card-head h3 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.015em; display: inline-flex; align-items: center; }
 .card-head .sub { font-size: 13.5px; color: var(--text-3); margin-top: 4px; }
 .card-head .right { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.card-body { padding: 4px 22px 22px; }
+.card-body { padding: 4px 22px 20px; }
+.card-title-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card-center-msg { display: flex; align-items: center; justify-content: center; text-align: center; padding: 28px 20px; color: var(--text-3); font-size: 13.5px; line-height: 1.5; }
+.flex-center { display: inline-flex; align-items: center; }
 .grid { display: grid; gap: 16px; }
 .mb { margin-bottom: 20px; }
 .mb-lg { margin-bottom: 24px; }
@@ -417,12 +431,18 @@ select.filter { height: 40px; border: 1px solid var(--border); border-radius: 12
 .field label .req { color: var(--crit); }
 .field .hint { font-size: 12px; color: var(--text-3); margin-top: 6px; }
 .field .err { font-size: 12px; color: var(--crit); margin-top: 6px; font-weight: 600; }
-.input, .field select, .field textarea {
-  width: 100%; height: 42px; border: 1px solid var(--border-strong); border-radius: 11px; padding: 0 12px; background: var(--surface);
+.input, .field input:not([type="checkbox"]):not([type="radio"]), .field select, .field textarea {
+  width: 100%; height: 42px; border: 1px solid var(--border-strong); border-radius: 11px; padding: 0 12px; background: var(--surface); color: var(--text); font-family: inherit; font-size: 13.5px;
 }
+.tbl input:not([type="checkbox"]):not([type="radio"]), .tbl select {
+  width: 100%; height: 38px; border: 1px solid var(--border-strong); border-radius: 9px; padding: 0 12px; background: var(--surface); color: var(--text); font-family: inherit; font-size: 13.5px; box-sizing: border-box; transition: border-color .15s, box-shadow .15s;
+}
+.tbl input:focus, .tbl select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-50); }
+.tbl.form-tbl td { padding: 10px 8px; vertical-align: middle; }
+.tbl.form-tbl th { padding: 12px 10px; font-size: 12px; }
 .field textarea { height: 64px; padding: 10px 12px; resize: vertical; }
-.input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-50); }
-.input[readonly], .input:disabled, .field select:disabled { background: var(--surface-3); color: var(--text-2); }
+.input:focus, .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-50); }
+.input[readonly], .input:disabled, .field input:disabled, .field select:disabled { background: var(--surface-3); color: var(--text-2); }
 .input.bad { border-color: var(--crit); box-shadow: 0 0 0 4px var(--crit-bg); }
 .input-suffix { position: relative; }
 .input-suffix span { position: absolute; right: 12px; top: 12px; font-size: 12.5px; color: var(--text-3); font-weight: 700; pointer-events: none; }
@@ -921,14 +941,13 @@ select.filter:focus-visible { outline: none; border-color: var(--primary); box-s
 .search svg { top: 16px; left: 15px; }
 select.filter { padding-right: 36px; }
 
-/* ---- Previous / Next stage buttons: same height and weight as the primary action beside them ---- */
-.page-actions .btn { height: 46px; padding: 0 20px; font-size: 14.5px; border-radius: 13px; }
+/* ---- Previous / Next stage buttons: aligned with actions ---- */
 .step-nav { gap: 10px; }
-.step-link { height: 46px; padding: 0 14px 0 10px; gap: 10px; border-radius: 13px; border-color: var(--border-strong); }
-.step-link.next { padding: 0 12px 0 16px; }
-.step-link span { font-size: 14.5px; font-weight: 700; }
+.step-link { height: 34px; padding: 0 12px 0 8px; gap: 8px; border-radius: 9px; border-color: var(--border-strong); }
+.step-link.next { padding: 0 8px 0 12px; }
+.step-link span { font-size: 13px; font-weight: 700; }
 .step-link small { font-size: 10px; }
-.step-link svg { width: 18px; height: 18px; }
+.step-link svg { width: 16px; height: 16px; }
 
 /* ---- Settings → Access Control (pages/AccessPage.tsx) ---- */
 .acc-card { padding-bottom: 8px; }
