@@ -1,4 +1,4 @@
-# ForgeFlow ERP: Forging & Casting Client Demo
+# ForgeFlow ERP: Forging & Casting Client Demos
 
 A web ERP for the full production flow, backed by **Supabase** (Postgres + Auth + Storage):
 
