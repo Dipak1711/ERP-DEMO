@@ -22,7 +22,8 @@ import type {
   StageRecord,
   JobWork,
 } from '../store/types';
-import type { Level } from '../auth/access';
+import { ROLES, type Level } from '../auth/access';
+import { APP_RESOURCES, getAllDefaultPagesForRole, getPageOverrides } from '../auth/appResources';
 import type { Die, DieData, HistoryEvent, IssueRecord, MaintenanceRecord, MainDie } from '../dies/types';
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -414,20 +415,51 @@ export interface AccessMatrix {
 /** The full settings matrix. Only the Director / Plant Head can read it (database policy). */
 export async function loadAccessMatrix(): Promise<AccessMatrix> {
   const [res, grp, cat, pages, fields] = await Promise.all([
-    read('app_resources', [['sort', true]]),
+    read('app_resources', [['sort', true]]).catch(() => [] as Row[]),
     read('field_groups', [['sort', true]]),
     read('column_catalog', [['sort', true]]).catch(() => [] as Row[]), // migration 19 not installed yet → no catalog
-    read('role_page_access'),
-    read('role_field_access'),
+    read('role_page_access').catch(() => [] as Row[]),
+    read('role_field_access').catch(() => [] as Row[]),
   ]);
+
+  // Master definition of resources from TypeScript:
+  // APP_RESOURCES is the source of truth for code-supported pages.
+  // Any newly added page in TS appears immediately, and removed demo pages are omitted.
+  const dbResMap = new Map(res.map((r) => [r.key, r]));
+  const resources = APP_RESOURCES.map((appRes) => {
+    const dbRes = dbResMap.get(appRes.key);
+    return {
+      key: appRes.key,
+      label: dbRes?.label ?? appRes.label,
+      section: (dbRes?.section ?? appRes.section) as string,
+      sort: dbRes?.sort ?? appRes.sort,
+      writable: appRes.writable,
+    };
+  }).sort((a, b) => a.sort - b.sort);
+
+  const overrides = getPageOverrides();
   const m: AccessMatrix = {
-    resources: res.map((r) => ({ key: r.key, label: r.label, section: r.section, sort: r.sort, writable: !!r.writable })),
+    resources,
     groups: grp.map((g) => ({ key: g.key, label: g.label, description: g.description, sort: g.sort, isCustom: !!g.is_custom, catalogKey: g.catalog_key ?? undefined })),
     catalog: cat.map((c) => ({ key: c.key, label: c.label, pageLabel: c.page_label, sort: c.sort })),
     pages: {},
     fields: {},
   };
-  for (const p of pages) (m.pages[p.role] ??= {})[p.resource] = p.level;
-  for (const f of fields) (m.fields[f.role] ??= {})[f.field_group] = !!f.visible;
+
+  // Seed default levels from TypeScript for all roles
+  for (const r of ROLES) {
+    m.pages[r.value] = getAllDefaultPagesForRole(r.value);
+    if (overrides[r.value]) {
+      Object.assign(m.pages[r.value], overrides[r.value]);
+    }
+  }
+
+  // Overlay saved database permissions (persisted DB values take precedence)
+  for (const p of pages) {
+    (m.pages[p.role] ??= {})[p.resource] = p.level;
+  }
+  for (const f of fields) {
+    (m.fields[f.role] ??= {})[f.field_group] = !!f.visible;
+  }
   return m;
 }

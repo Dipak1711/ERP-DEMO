@@ -28,40 +28,20 @@ export const ROLES: { value: Role; label: string; hint: string; editable: boolea
 export type Level = 'hidden' | 'read' | 'write';
 export type FieldGroup = 'party_names' | 'invoices' | 'purchase_rates' | 'sales_rates' | 'die_cost';
 
-/** sidebar route → the page key used in the database */
-export const ROUTE_RESOURCE: Record<string, string> = {
-  dashboard: 'dashboard',
-  'sales-dashboard': 'sales_dashboard',
-  'job-work': 'job_work',
-  'sales-quotation': 'sales_quotation',
-  leads: 'leads',
-  inquiry: 'inquiries',
-  'purchase-order': 'purchase_orders',
-  'sales-order': 'sales_orders',
-  'final-order': 'final_orders',
-  'task-assignment': 'task_assignment',
-  'raw-inventory': 'raw_inventory',
-  cutting: 'cutting',
-  forging: 'forging',
-  trimming: 'trimming',
-  'heat-treatment': 'heat_treatment',
-  qc: 'qc',
-  'finished-goods': 'finished_goods',
-  dispatch: 'dispatch',
-  'die-master': 'die_master',
-  'forging-die-master': 'forging_dies',
-  'trimming-die-master': 'trimming_dies',
-  'die-details': 'die_details',
-  traceability: 'traceability',
-  ledger: 'ledger',
-  products: 'products',
-  'purchase-dashboard': 'purchase_dashboard',
-  'purchase-orders': 'procurement_po',
-  suppliers: 'suppliers',
-};
-
-/** pages where there is something to change (Read vs Write is meaningful) */
-export const WRITABLE_PAGES = new Set(['raw_inventory', 'cutting', 'forging', 'trimming', 'heat_treatment', 'qc', 'dispatch', 'die_master', 'forging_dies', 'trimming_dies', 'products', 'sales_quotation', 'leads', 'inquiries', 'purchase_orders', 'sales_orders', 'final_orders', 'task_assignment', 'job_work', 'procurement_po', 'purchase_approvals', 'suppliers']);
+export {
+  APP_RESOURCES,
+  ROUTE_RESOURCE,
+  WRITABLE_PAGES,
+  getAllDefaultPagesForRole,
+  getDefaultPageLevel,
+  getPageOverrides,
+} from './appResources';
+import {
+  APP_RESOURCES,
+  ROUTE_RESOURCE,
+  getAllDefaultPagesForRole,
+  getPageOverrides,
+} from './appResources';
 
 export interface Session {
   email: string;
@@ -124,7 +104,28 @@ async function loadSession(): Promise<Session | null> {
 
   const access = await supabase.from('v_my_access').select('role, can_manage_access, pages, fields').maybeSingle();
   if (!access.error && access.data) {
-    return { ...base, role: access.data.role as Role, pages: access.data.pages as Record<string, Level>, fields: access.data.fields as Record<string, boolean>, canManageAccess: !!access.data.can_manage_access, legacy: false };
+    const role = access.data.role as Role;
+    const defaults = getAllDefaultPagesForRole(role);
+    const overrides = getPageOverrides()[role] || {};
+    const dbPages = (access.data.pages as Record<string, Level>) || {};
+    const mergedPages: Record<string, Level> = {
+      ...defaults,
+      ...overrides,
+      ...dbPages,
+    };
+    if (role === 'director') {
+      for (const r of APP_RESOURCES) {
+        mergedPages[r.key] = r.writable ? 'write' : 'read';
+      }
+    }
+    return {
+      ...base,
+      role,
+      pages: mergedPages,
+      fields: (access.data.fields as Record<string, boolean>) || {},
+      canManageAccess: !!access.data.can_manage_access || role === 'director' || role === 'plant_head',
+      legacy: false,
+    };
   }
 
   // Migration 18 not installed yet: fall back to the old fixed rules from v_me so the app keeps working.

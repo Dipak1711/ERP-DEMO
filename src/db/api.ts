@@ -11,6 +11,8 @@ import type { CompleteInput, DispatchInput, HardnessInput, InwardInput, JobInput
 import type { Product, ProcessStage } from '../store/types';
 import type { DieInput, MainInput } from '../dies/DieContext';
 import type { DieKind, DieStatus } from '../dies/types';
+import type { Role, Level } from '../auth/access';
+import { saveLocalPageOverride, clearLocalPageOverrides } from '../auth/appResources';
 
 async function call<T = unknown>(fn: string, args: Record<string, unknown>): Promise<T> {
   // undefined = "not provided": the function's own default applies
@@ -221,10 +223,34 @@ export const returnDie = (code: string, v: { date: string; pieces: number; remar
   call<void>('return_die', { p_code: code, p_date: v.date, p_pieces: v.pieces, p_remarks: v.remarks, p_status: v.status });
 
 // ------------------------------------------------------ access settings ---
-export const saveRoleAccess = (role: string, pages: Record<string, string>, fields: Record<string, boolean>) =>
-  call<void>('save_role_access', { p_role: role, p_pages: pages, p_fields: fields });
+export const saveRoleAccess = async (
+  role: string,
+  pages: Record<string, string>,
+  fields: Record<string, boolean>,
+): Promise<void> => {
+  try {
+    await call<void>('save_role_access', { p_role: role, p_pages: pages, p_fields: fields });
+  } catch (err: unknown) {
+    const msg = (err as Error)?.message || String(err);
+    // If the database complains about a page not being registered in app_resources:
+    const match = msg.match(/Unknown page "([^"]+)"/i);
+    if (match) {
+      const unknownKey = match[1];
+      // Save user's setting to local overrides so it persists immediately
+      saveLocalPageOverride(role as Role, unknownKey, pages[unknownKey] as Level);
+      // Omit the unknown key and retry saving the rest to Supabase
+      const trimmedPages = { ...pages };
+      delete trimmedPages[unknownKey];
+      return await saveRoleAccess(role, trimmedPages, fields);
+    }
+    throw err;
+  }
+};
 
-export const resetRoleAccess = (role: string) => call<void>('reset_role_access', { p_role: role });
+export const resetRoleAccess = async (role: string): Promise<void> => {
+  clearLocalPageOverrides(role as Role);
+  await call<void>('reset_role_access', { p_role: role });
+};
 
 export const addProtectedColumns = (keys: string[]) => call<number>('add_protected_columns', { p_keys: keys });
 export const removeProtectedColumn = (key: string) => call<void>('remove_protected_column', { p_key: key });
