@@ -177,7 +177,7 @@ export function AccessPage() {
         <div className="acc-fixed">
           <Lock size={15} />
           <span>
-            <b>Director</b> and <b>Plant Head</b> always have full access and cannot be changed, so nobody can lock the admins out.
+            <b>Director</b> always has full access and cannot be changed, so nobody can lock the administrator out.
           </span>
         </div>
 

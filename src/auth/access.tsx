@@ -18,7 +18,7 @@ export type Role = 'director' | 'plant_head' | 'accounts' | 'qc' | 'operator' | 
 
 export const ROLES: { value: Role; label: string; hint: string; editable: boolean }[] = [
   { value: 'director', label: 'Director', hint: 'Full access', editable: false },
-  { value: 'plant_head', label: 'Plant Head', hint: 'Full access', editable: false },
+  { value: 'plant_head', label: 'Plant Head', hint: 'Configurable', editable: true },
   { value: 'accounts', label: 'Accounts Team', hint: 'Configurable', editable: true },
   { value: 'qc', label: 'QC Inspector', hint: 'Configurable', editable: true },
   { value: 'operator', label: 'Operator', hint: 'Configurable', editable: true },
