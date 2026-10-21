@@ -24,7 +24,7 @@ export function chargeText(w: JobWork) {
 
 const frame = (title: string, status: string, body: string, footLeft: string) => `<div class="rc sd">
   <table class="hd">
-    <tr><td style="width:34%"><div class="brand"><div class="logo">E</div><div class="co">Everest<small>Auto Forge Pvt. Ltd.</small></div></div></td>
+    <tr><td style="width:34%"><div class="brand"><img class="logo-img" src="/everest-logo.png" alt="Everest Auto Forge"/></div></td>
         <td class="ttl">${title}</td>
         <td class="fm" style="width:24%">${esc(status)}</td></tr>
   </table>

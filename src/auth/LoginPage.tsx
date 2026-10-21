@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { AlertCircle, Eye, EyeOff, Factory, Lock, Mail } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { useAccess, type Role } from './access';
 import { DEMO_USERS } from './users';
 
@@ -41,7 +41,7 @@ export function LoginPage() {
           <div className="login-dots" />
           <div className="login-brand-in">
             <div className="login-logo">
-              <Factory size={30} />
+              <img src="/everest-icon.png" alt="Everest Auto Forge" className="login-logo-img" />
             </div>
             <h1>ForgeFlow ERP</h1>
             <p>SECURE ACCESS</p>

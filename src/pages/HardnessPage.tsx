@@ -447,9 +447,8 @@ export const HIR_CSS = `
 .hir{background:#fff;color:#000;font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:13px;max-width:760px;margin:0 auto}
 .hir table{border-collapse:collapse;width:100%}
 .hir td,.hir th{border:1.5px solid #243a73;padding:7px 10px;text-align:left;vertical-align:middle}
-.hir .brand{display:flex;align-items:center;gap:10px}
-.hir .logo{width:40px;height:40px;border:3px solid #243a73;border-radius:6px;display:grid;place-items:center;font-weight:900;font-size:24px;color:#243a73}
-.hir .co{font-size:22px;font-weight:800;color:#243a73;line-height:1}.hir .co small{display:block;font-size:11px;font-weight:700;margin-top:3px}
+.hir .brand{display:flex;align-items:center;justify-content:flex-start}
+.hir .logo-img{height:52px;max-width:260px;width:auto;object-fit:contain;display:block}
 .hir .fmt{font-weight:700;text-align:center}.hir .fmt small{display:block;font-size:11px;margin-top:6px}
 .hir .addr{font-size:12px}.hir .title{text-align:center;font-weight:800;letter-spacing:.02em}
 .hir .lbl{font-weight:700;width:19%}.hir .val{width:31%;font-weight:600;color:#0f1f6b}
@@ -470,7 +469,7 @@ export function sheetHtml(r: HardnessReport) {
   const F = HARDNESS_FORM;
   return `<div class="hir">
   <table>
-    <tr><td colspan="2" style="width:62%"><div class="brand"><div class="logo">E</div><div class="co">${esc(F.company.split(' ')[0])}<small>${esc(F.company.replace(/^\S+\s/, ''))}</small></div></div></td>
+    <tr><td colspan="2" style="width:62%"><div class="brand"><img class="logo-img" src="/everest-logo.png" alt="Everest Auto Forge"/></div></td>
         <td colspan="2" class="fmt">Format No. : ${esc(F.formatNo)}<small>Rev. No. &amp; Dt. : ${esc(F.revision)}</small></td></tr>
     <tr><td colspan="4" class="addr">Factory Address :${esc(F.address)}</td></tr>
     <tr><td colspan="4" class="title">${esc(F.title)}</td></tr>

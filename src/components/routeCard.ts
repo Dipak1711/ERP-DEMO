@@ -17,8 +17,7 @@ const CSS = `
 body{margin:0;font-family:-apple-system,'Segoe UI','Noto Sans Gujarati','Shruti',Roboto,sans-serif;color:#111}
 .rc{width:100%;color:#1f3a5f}.rc table{border-collapse:collapse;width:100%}
 .rc td,.rc th{border:1.5px solid #1f3a5f;padding:5px 8px;font-size:12.5px;vertical-align:middle}
-.rc .brand{display:flex;align-items:center;gap:8px}.rc .logo{width:36px;height:36px;border:3px solid #1f3a5f;border-radius:6px;display:grid;place-items:center;font-weight:900;font-size:22px}
-.rc .co{font-size:20px;font-weight:800;line-height:1}.rc .co small{display:block;font-size:9px;margin-top:2px}
+.rc .brand{display:flex;align-items:center;justify-content:flex-start}.rc .logo-img{height:50px;max-width:220px;width:auto;object-fit:contain;display:block}
 .rc .ttl{text-align:center;font-size:18px;font-weight:800}.rc .fm{font-size:11px;font-weight:700;text-align:center}
 .rc .l{font-weight:700;white-space:nowrap}.rc .v{font-weight:700;color:#12338f;font-size:14px}
 .rc .pt th{font-weight:700;font-size:11.5px;text-align:center}.rc .pt td{height:30px;text-align:center;font-weight:700;color:#12338f}.rc .pt td.n{width:34px;color:#1f3a5f}.rc .pt td.p{text-align:center;color:#1f3a5f}
@@ -71,7 +70,7 @@ export function routeCardHtml(s: ERPState, jobNo: string) {
 
   return `<div class="rc">
   <table>
-    <tr><td style="width:34%"><div class="brand"><div class="logo">E</div><div class="co">Everest<small>Auto Forge Pvt. Ltd.</small></div></div></td>
+    <tr><td style="width:34%"><div class="brand"><img class="logo-img" src="/everest-logo.png" alt="Everest Auto Forge"/></div></td>
         <td class="ttl">PROCESS ROUTE CARD</td>
         <td class="fm" style="width:24%">Form No. : F PD 03<br/>Rev. No. &amp; Date : 00 / 01.10.25</td></tr>
   </table>

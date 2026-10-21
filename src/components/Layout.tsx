@@ -14,7 +14,6 @@ import {
   Hammer,
   FileClock,
   Cog,
-  Factory,
   LayoutGrid,
   Moon,
   Package,
@@ -131,13 +130,11 @@ export function Layout({ route, children }: { route: string; children: ReactNode
       <div className={`scrim ${mobileOpen ? 'open' : ''}`} onClick={() => setMobileOpen(false)} />
       <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}>
         <div className="brand">
-          <div className="brand-logo">
-            <Factory size={22} />
-          </div>
-          <div>
-            <div className="brand-name">FORGEFLOW</div>
-            <div className="brand-sub">Forging &amp; Casting</div>
-          </div>
+          <img
+            src={mini ? "/everest-icon.png" : "/everest-logo.png"}
+            alt="Everest Auto Forge"
+            className="brand-logo-img"
+          />
         </div>
         <nav className="nav">
           {[
