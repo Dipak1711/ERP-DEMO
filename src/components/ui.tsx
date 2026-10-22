@@ -1,4 +1,6 @@
-import { createContext, useContext, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { APP_RESOURCES } from '../auth/appResources';
 import {
   ArrowLeft,
   ArrowRight,
@@ -6,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Boxes,
+  Eye,
   Crop,
   Flame,
   Hammer,
@@ -476,6 +479,35 @@ export function Tabs<T extends string>({
  */
 export const PageFormCtx = createContext<{ eyebrow: string } | null>(null);
 
+/**
+ * Shows its children IN PLACE OF the page content (the page underneath is hidden, not removed, so it keeps its filters and scroll state).
+ * This is how every add / edit / view opens as a whole page without having its own address. Back returns to the page underneath.
+ */
+export function OverlayHost({ children }: { children: ReactNode }) {
+  const [host, setHost] = useState<Element | null>(null);
+  useLayoutEffect(() => {
+    const el = document.querySelector('main.content');
+    setHost(el);
+    if (!el) return;
+    const n = Number((el as HTMLElement).dataset.overlays ?? '0') + 1;
+    (el as HTMLElement).dataset.overlays = String(n);
+    el.classList.add('has-overlay');
+    window.scrollTo({ top: 0 });
+    return () => {
+      const left = Number((el as HTMLElement).dataset.overlays ?? '1') - 1;
+      (el as HTMLElement).dataset.overlays = String(Math.max(left, 0));
+      if (left <= 0) el.classList.remove('has-overlay');
+    };
+  }, []);
+  return host ? createPortal(children, host) : null;
+}
+
+/** The small heading above the title: the section of the page the person came from. */
+const overlayEyebrow = () => {
+  const route = window.location.hash.replace(/^#\/?/, '').split('?')[0];
+  return APP_RESOURCES.find((r) => r.route === route)?.section ?? 'Details';
+};
+
 export function Modal({
   open,
   title,
@@ -485,6 +517,9 @@ export function Modal({
   footer,
   size,
   icon: MI,
+  dialog,
+  viewOnly,
+  viewActions,
 }: {
   open: boolean;
   title: string;
@@ -494,15 +529,68 @@ export function Modal({
   footer?: ReactNode;
   size?: 'lg';
   icon?: Icon;
+  /** a small pop-up (a yes / no or a one-line reason). Everything else opens as a full page. */
+  dialog?: boolean;
+  /** the same form, but nothing can be changed: every field is disabled and the buttons are replaced by Close (plus viewActions, e.g. Print) */
+  viewOnly?: boolean;
+  viewActions?: ReactNode;
 }) {
-  const pageForm = useContext(PageFormCtx);
+  const body = viewOnly ? (
+    <>
+      <div className="view-note">
+        <Eye size={14} /> View only — this is the saved record. Nothing can be changed here.
+      </div>
+      <fieldset className="ro-form" disabled>
+        {children}
+      </fieldset>
+    </>
+  ) : (
+    children
+  );
+  const foot = viewOnly ? (
+    <>
+      <button className="btn" onClick={onClose}>
+        Close
+      </button>
+      {viewActions}
+    </>
+  ) : (
+    footer
+  );
+  const ctx = useContext(PageFormCtx);
+  const pageForm = dialog ? null : ctx;
+  // not inside a route page and not a dialog: open as a whole page over the content area (falls back to a pop-up if there is no content area)
+  const overlay = !dialog && !pageForm && typeof document !== 'undefined' && !!document.querySelector('main.content');
   useEffect(() => {
-    if (!open || pageForm) return;
+    if (!open || pageForm || overlay) return;
     const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [open, onClose, pageForm]);
+  }, [open, onClose, pageForm, overlay]);
   if (!open) return null;
+  if (overlay)
+    return (
+      <OverlayHost>
+        <div className="page-overlay page-in">
+          <PageHeader
+            eyebrow={overlayEyebrow()}
+            title={title}
+            subtitle={subtitle}
+            actions={
+              <button className="btn" onClick={onClose}>
+                <ArrowLeft size={15} /> Back
+              </button>
+            }
+          />
+          <div className="card">
+            <div className="card-body form-page">
+              {body}
+              {foot && <div className="form-actions">{foot}</div>}
+            </div>
+          </div>
+        </div>
+      </OverlayHost>
+    );
   if (pageForm)
     return (
       <>
@@ -517,8 +605,8 @@ export function Modal({
         />
         <div className="card">
           <div className="card-body form-page">
-            {children}
-            {footer && <div className="form-actions">{footer}</div>}
+            {body}
+            {foot && <div className="form-actions">{foot}</div>}
           </div>
         </div>
       </>
@@ -540,8 +628,8 @@ export function Modal({
             <X size={18} />
           </button>
         </div>
-        <div className="modal-body">{children}</div>
-        {footer && <div className="modal-foot">{footer}</div>}
+        <div className="modal-body">{body}</div>
+        {foot && <div className="modal-foot">{foot}</div>}
       </div>
     </div>
   );
@@ -567,6 +655,7 @@ export function Confirm({
   return (
     <PageFormCtx.Provider value={null}>
     <Modal
+      dialog
       open={open}
       title={title}
       onClose={onClose}

@@ -4,7 +4,7 @@ import { PageFormCtx } from './ui';
 import { NewJobModal } from './NewJobModal';
 import { StageModal } from '../pages/StagePage';
 import { InspectModal } from '../pages/QCPage';
-import { HardnessForm, HardnessSheet } from '../pages/HardnessPage';
+import { HardnessForm } from '../pages/HardnessPage';
 import { NewDispatchModal } from '../pages/DispatchPage';
 import { InwardModal } from '../pages/RawInventoryPage';
 import { ProductModal } from '../pages/ReportPages';
@@ -23,14 +23,12 @@ const stageEyebrow = (s: string) => `Workflow · ${s === 'heatTreatment' ? 'Heat
 
 /**
  * Renders the shop-floor form that the address (or a pop-up request) asks for.
- * <ActionHost page /> sits inside the page area and shows the full-page forms; the plain <ActionHost /> only shows the
- * hardness sheet viewer, which stays a pop-up.
+ * Every form (and its read-only view) is a full page: <ActionHost page /> sits inside the page area.
  */
 export function ActionHost({ page }: { page?: boolean }) {
   const { action, openAction } = useStore();
   if (!action) return null;
-  const popup = action.kind === 'hardnessView';
-  if (!!page === popup) return null;
+  if (!page) return null;
   const close = () => openAction(null);
   let body: ReactNode = null;
   switch (action.kind) {
@@ -41,7 +39,7 @@ export function ActionHost({ page }: { page?: boolean }) {
       body = <JobWorkForm onClose={close} />;
       break;
     case 'product':
-      body = <ProductModal key={action.id ?? 'new'} id={action.id} onClose={close} />;
+      body = <ProductModal key={(action.id ?? 'new') + (action.view ? '-v' : '')} id={action.id} viewOnly={action.view} onClose={close} />;
       break;
     case 'inward':
       body = <InwardModal preset={action} onClose={close} />;
@@ -53,15 +51,11 @@ export function ActionHost({ page }: { page?: boolean }) {
       body = <InspectModal key={action.jobNo} jobNo={action.jobNo} onClose={close} />;
       break;
     case 'hardness':
-      body = <HardnessForm key={action.id ?? action.jobNo ?? 'new'} id={action.id} jobNo={action.jobNo} onClose={close} />;
-      break;
-    case 'hardnessView':
-      body = <HardnessSheet key={action.id} id={action.id} onClose={close} />;
+      body = <HardnessForm key={(action.id ?? action.jobNo ?? 'new') + (action.view ? '-v' : '')} id={action.id} jobNo={action.jobNo} viewOnly={action.view} onClose={close} />;
       break;
     case 'dispatch':
       body = <NewDispatchModal key={action.fgId} fgId={action.fgId} onClose={close} />;
       break;
   }
-  if (popup) return <>{body}</>;
   return <PageFormCtx.Provider value={{ eyebrow: action.kind === 'stage' ? stageEyebrow(action.stage) : EYEBROW[action.kind] }}>{body}</PageFormCtx.Provider>;
 }

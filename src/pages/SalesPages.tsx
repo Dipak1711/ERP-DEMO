@@ -5,7 +5,7 @@ import { Conf, Write, canSee, searchable, useAccess } from '../auth/access';
 import { NoAccess } from './NoAccess';
 import { useStore } from '../store/StoreContext';
 import { AnimatedNum } from '../components/motion';
-import { Badge, Confirm, Empty, Field, go, Kpi, Modal, NumInput, PageHeader, Search, type Icon, FilterMenu } from '../components/ui';
+import { Badge, Confirm, Empty, Field, go, Kpi, NumInput, PageHeader, Search, type Icon, FilterMenu } from '../components/ui';
 import { fmtDate, fmtNum, matches, timeAgo, todayISO } from '../components/format';
 import { COL_LABEL, KIND_BY_ROUTE, SALES_KINDS, type ColKey, type FieldDef, type FieldKey, type KindCfg, type SalesRecord } from '../sales/config';
 import { useSalesRecords } from '../sales/useSales';
@@ -66,7 +66,7 @@ function Cell({ r, c }: { r: SalesRecord; c: ColKey }) {
 export function SalesListPage({ route, query }: { route: string; query: URLSearchParams }) {
   const cfg = KIND_BY_ROUTE[route];
   const editId = Number(query.get('edit')) || undefined;
-  if (query.get('new') === '1' || editId) return <SalesFormPage cfg={cfg} editId={editId} />;
+  if (query.get('new') === '1' || editId) return <SalesFormPage cfg={cfg} editId={editId} viewOnly={query.get('view') === '1'} />;
   return <SalesList cfg={cfg} />;
 }
 
@@ -75,7 +75,6 @@ function SalesList({ cfg }: { cfg: KindCfg }) {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('all');
   const [extra, setExtra] = useState<Record<string, string>>({});
-  const [viewing, setViewing] = useState<SalesRecord | null>(null);
   const [deleting, setDeleting] = useState<SalesRecord | null>(null);
   const { toast } = useStore();
 
@@ -156,7 +155,7 @@ function SalesList({ cfg }: { cfg: KindCfg }) {
                         ))}
                         <td className="r nowrap">
                           <div className="icon-actions">
-                            <button className="icon-btn" title="View" aria-label={`View ${r.docNo}`} onClick={() => setViewing(r)}>
+                            <button className="icon-btn" title="View" aria-label={`View ${r.docNo}`} onClick={() => go(`${cfg.route}?edit=${r.id}&view=1`)}>
                               <Eye size={17} />
                             </button>
                             {cfg.printable && (
@@ -183,7 +182,6 @@ function SalesList({ cfg }: { cfg: KindCfg }) {
           </>
         )}
       </div>
-      {viewing && <SalesView cfg={cfg} rec={viewing} onClose={() => setViewing(null)} />}
       <Confirm
         open={!!deleting}
         title={`Delete ${cfg.singular}`}
@@ -197,84 +195,18 @@ function SalesList({ cfg }: { cfg: KindCfg }) {
   );
 }
 
-// ------------------------------------------------------------------ view ---
-function SalesView({ cfg, rec, onClose }: { cfg: KindCfg; rec: SalesRecord; onClose: () => void }) {
-  const fields = cfg.fields.filter((f) => (colGroup(f.key) === 'party_names' ? canSee('party_names') : colGroup(f.key) === 'sales_rates' ? canSee('sales_rates') : true));
-  const show = (f: FieldDef) => {
-    const v = rec[f.key];
-    if (v == null || v === '') return '—';
-    if (f.key === 'dueDate') return fmtDate(String(v));
-    if (f.key === 'rate') return `${inr(Number(v))} / pc`;
-    if (f.key === 'qty') return `${fmtNum(Number(v))} PCS`;
-    return String(v);
-  };
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      size="lg"
-      icon={cfg.icon}
-      title={`${cfg.singular} — ${rec.docNo}`}
-      footer={
-        <>
-          <button className="btn" onClick={onClose}>
-            Close
-          </button>
-          {cfg.printable && (
-            <button className="btn btn-primary" onClick={() => printSalesRecord(rec)}>
-              <Printer size={15} /> Print
-            </button>
-          )}
-        </>
-      }
-    >
-      <div className="kv-grid">
-        <div className="kv">
-          <span>Date</span>
-          <b>{fmtDate(rec.docDate)}</b>
-        </div>
-        <div className="kv">
-          <span>Status</span>
-          <b>
-            <Badge status={rec.status} />
-          </b>
-        </div>
-        {fields
-          .filter((f) => f.key !== 'remarks')
-          .map((f) => (
-            <div className="kv" key={f.key}>
-              <span>{f.label}</span>
-              <b>{show(f)}</b>
-            </div>
-          ))}
-        {rec.amount != null && (
-          <div className="kv">
-            <span>Amount</span>
-            <b>{inr(rec.amount)}</b>
-          </div>
-        )}
-      </div>
-      {rec.remarks && (
-        <div className="kv" style={{ marginTop: 18 }}>
-          <span>Remarks</span>
-          <b style={{ fontWeight: 500 }}>{rec.remarks}</b>
-        </div>
-      )}
-    </Modal>
-  );
-}
-
 // ------------------------------------------------------------------ form ---
 const SNAKE: Record<string, string> = { docDate: 'doc_date', dueDate: 'due_date', refNo: 'ref_no', extRef: 'ext_ref' };
 
 /** Full-page Add / Edit form for one Sales & Orders record. */
-function SalesFormPage({ cfg, editId }: { cfg: KindCfg; editId?: number }) {
-  const { canWrite } = useAccess();
+function SalesFormPage({ cfg, editId, viewOnly }: { cfg: KindCfg; editId?: number; viewOnly?: boolean }) {
+  const { canWrite, canRead } = useAccess();
   const { rows, loading, error } = useSalesRecords();
   const back = () => go(cfg.route);
-  if (!canWrite(cfg.resource)) return <NoAccess />;
+  // a read-only view needs Read access; add / edit needs Write
+  if (!(viewOnly ? canRead(cfg.resource) : canWrite(cfg.resource))) return <NoAccess />;
   const rec = editId ? rows.find((r) => r.id === editId && r.kind === cfg.kind) : undefined;
-  const title = rec ? `Edit ${cfg.singular} — ${rec.docNo}` : editId ? `Edit ${cfg.singular}` : `Add ${cfg.singular}`;
+  const title = rec ? `${viewOnly ? 'View' : 'Edit'} ${cfg.singular} — ${rec.docNo}` : editId ? `${viewOnly ? 'View' : 'Edit'} ${cfg.singular}` : `Add ${cfg.singular}`;
   return (
     <>
       <PageHeader
@@ -291,7 +223,7 @@ function SalesFormPage({ cfg, editId }: { cfg: KindCfg; editId?: number }) {
           <Empty icon={cfg.icon} title={loading ? 'Loading…' : error ? 'Could not load' : 'Record not found'} text={error ?? (loading ? undefined : 'It may have been deleted.')} action={loading ? undefined : <button className="btn btn-primary" onClick={back}>Back to {cfg.label}</button>} />
         </div>
       ) : (
-        <SalesFormBody key={rec?.id ?? 'new'} cfg={cfg} rec={rec} onDone={back} />
+        <SalesFormBody key={(rec?.id ?? 'new') + (viewOnly ? '-v' : '')} cfg={cfg} rec={rec} onDone={back} viewOnly={!!viewOnly && !!rec} />
       )}
     </>
   );
@@ -305,7 +237,7 @@ const FORM_SECTIONS: { label: string; keys: FieldKey[] }[] = [
   { label: 'Reference & dates', keys: ['source', 'refNo', 'extRef', 'dueDate'] },
 ];
 
-function SalesFormBody({ cfg, rec, onDone }: { cfg: KindCfg; rec?: SalesRecord; onDone: () => void }) {
+function SalesFormBody({ cfg, rec, onDone, viewOnly }: { cfg: KindCfg; rec?: SalesRecord; onDone: () => void; viewOnly?: boolean }) {
   const { toast } = useStore();
   // fields the role may not see are not shown (and the database ignores them anyway)
   const fields = cfg.fields.filter((f) => (colGroup(f.key) === 'party_names' ? canSee('party_names') : colGroup(f.key) === 'sales_rates' ? canSee('sales_rates') : true));
@@ -363,9 +295,16 @@ function SalesFormBody({ cfg, rec, onDone }: { cfg: KindCfg; rec?: SalesRecord; 
   const other = fields.filter((f) => !placed.has(f.key));
   const remarks = fields.find((f) => f.key === 'remarks');
 
+  // in view mode the card body is a disabled fieldset: the same layout, every field disabled
+  const Body = (viewOnly ? 'fieldset' : 'div') as unknown as 'div';
   return (
     <div className="card">
-      <div className="card-body form-page">
+      <Body className={`card-body form-page${viewOnly ? ' view-fieldset' : ''}`} {...(viewOnly ? ({ disabled: true } as object) : {})}>
+        {viewOnly && (
+          <div className="view-note">
+            <Eye size={14} /> View only — this is the saved record. Nothing can be changed here.
+          </div>
+        )}
         <div className="section-label">Document</div>
         <div className="form-grid three">
           <Field label="Date">
@@ -403,14 +342,29 @@ function SalesFormBody({ cfg, rec, onDone }: { cfg: KindCfg; rec?: SalesRecord; 
           </div>
         )}
         <div className="form-actions">
-          <button className="btn" onClick={onDone}>
-            Cancel
-          </button>
-          <button className="btn btn-primary" disabled={!valid || busy} onClick={submit}>
-            {rec ? 'Save Changes' : `Add ${cfg.singular}`}
-          </button>
+          {viewOnly ? (
+            <>
+              <button className="btn" onClick={onDone}>
+                Close
+              </button>
+              {cfg.printable && rec && (
+                <button className="btn btn-primary" onClick={() => printSalesRecord(rec)}>
+                  <Printer size={15} /> Print
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <button className="btn" onClick={onDone}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" disabled={!valid || busy} onClick={submit}>
+                {rec ? 'Save Changes' : `Add ${cfg.singular}`}
+              </button>
+            </>
+          )}
         </div>
-      </div>
+      </Body>
     </div>
   );
 }

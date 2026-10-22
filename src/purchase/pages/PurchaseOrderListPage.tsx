@@ -888,6 +888,7 @@ export function PurchaseOrderDetailPage({
 
       {/* Reject Modal */}
       <Modal
+        dialog
         open={rejectModal}
         title="Reject Purchase Order"
         onClose={() => setRejectModal(false)}
@@ -917,6 +918,7 @@ export function PurchaseOrderDetailPage({
 
       {/* Amend Modal */}
       <Modal
+        dialog
         open={amendModal}
         title="Start PO Amendment"
         onClose={() => setAmendModal(false)}

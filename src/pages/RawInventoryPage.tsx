@@ -1,6 +1,6 @@
 import * as api from '../db/api';
 import { Conf, searchable, useAccess, canSee, Write, searchableCol } from '../auth/access';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDownToLine, Boxes, Eye, Layers, PackagePlus, Pencil, Send, ShieldCheck, Trash2 } from 'lucide-react';
 import type { RawMaterialLot } from '../store/types';
 import { lotDeleteReason } from '../store/deletable';
@@ -16,7 +16,6 @@ type View = 'stock' | 'inward' | 'issues';
 
 export function RawInventoryPage() {
   const { state, openAction, run } = useStore();
-  const [viewing, setViewing] = useState<RawMaterialLot | null>(null);
   const [deleting, setDeleting] = useState<RawMaterialLot | null>(null);
   const [qcLot, setQcLot] = useState<RawMaterialLot | null>(null);
   const { canWrite } = useAccess();
@@ -31,6 +30,23 @@ export function RawInventoryPage() {
   const [supF, setSupF] = useState('');
   const [toF, setToF] = useState('');
   const lots = state.rawMaterials;
+  // the stock cards sit in one row with no visible scroll bar: the mouse wheel scrolls them sideways (trackpad / touch / Shift+wheel already do)
+  const cardsRef = useRef<HTMLDivElement>(null);
+  const cardCount = new Set(lots.map((l) => materialKey(l.material, l.od))).size;
+  useEffect(() => {
+    const el = cardsRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      const atStart = el.scrollLeft <= 0 && e.deltaY < 0;
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 && e.deltaY > 0;
+      if (atStart || atEnd) return; // at the ends the page scrolls as usual
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [cardCount]);
 
   const totalQty = lots.reduce((t, l) => t + l.availableQty, 0);
   const totalKg = lots.reduce((t, l) => t + lotAvailableWeight(l), 0);
@@ -100,7 +116,8 @@ export function RawInventoryPage() {
               }
             />
           )}
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
+          {/* one compact row of cards, however many materials there are (it scrolls sideways only when they no longer fit) */}
+          <div className="grid stock-cards" ref={cardsRef}>
             {groups.map((g) => (
               <button
                 key={g.key}
@@ -230,7 +247,7 @@ export function RawInventoryPage() {
                       </td>
                       <td className="r nowrap">
                         <div className="icon-actions">
-                          <button className="icon-btn" title="View" aria-label={`View ${l.id}`} onClick={() => setViewing(l)}>
+                          <button className="icon-btn" title="View" aria-label={`View ${l.id}`} onClick={() => openAction({ kind: 'inward', id: l.id, view: true })}>
                             <Eye size={16} />
                           </button>
                           {canQc && l.qcStatus !== undefined && (
@@ -303,7 +320,7 @@ export function RawInventoryPage() {
                         return lot ? (
                           <td className="r nowrap">
                             <div className="icon-actions">
-                              <button className="icon-btn" title="View" aria-label={`View ${lot.id}`} onClick={() => setViewing(lot)}>
+                              <button className="icon-btn" title="View" aria-label={`View ${lot.id}`} onClick={() => openAction({ kind: 'inward', id: lot.id, view: true })}>
                                 <Eye size={16} />
                               </button>
                               {canQc && lot.qcStatus !== undefined && (
@@ -369,7 +386,6 @@ export function RawInventoryPage() {
             </div>
           ))}
       </div>
-      {viewing && <LotView lot={viewing} onClose={() => setViewing(null)} />}
       {qcLot && <LotQcModal lot={qcLot} onClose={() => setQcLot(null)} />}
       <Confirm
         open={!!deleting}
@@ -384,104 +400,7 @@ export function RawInventoryPage() {
   );
 }
 
-/** Read-only details of one inward lot. */
-function LotView({ lot, onClose }: { lot: RawMaterialLot; onClose: () => void }) {
-  const issued = lotIssuedQty(lot);
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      size="lg"
-      icon={Boxes}
-      title={`Raw Material Inward — ${lot.id}`}
-      footer={
-        <button className="btn" onClick={onClose}>
-          Close
-        </button>
-      }
-    >
-      <div className="kv-grid">
-        <div className="kv">
-          <span>Material</span>
-          <b>{lot.material}</b>
-        </div>
-        <div className="kv">
-          <span>Grade / Specification</span>
-          <b>{lot.materialType || '—'}</b>
-        </div>
-        <div className="kv">
-          <span>OD / Size</span>
-          <b>{lot.od} mm</b>
-        </div>
-        <Conf g="party_names">
-          <div className="kv">
-            <span>Supplier</span>
-            <b>{lot.supplier || '—'}</b>
-          </div>
-        </Conf>
-        <Conf g="invoices">
-          <div className="kv">
-            <span>Invoice No.</span>
-            <b>{lot.invoiceNo || '—'}</b>
-          </div>
-        </Conf>
-        <Conf g="purchase_rates">
-          <div className="kv">
-            <span>Purchase Rate</span>
-            <b>{lot.purchaseRate ? `₹ ${lot.purchaseRate.toLocaleString('en-IN')} / kg` : '—'}</b>
-          </div>
-        </Conf>
-        <Conf col="raw.heat_no">
-          <div className="kv">
-            <span>Heat No.</span>
-            <b>{lot.heatNo || '—'}</b>
-          </div>
-        </Conf>
-        <div className="kv">
-          <span>Inward Date</span>
-          <b>{fmtDate(lot.inwardDate)}</b>
-        </div>
-        <div className="kv">
-          <span>Inward Qty</span>
-          <b>
-            {fmtNum(lot.inwardQty)} PCS · {fmtKg(lot.inwardWeight)}
-          </b>
-        </div>
-        <div className="kv">
-          <span>Available</span>
-          <b>{fmtNum(lot.availableQty)} PCS</b>
-        </div>
-        <div className="kv">
-          <span>Issued to production</span>
-          <b>{fmtNum(issued)} PCS</b>
-        </div>
-        {lot.qcStatus !== undefined && (
-          <div className="kv">
-            <span>Incoming QC</span>
-            <b>
-              <Badge status={lot.qcStatus === 'Pending' ? 'QC Pending' : lot.qcStatus} />
-              {(lot.blockedQty ?? 0) > 0 && <span className="muted" style={{ marginLeft: 8, fontWeight: 400 }}>{fmtNum(lot.blockedQty ?? 0)} PCS rejected ({fmtKg(lot.rejectedWeight ?? 0)})</span>}
-            </b>
-          </div>
-        )}
-        {lot.poNo && (
-          <div className="kv">
-            <span>Purchase Order</span>
-            <b>{lot.poNo}</b>
-          </div>
-        )}
-        <div className="kv">
-          <span>Status</span>
-          <b>
-            <Badge status={lotStatus(lot)} />
-          </b>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-export function InwardModal({ preset, onClose }: { preset?: { material?: string; od?: number; id?: string }; onClose: () => void }) {
+export function InwardModal({ preset, onClose }: { preset?: { material?: string; od?: number; id?: string; view?: boolean }; onClose: () => void }) {
   const { state, run, masters } = useStore();
   // editing an existing inward: every field can be corrected; what is already issued to production limits quantity, material and size
   const lot = preset?.id ? state.rawMaterials.find((l) => l.id === preset.id) : undefined;
@@ -552,7 +471,8 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
       onClose={onClose}
       size="lg"
       icon={PackagePlus}
-      title={lot ? `Edit Raw Material Inward — ${lot.id}` : 'Add Raw Material Inward'}
+      viewOnly={!!preset?.view && !!lot}
+      title={lot ? `${preset?.view ? 'View' : 'Edit'} Raw Material Inward — ${lot.id}` : 'Add Raw Material Inward'}
       subtitle="Creates a new stock lot. Lots are consumed oldest-first (FIFO) when Cutting starts."
       footer={
         <>
@@ -641,7 +561,7 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
         canSeeParty={can('party_names')}
         weight={wN}
         linkedPoNo={linkedPoNo}
-        onUnlink={() => setUnlinked(true)}
+        onUnlink={preset?.view ? undefined : () => setUnlinked(true)}
         onPick={(po, item) => {
           setPoId(po?.id ?? null);
           setPoItemId(item?.id ?? null);
@@ -679,7 +599,7 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
         </Field>
       </div>
 
-      {valid && (
+      {valid && !preset?.view && (
         <div className="callout info">
           <Layers size={16} />
           <div>

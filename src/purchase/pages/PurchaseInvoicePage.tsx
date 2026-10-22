@@ -456,6 +456,7 @@ function InvoiceDetailView({ id, navigate }: { id: number; navigate: (r: string)
       )}
       <PageFormCtx.Provider value={null}>
         <Modal
+          dialog
           open={cancelOpen}
           title="Cancel Invoice"
           onClose={() => setCancelOpen(false)}

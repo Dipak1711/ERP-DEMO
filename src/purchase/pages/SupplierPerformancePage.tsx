@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, Eye, RefreshCw, X } from 'lucide-react';
 import { Conf, canSee, useAccess } from '../../auth/access';
-import { Badge, Empty, PageHeader, Search } from '../../components/ui';
+import { Badge, Empty, OverlayHost, PageHeader, Search } from '../../components/ui';
 import { fmtDate, fmtNum, matches } from '../../components/format';
 import { fetchSupplierPerformance, fetchSupplierPOs } from '../services/receiptService';
 import type { SupplierPerformance } from '../types';
@@ -208,9 +208,9 @@ function Scorecard({ s, onClose, navigate, showParty }: { s: SupplierPerformance
   );
 
   return (
-    <>
+    <OverlayHost>
       <div className="drawer-overlay" onMouseDown={onClose} />
-      <aside className="drawer" style={{ width: 680 }} role="dialog" aria-label="Supplier scorecard">
+      <aside className="drawer" role="dialog" aria-label="Supplier scorecard">
         <div className="drawer-head">
           <div className="row">
             <div>
@@ -294,6 +294,6 @@ function Scorecard({ s, onClose, navigate, showParty }: { s: SupplierPerformance
           )}
         </div>
       </aside>
-    </>
+    </OverlayHost>
   );
 }

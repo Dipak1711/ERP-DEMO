@@ -18,7 +18,7 @@ const qs = (o: Record<string, string | number | undefined>) => {
   return s ? `?${s}` : '';
 };
 
-/** the address of a shop-floor form ('' for the hardness sheet viewer, which stays a pop-up) */
+/** the address of a shop-floor form */
 export function actionToHash(a: Action): string {
   switch (a.kind) {
     case 'newJob':
@@ -26,15 +26,15 @@ export function actionToHash(a: Action): string {
     case 'jobWork':
       return 'form/job-work';
     case 'product':
-      return 'form/product' + qs({ id: a.id });
+      return 'form/product' + qs({ id: a.id, view: a.view ? 1 : undefined });
     case 'inward':
-      return 'form/inward' + qs({ material: a.material, od: a.od, id: a.id });
+      return 'form/inward' + qs({ material: a.material, od: a.od, id: a.id, view: a.view ? 1 : undefined });
     case 'stage':
       return 'form/stage' + qs({ job: a.jobNo, stage: a.stage });
     case 'qc':
       return 'form/qc' + qs({ job: a.jobNo });
     case 'hardness':
-      return 'form/hardness' + qs({ id: a.id, job: a.jobNo });
+      return 'form/hardness' + qs({ id: a.id, job: a.jobNo, view: a.view ? 1 : undefined });
     case 'dispatch':
       return 'form/dispatch' + qs({ fg: a.fgId });
     default:
@@ -49,10 +49,10 @@ export function hashToAction(route: string, q: URLSearchParams): Action | null {
     case 'form/job-work':
       return { kind: 'jobWork' };
     case 'form/product':
-      return { kind: 'product', id: q.get('id') ?? undefined };
+      return { kind: 'product', id: q.get('id') ?? undefined, view: q.get('view') === '1' };
     case 'form/inward': {
       const od = Number(q.get('od'));
-      return { kind: 'inward', material: q.get('material') ?? undefined, od: od > 0 ? od : undefined, id: q.get('id') ?? undefined };
+      return { kind: 'inward', material: q.get('material') ?? undefined, od: od > 0 ? od : undefined, id: q.get('id') ?? undefined, view: q.get('view') === '1' };
     }
     case 'form/stage': {
       const stage = q.get('stage') as ProcessStage | null;
@@ -62,7 +62,7 @@ export function hashToAction(route: string, q: URLSearchParams): Action | null {
     case 'form/qc':
       return q.get('job') ? { kind: 'qc', jobNo: q.get('job')! } : null;
     case 'form/hardness':
-      return { kind: 'hardness', id: q.get('id') ?? undefined, jobNo: q.get('job') ?? undefined };
+      return { kind: 'hardness', id: q.get('id') ?? undefined, jobNo: q.get('job') ?? undefined, view: q.get('view') === '1' };
     case 'form/dispatch':
       return { kind: 'dispatch', fgId: q.get('fg') ?? '' };
     default:

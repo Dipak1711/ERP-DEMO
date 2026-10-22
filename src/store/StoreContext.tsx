@@ -9,12 +9,11 @@ import { actionParent, actionToHash, closeForm, hashToAction, openForm } from '.
 export type Action =
   | { kind: 'newJob' }
   | { kind: 'jobWork' }
-  | { kind: 'product'; id?: string }
-  | { kind: 'inward'; material?: string; od?: number; /** a lot to correct (edit) instead of a new inward */ id?: string }
+  | { kind: 'product'; id?: string; /** show the record read-only (same form, nothing editable) */ view?: boolean }
+  | { kind: 'inward'; material?: string; od?: number; /** a lot to correct (edit) instead of a new inward */ id?: string; view?: boolean }
   | { kind: 'stage'; stage: ProcessStage; jobNo: string }
   | { kind: 'qc'; jobNo: string }
-  | { kind: 'hardness'; id?: string; jobNo?: string }
-  | { kind: 'hardnessView'; id: string }
+  | { kind: 'hardness'; id?: string; jobNo?: string; view?: boolean }
   | { kind: 'dispatch'; fgId: string };
 
 export interface Toast {
@@ -71,7 +70,7 @@ interface StoreValue {
 const Ctx = createContext<StoreValue | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const { logout, canWrite, reloadAccess } = useAccess();
+  const { logout, canWrite, canRead, reloadAccess } = useAccess();
   const [data, setData] = useState<{ state: ERPState; masters: Masters } | null>(null);
   const [loadError, setLoadError] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -145,7 +144,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (a: Action | null) => {
       if (a) {
         const res = actionPage(a);
-        if (res && !canWrite(res.key)) {
+        if (res && !(('view' in a && a.view) ? canRead(res.key) : canWrite(res.key))) {
           toast({ kind: 'error', title: 'View only', message: `You can view ${res.label} but not change it. Ask the Director or Plant Head for Write access.` });
           return;
         }
@@ -159,7 +158,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (to) openForm(to);
       else setOverlay(a);
     },
-    [canWrite, toast, hashAction],
+    [canWrite, canRead, toast, hashAction],
   );
 
   const value = useMemo(

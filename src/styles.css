@@ -1138,3 +1138,28 @@ select.filter { padding-right: 36px; }
 .rp-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
 .rp-dates { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; }
 .rp-dates .field { width: 190px; }
+
+/* every add / edit / view opens as a whole page: the page underneath is hidden while an overlay page is showing */
+.content.has-overlay > :not(.page-overlay):not(.drawer):not(.drawer-overlay) { display: none !important; }
+.content.has-overlay > .drawer-overlay { display: none; }
+.content.has-overlay > .drawer { position: static; width: auto; max-width: none; box-shadow: none; animation: none; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; z-index: auto; }
+.content.has-overlay > .drawer .drawer-body { overflow: visible; }
+
+/* Raw Inventory: the same stock-by-material cards, scaled down (about 80%) so they sit in one row */
+.stock-cards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(200px, 1fr); gap: 14px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: none; -ms-overflow-style: none; }
+.stock-cards::-webkit-scrollbar { display: none; } /* scrolls sideways with the mouse wheel / touch / drag, no visible bar */
+.stock-cards .kpi { min-width: 0; padding: 16px; }
+/* one tint for every card (the colour cycle of .grid > .kpi would suggest a status where there is none) */
+.grid.stock-cards > .kpi:nth-child(n) { --tone: var(--teal); --tone-bg: var(--teal-bg); }
+.stock-cards .kpi-label { font-size: 13px; }
+.stock-cards .chip { font-size: 11px; padding: 2px 8px; }
+.stock-cards .kpi-value { font-size: 26px; margin-top: 14px; }
+.stock-cards .kpi-value small { font-size: 12px; margin-left: 4px; }
+.stock-cards .kpi-hint { font-size: 12px; margin-top: 3px; }
+
+/* view-only form: the same layout as the edit form, every field disabled and easy to read */
+.ro-form { display: grid; gap: 22px; border: 0; padding: 0; margin: 0; min-width: 0; background: none; border-radius: 0; }
+.card-body.view-fieldset { border: 0; margin: 0; min-width: 0; }
+.ro-form input:disabled, .ro-form select:disabled, .ro-form textarea:disabled, .view-fieldset input:disabled, .view-fieldset select:disabled, .view-fieldset textarea:disabled { opacity: 1; -webkit-text-fill-color: var(--text); color: var(--text); background: var(--surface-3); cursor: default; }
+.ro-form button:disabled, .ro-form .btn:disabled, .view-fieldset button:disabled { opacity: 0.55; cursor: default; }
+.view-note { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-3); padding: 8px 12px; border: 1px dashed var(--border-strong); border-radius: 10px; width: fit-content; }

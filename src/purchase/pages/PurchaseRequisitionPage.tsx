@@ -656,6 +656,7 @@ function PRDetailView({
 
       {/* Reject Modal */}
       <Modal
+        dialog
         open={rejectModal}
         title="Reject Purchase Requisition"
         onClose={() => setRejectModal(false)}
@@ -685,6 +686,7 @@ function PRDetailView({
 
       {/* Cancel Modal */}
       <Modal
+        dialog
         open={cancelModal}
         title="Cancel Purchase Requisition"
         onClose={() => setCancelModal(false)}

@@ -1,7 +1,7 @@
 import * as api from '../db/api';
 import { canSee, searchable, Write, Conf, colOk, searchableCol } from '../auth/access';
 import { useMemo, useState } from 'react';
-import { ClipboardCheck, Eye, Pencil, Printer, Plus, Trash2 } from 'lucide-react';
+import { ClipboardCheck, Eye, Printer, Plus, Trash2 } from 'lucide-react';
 import { useStore } from '../store/StoreContext';
 import {
   HARDNESS_FORM,
@@ -99,7 +99,7 @@ export function HardnessRegister() {
               {rows.map((r) => {
                 const vals = r.readings.filter((x): x is number => x !== null);
                 const verdict = hardnessVerdict(r);
-                const open = () => openAction({ kind: 'hardnessView', id: r.id });
+                const open = () => openAction({ kind: 'hardness', id: r.id, view: true });
                 return (
                   <tr key={r.id} className={`row-click ${rowTone(verdict)}`} tabIndex={0} onClick={open} onKeyDown={(e) => e.key === 'Enter' && open()} title={`Open ${r.id}`}>
                     <td className="mono strong">{r.id}</td>
@@ -168,7 +168,7 @@ export function HardnessRegister() {
 }
 
 // ============================================================ the form ===
-export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: string; onClose: () => void }) {
+export function HardnessForm({ id, jobNo, viewOnly, onClose }: { id?: string; jobNo?: string; viewOnly?: boolean; onClose: () => void }) {
   const { state, run, masters } = useStore();
   const cur = id ? state.hardnessReports.find((r) => r.id === id) : undefined;
   const [f, setF] = useState(() => ({
@@ -262,7 +262,15 @@ export function HardnessForm({ id, jobNo, onClose }: { id?: string; jobNo?: stri
       open
       size="lg"
       icon={ClipboardCheck}
-      title={cur ? `Edit ${cur.id}` : 'New Hardness Inspection Report'}
+      viewOnly={!!viewOnly && !!cur}
+      viewActions={
+        cur && (
+          <button className="btn btn-primary" onClick={() => printHtml(`Hardness Report ${cur.id}`, sheetHtml(cur), HIR_CSS)}>
+            <Printer size={15} /> Print
+          </button>
+        )
+      }
+      title={cur ? `${viewOnly ? 'View' : 'Edit'} ${cur.id}` : 'New Hardness Inspection Report'}
       subtitle={`Format ${HARDNESS_FORM.formatNo} · Rev. ${HARDNESS_FORM.revision}`}
       onClose={onClose}
       footer={
@@ -489,31 +497,3 @@ export function sheetHtml(r: HardnessReport) {
 </div>`;
 }
 
-export function HardnessSheet({ id, onClose }: { id: string; onClose: () => void }) {
-  const { state, openAction } = useStore();
-  const r = state.hardnessReports.find((x) => x.id === id);
-  if (!r) return null;
-  return (
-    <Modal
-      open
-      size="lg"
-      icon={ClipboardCheck}
-      title={r.id}
-      subtitle={`${r.component} · ${fmtDate(r.date)}`}
-      onClose={onClose}
-      footer={
-        <>
-          <Write res="qc"><button className="btn" onClick={() => openAction({ kind: 'hardness', id: r.id })}>
-            <Pencil size={15} /> Edit
-          </button></Write>
-          <button className="btn btn-primary" onClick={() => printHtml(`Hardness Report ${r.id}`, sheetHtml(r), HIR_CSS)}>
-            <Printer size={15} /> Print
-          </button>
-        </>
-      }
-    >
-      <style>{HIR_CSS}</style>
-      <div dangerouslySetInnerHTML={{ __html: sheetHtml(r) }} />
-    </Modal>
-  );
-}

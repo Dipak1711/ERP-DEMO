@@ -60,10 +60,11 @@ function useHashRoute() {
 /** A shop-floor form as a page (#/form/…): refused for roles without Write access, even by typing the address. */
 function FormRoute() {
   const { action } = useStore();
-  const { canWrite } = useAccess();
-  if (!action || action.kind === 'hardnessView') return <NotAForm />;
+  const { canWrite, canRead } = useAccess();
+  if (!action) return <NotAForm />;
   const res = actionPage(action);
-  if (res && !canWrite(res.key)) return <NoAccess />;
+  // a read-only view needs Read access; an add / edit needs Write
+  if (res && !(('view' in action && action.view) ? canRead(res.key) : canWrite(res.key))) return <NoAccess />;
   return <ActionHost page />;
 }
 

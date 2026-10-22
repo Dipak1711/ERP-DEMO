@@ -233,7 +233,6 @@ export function LedgerPage() {
 // -------------------------------------------------------- Product Master ---
 export function ProductsPage() {
   const { state, openAction, run } = useStore();
-  const [viewing, setViewing] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState<Product | null>(null);
   const { canWrite } = useAccess();
   const mgmt = canWrite('products');
@@ -306,7 +305,7 @@ export function ProductsPage() {
                   </Conf>
                   <td className="r nowrap">
                     <div className="icon-actions">
-                      <button className="icon-btn" title="View" aria-label={`View ${p.code}`} onClick={() => setViewing(p)}>
+                      <button className="icon-btn" title="View" aria-label={`View ${p.code}`} onClick={() => openAction({ kind: 'product', id: p.id, view: true })}>
                         <Eye size={16} />
                       </button>
                       {mgmt && (
@@ -328,7 +327,6 @@ export function ProductsPage() {
         </div>
         )}
       </div>
-      {viewing && <ProductView p={viewing} onClose={() => setViewing(null)} />}
       <Confirm
         open={!!deleting}
         title="Delete product"
@@ -342,67 +340,7 @@ export function ProductsPage() {
   );
 }
 
-/** Read-only details of one product. */
-function ProductView({ p, onClose }: { p: Product; onClose: () => void }) {
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      size="lg"
-      icon={Package}
-      title={`${p.code} · ${p.name}`}
-      footer={
-        <button className="btn" onClick={onClose}>
-          Close
-        </button>
-      }
-    >
-      <div className="kv-grid">
-        <div className="kv">
-          <span>Raw Material</span>
-          <b>{p.material}</b>
-        </div>
-        <div className="kv">
-          <span>Bar OD</span>
-          <b>{p.od} mm</b>
-        </div>
-        <div className="kv">
-          <span>Cutting Length</span>
-          <b>{p.cuttingLength} mm</b>
-        </div>
-        <div className="kv">
-          <span>Finished Weight</span>
-          <b>{p.finishedWeight} kg</b>
-        </div>
-        <Conf col="product.die_no">
-          <div className="kv">
-            <span>Forging Die</span>
-            <b>{p.dieNo || '—'}</b>
-          </div>
-        </Conf>
-        <div className="kv">
-          <span>Heat Treatment</span>
-          <b>{`${p.htTemperature}°C · ${p.htSoakMinutes} min${p.htProcess ? ' · ' + p.htProcess : ''}${p.htQuench ? ' · ' + p.htQuench : ''}`}</b>
-        </div>
-        <Conf g="party_names">
-          <div className="kv">
-            <span>Default Customer</span>
-            <b>{p.defaultCustomer || '—'}</b>
-          </div>
-        </Conf>
-        <Conf g="sales_rates">
-          <div className="kv">
-            <span>Sales Rate</span>
-            <b>{p.salesRate ? `₹ ${p.salesRate.toLocaleString('en-IN')} / pc` : '—'}</b>
-          </div>
-        </Conf>
-      </div>
-    </Modal>
-  );
-}
-
-// Add / edit a product (Director and Plant Head). Existing jobs keep their product when it is edited.
-export function ProductModal({ id, onClose }: { id?: string; onClose: () => void }) {
+export function ProductModal({ id, viewOnly, onClose }: { id?: string; viewOnly?: boolean; onClose: () => void }) {
   const { state, run } = useStore();
   const { can } = useAccess();
   const cur = id ? state.products.find((p) => p.id === id) : undefined;
@@ -448,7 +386,8 @@ export function ProductModal({ id, onClose }: { id?: string; onClose: () => void
       onClose={onClose}
       size="lg"
       icon={Package}
-      title={id ? 'Edit Product' : 'Add Product'}
+      viewOnly={!!viewOnly && !!id}
+      title={id ? (viewOnly ? 'View Product' : 'Edit Product') : 'Add Product'}
       subtitle="Job cards pick these values up automatically: cutting length, die, finished weight and heat-treatment settings."
       footer={
         <>

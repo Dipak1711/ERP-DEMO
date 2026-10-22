@@ -4,7 +4,7 @@ import { ArrowRight, CheckCircle2, ChevronRight, Printer, Scale, X } from 'lucid
 import { useStore } from '../store/StoreContext';
 import { fgAvailable, fgStatus, jobSummary, parseMaterialKey, PROCESS_STAGES, STAGE_LABEL, type JobSummary } from '../store/engine';
 import type { ProcessStage, StageRecord } from '../store/types';
-import { Badge, FLOW_STEPS, go, QtyFlow } from './ui';
+import { Badge, FLOW_STEPS, go, OverlayHost, QtyFlow } from './ui';
 import { nextStep } from './workflow';
 import { fmtDate, fmtDateTime, fmtKg, fmtNum, heatTempText } from './format';
 
@@ -111,7 +111,7 @@ export function TraceDrawer() {
   const NextIcon = FLOW_STEPS.find((f) => f.key === next?.stageKey)?.icon ?? CheckCircle2;
 
   return (
-    <>
+    <OverlayHost>
       <div className="drawer-overlay no-print" onClick={() => openTrace(null)} />
       <aside className="drawer" role="dialog" aria-label={`Traceability ${job.jobNo}`}>
         <div className="drawer-head">
@@ -481,6 +481,6 @@ export function TraceDrawer() {
           )}
         </div>
       </aside>
-    </>
+    </OverlayHost>
   );
 }

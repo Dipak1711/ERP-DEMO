@@ -57,6 +57,7 @@ export function NewJobModal({ open, onClose }: { open: boolean; onClose: () => v
   if (!state.products.length)
     return (
       <Modal
+        dialog
         open={open}
         onClose={onClose}
         icon={PackagePlus}
