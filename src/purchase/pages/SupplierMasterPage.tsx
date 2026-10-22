@@ -154,7 +154,7 @@ export function SupplierMasterPage() {
                   <tbody>
                     {shown.map((s) => (
                       <tr key={s.id}>
-                        <td className="mono strong">{s.code}</td>
+                        <td className="strong">{s.code}</td>
                         <td className="strong">{s.name}</td>
                         <td>
                           {s.gstin ? <div className="mono text-xs">{s.gstin}</div> : null}

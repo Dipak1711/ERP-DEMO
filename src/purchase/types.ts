@@ -156,3 +156,230 @@ export interface SavePOItemInput {
   gst_pct: number;
   delivery_date?: string | null;
 }
+
+// ============================================================
+// Purchase Requisition (PR)
+// ============================================================
+export type PRStatus =
+  | 'Draft'
+  | 'Approval Pending'
+  | 'Approved'
+  | 'Rejected'
+  | 'Partially Ordered'
+  | 'Closed'
+  | 'Cancelled';
+
+export interface PurchaseRequisitionItem {
+  id: number;
+  prId: number;
+  lineNo: number;
+  item: string;
+  material?: string;
+  grade?: string;
+  size?: string;
+  uom: string;
+  qty: number;
+  requiredDate?: string | null;
+  orderedQty: number;
+  remainingQty?: number;
+}
+
+export interface PurchaseRequisition {
+  id: number;
+  prNo: string;
+  prDate: string;
+  requestedBy?: string;
+  department?: string;
+  urgency: Urgency;
+  status: PRStatus;
+  remarks?: string;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  createdAt: string;
+  items?: PurchaseRequisitionItem[];
+  itemCount?: number;
+  totalQty?: number;
+  totalOrderedQty?: number;
+}
+
+export interface PRDetail extends PurchaseRequisition {
+  items: PurchaseRequisitionItem[];
+}
+
+export interface SavePRHeaderInput {
+  pr_date?: string;
+  requested_by?: string;
+  department?: string;
+  urgency: Urgency;
+  remarks?: string;
+}
+
+export interface SavePRItemInput {
+  item: string;
+  material?: string;
+  grade?: string;
+  size?: string;
+  uom: string;
+  qty: number;
+  required_date?: string | null;
+}
+
+// ============================================================
+// Request for Quotation (RFQ)
+// ============================================================
+export type RFQStatus = 'Open' | 'Quotes Received' | 'Closed' | 'Cancelled';
+
+export interface RFQSupplier {
+  id: number;
+  rfqId: number;
+  supplierId: number;
+  supplierName?: string;
+  supplierEmail?: string;
+  supplierPhone?: string;
+  sentAt?: string | null;
+  respondedAt?: string | null;
+}
+
+export interface RFQ {
+  id: number;
+  rfqNo: string;
+  rfqDate: string;
+  prId?: number | null;
+  prNo?: string;
+  dueDate?: string | null;
+  status: RFQStatus;
+  createdAt: string;
+  suppliers?: RFQSupplier[];
+  supplierCount?: number;
+  responseCount?: number;
+}
+
+export interface RFQDetail extends RFQ {
+  suppliers: RFQSupplier[];
+  pr?: PurchaseRequisition | null;
+}
+
+export interface SaveRFQInput {
+  pr_id?: number | null;
+  due_date?: string | null;
+  supplier_ids: number[];
+}
+
+// ============================================================
+// Supplier Quotation (SQ)
+// ============================================================
+export type SQStatus = 'Received' | 'Shortlisted' | 'Selected' | 'Rejected';
+
+export interface SupplierQuotationItem {
+  id: number;
+  sqId: number;
+  prItemId?: number | null;
+  item: string;
+  material?: string;
+  grade?: string;
+  size?: string;
+  uom: string;
+  qty: number;
+  rate: number;
+  amount: number;
+}
+
+export interface SupplierQuotation {
+  id: number;
+  sqNo: string;
+  sqDate: string;
+  rfqId?: number | null;
+  rfqNo?: string;
+  prId?: number | null;
+  prNo?: string;
+  supplierId: number;
+  supplierName?: string;
+  validTill?: string | null;
+  paymentTerms?: string;
+  deliveryTerms?: string;
+  leadDays?: number | null;
+  attachmentPath?: string | null;
+  status: SQStatus;
+  createdAt: string;
+  totalAmount?: number;
+  itemCount?: number;
+  items?: SupplierQuotationItem[];
+}
+
+export interface SQDetail extends SupplierQuotation {
+  items: SupplierQuotationItem[];
+}
+
+export interface SaveSQHeaderInput {
+  supplier_id: number;
+  rfq_id?: number | null;
+  pr_id?: number | null;
+  sq_date?: string;
+  valid_till?: string | null;
+  payment_terms?: string;
+  delivery_terms?: string;
+  lead_days?: number | null;
+  attachment_path?: string | null;
+  status?: SQStatus;
+}
+
+export interface SaveSQItemInput {
+  pr_item_id?: number | null;
+  item: string;
+  material?: string;
+  grade?: string;
+  size?: string;
+  uom: string;
+  qty: number;
+  rate: number;
+}
+
+// ============================================================
+// Supplier Comparison Matrix
+// ============================================================
+export interface SupplierComparisonRow {
+  prItemId: number;
+  prId: number;
+  item: string;
+  grade?: string;
+  size?: string;
+  requiredQty: number;
+  sqId: number;
+  sqNo: string;
+  supplier: string;
+  rate: number;
+  leadDays?: number | null;
+  paymentTerms?: string;
+  rateRank: number;
+}
+
+export interface ComparisonSupplierSummary {
+  supplierId?: number;
+  supplierName: string;
+  sqId: number;
+  sqNo: string;
+  status: SQStatus;
+  leadDays?: number | null;
+  paymentTerms?: string;
+  deliveryTerms?: string;
+  totalAmount: number;
+  itemsQuotedCount: number;
+}
+
+export interface ComparisonMatrix {
+  prId?: number;
+  prNo?: string;
+  rfqId?: number;
+  rfqNo?: string;
+  suppliers: ComparisonSupplierSummary[];
+  items: {
+    prItemId: number;
+    item: string;
+    grade?: string;
+    size?: string;
+    requiredQty: number;
+    uom: string;
+    lowestRate?: number;
+    quotes: Record<number, { rate: number; sqId: number; isLowest: boolean }>;
+  }[];
+}

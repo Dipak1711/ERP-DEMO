@@ -15,6 +15,8 @@ import {
   Scissors,
   Hammer,
   FileClock,
+  FileSpreadsheet,
+  FileText,
   Cog,
   LayoutGrid,
   Moon,
@@ -22,6 +24,7 @@ import {
   PanelLeft,
   ScrollText,
   Search,
+  Send,
   ShoppingBag,
   Sun,
   Waypoints,
@@ -50,6 +53,9 @@ const WORKFLOW_NAV: NavItem[] = FLOW_STEPS.map((s) => ({
 const SALES_NAV: NavItem[] = SALES_PAGES.map((p) => ({ route: p.route, label: p.label, icon: p.icon }));
 const PURCHASE_NAV: NavItem[] = [
   { route: 'purchase-dashboard', label: 'Purchase Dashboard', icon: LayoutGrid },
+  { route: 'purchase-requisitions', label: 'Purchase Requisitions', icon: FileText },
+  { route: 'rfqs', label: 'Requests for Quotation', icon: Send },
+  { route: 'supplier-quotations', label: 'Supplier Quotations', icon: FileSpreadsheet },
   { route: 'purchase-orders', label: 'Purchase Orders', icon: ReceiptText },
   { route: 'suppliers', label: 'Supplier Master', icon: Building2 },
 ];

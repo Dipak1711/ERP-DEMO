@@ -189,3 +189,121 @@ export async function getPOAttachmentUrl(path: string): Promise<string> {
   }
   return data.signedUrl;
 }
+
+export interface POPrefillData {
+  sourceType: 'PR' | 'SQ';
+  sourceDocNo: string;
+  supplierId?: number;
+  prId?: number | null;
+  prNo?: string;
+  sqId?: number | null;
+  sqNo?: string;
+  urgency?: import('../types').Urgency;
+  paymentTerms?: string;
+  deliveryTerms?: string;
+  items: {
+    prItemId?: number | null;
+    item: string;
+    material?: string;
+    grade?: string;
+    size?: string;
+    uom: string;
+    qty: number;
+    rate: number;
+    gstPct: number;
+  }[];
+}
+
+export async function getPOPrefillFromPR(prId: number): Promise<POPrefillData> {
+  const [prRes, itemsRes] = await Promise.all([
+    supabase.from('purchase_requisitions').select('*').eq('id', prId).single(),
+    supabase.from('purchase_requisition_items').select('*').eq('pr_id', prId).order('line_no', { ascending: true }),
+  ]);
+
+  if (prRes.error || !prRes.data) throw new Error(dbMessage(prRes.error));
+  const pr = prRes.data;
+  const items = (itemsRes.data || [])
+    .map((it: any) => {
+      const remaining = Math.max(0, Number(it.qty || 0) - Number(it.ordered_qty || 0));
+      return {
+        prItemId: Number(it.id),
+        item: String(it.item || ''),
+        material: it.material ? String(it.material) : undefined,
+        grade: it.grade ? String(it.grade) : undefined,
+        size: it.size ? String(it.size) : undefined,
+        uom: String(it.uom || 'KG'),
+        qty: remaining > 0 ? remaining : Number(it.qty || 0),
+        rate: 0,
+        gstPct: 18,
+      };
+    })
+    .filter((it: any) => it.qty > 0);
+
+  return {
+    sourceType: 'PR',
+    sourceDocNo: pr.pr_no,
+    prId: Number(pr.id),
+    prNo: pr.pr_no,
+    urgency: (pr.urgency || 'Normal') as import('../types').Urgency,
+    items,
+  };
+}
+
+export async function getPOPrefillFromSQ(sqId: number): Promise<POPrefillData> {
+  const [sqRes, itemsRes] = await Promise.all([
+    supabase
+      .from('supplier_quotations')
+      .select('*, purchase_requisitions (pr_no), suppliers (name)')
+      .eq('id', sqId)
+      .single(),
+    supabase.from('supplier_quotation_items').select('*').eq('sq_id', sqId),
+  ]);
+
+  if (sqRes.error || !sqRes.data) throw new Error(dbMessage(sqRes.error));
+  const sq = sqRes.data;
+
+  // If items are linked to PR items, look up remaining qty on those PR items
+  const prItemIds = (itemsRes.data || []).map((it: any) => it.pr_item_id).filter(Boolean);
+  const remainingMap = new Map<number, number>();
+  if (prItemIds.length > 0) {
+    const { data: prItems } = await supabase
+      .from('purchase_requisition_items')
+      .select('id, qty, ordered_qty')
+      .in('id', prItemIds);
+    (prItems || []).forEach((p: any) => {
+      remainingMap.set(p.id, Math.max(0, Number(p.qty || 0) - Number(p.ordered_qty || 0)));
+    });
+  }
+
+  const items = (itemsRes.data || []).map((it: any) => {
+    let qty = Number(it.qty || 0);
+    if (it.pr_item_id && remainingMap.has(it.pr_item_id)) {
+      const rem = remainingMap.get(it.pr_item_id)!;
+      if (rem > 0) qty = Math.min(qty, rem);
+    }
+    return {
+      prItemId: it.pr_item_id ? Number(it.pr_item_id) : undefined,
+      item: String(it.item || ''),
+      material: it.material ? String(it.material) : undefined,
+      grade: it.grade ? String(it.grade) : undefined,
+      size: it.size ? String(it.size) : undefined,
+      uom: String(it.uom || 'KG'),
+      qty,
+      rate: Number(it.rate || 0),
+      gstPct: 18,
+    };
+  });
+
+  return {
+    sourceType: 'SQ',
+    sourceDocNo: sq.sq_no,
+    supplierId: Number(sq.supplier_id),
+    prId: sq.pr_id ? Number(sq.pr_id) : undefined,
+    prNo: sq.purchase_requisitions?.pr_no,
+    sqId: Number(sq.id),
+    sqNo: sq.sq_no,
+    paymentTerms: sq.payment_terms || undefined,
+    deliveryTerms: sq.delivery_terms || undefined,
+    items,
+  };
+}

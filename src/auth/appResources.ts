@@ -158,6 +158,33 @@ export const APP_RESOURCES: AppResourceDefinition[] = [
     writable: true,
     defaultLevels: { accounts: 'write', operator: 'hidden', qc: 'read' },
   },
+  {
+    key: 'purchase_requisitions',
+    route: 'purchase-requisitions',
+    label: 'Purchase Requisitions',
+    section: 'Purchase & Procurement',
+    sort: 23,
+    writable: true,
+    defaultLevels: { accounts: 'write', operator: 'read', qc: 'read' },
+  },
+  {
+    key: 'rfq',
+    route: 'rfqs',
+    label: 'Requests for Quotation (RFQ)',
+    section: 'Purchase & Procurement',
+    sort: 24,
+    writable: true,
+    defaultLevels: { accounts: 'write', operator: 'hidden', qc: 'read' },
+  },
+  {
+    key: 'supplier_quotations',
+    route: 'supplier-quotations',
+    label: 'Supplier Quotations',
+    section: 'Purchase & Procurement',
+    sort: 25,
+    writable: true,
+    defaultLevels: { accounts: 'write', operator: 'hidden', qc: 'read' },
+  },
 
   // ---------------------------------------------------------- Workflow ---
   {

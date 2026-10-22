@@ -30,6 +30,34 @@ CREATE TABLE IF NOT EXISTS suppliers (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- A database built from migration 02 already has a bare suppliers table (id, name, active): add the purchase columns to it.
+-- On a database where this file already created the full table, every line below does nothing.
+ALTER TABLE suppliers
+  ADD COLUMN IF NOT EXISTS code TEXT,
+  ADD COLUMN IF NOT EXISTS gstin TEXT,
+  ADD COLUMN IF NOT EXISTS pan TEXT,
+  ADD COLUMN IF NOT EXISTS state TEXT,
+  ADD COLUMN IF NOT EXISTS contact_person TEXT,
+  ADD COLUMN IF NOT EXISTS phone TEXT,
+  ADD COLUMN IF NOT EXISTS email TEXT,
+  ADD COLUMN IF NOT EXISTS address TEXT,
+  ADD COLUMN IF NOT EXISTS default_payment_terms TEXT,
+  ADD COLUMN IF NOT EXISTS is_msme BOOLEAN DEFAULT FALSE;
+UPDATE suppliers SET code = 'SUP-' || LPAD(id::TEXT, 4, '0') WHERE code IS NULL;
+ALTER TABLE suppliers ALTER COLUMN code SET NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS suppliers_code_key ON suppliers (code);
+
+-- older code (seed.sql, quick inserts) adds a supplier by name only: give it the next SUP- code
+CREATE OR REPLACE FUNCTION trg_supplier_code() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.code IS NULL OR btrim(NEW.code) = '' THEN
+    NEW.code := 'SUP-' || LPAD((SELECT COALESCE(MAX(id), 0) + 1 FROM suppliers)::TEXT, 4, '0');
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS suppliers_code ON suppliers;
+CREATE TRIGGER suppliers_code BEFORE INSERT ON suppliers FOR EACH ROW EXECUTE FUNCTION trg_supplier_code();
+
 -- Backfill from free-text suppliers already used on inward lots in raw_material_lots
 INSERT INTO suppliers (code, name)
 SELECT 'SUP-' || LPAD((ROW_NUMBER() OVER (ORDER BY s))::TEXT, 4, '0'), s

@@ -153,3 +153,132 @@ export function mapPurchaseOrder(r: Row): PurchaseOrder {
     isOverdue: r.is_overdue != null ? b(r.is_overdue) : undefined,
   };
 }
+
+// -------------------------------------------------- Purchase Requisition ---
+export function mapPRItem(r: Row): import('./types').PurchaseRequisitionItem {
+  const qty = n(r.qty);
+  const orderedQty = n(r.ordered_qty);
+  return {
+    id: Number(r.id),
+    prId: Number(r.pr_id),
+    lineNo: n(r.line_no),
+    item: s(r.item),
+    material: optS(r.material),
+    grade: optS(r.grade),
+    size: optS(r.size),
+    uom: s(r.uom) || 'KG',
+    qty,
+    requiredDate: optS(r.required_date),
+    orderedQty,
+    remainingQty: Math.max(0, qty - orderedQty),
+  };
+}
+
+export function mapPurchaseRequisition(r: Row): import('./types').PurchaseRequisition {
+  return {
+    id: Number(r.id),
+    prNo: s(r.pr_no),
+    prDate: s(r.pr_date),
+    requestedBy: optS(r.requested_by),
+    department: optS(r.department),
+    urgency: (s(r.urgency) || 'Normal') as Urgency,
+    status: (s(r.status) || 'Draft') as import('./types').PRStatus,
+    remarks: optS(r.remarks),
+    approvedBy: optS(r.approved_by),
+    approvedAt: optS(r.approved_at),
+    createdAt: s(r.created_at),
+    itemCount: optN(r.item_count) ?? undefined,
+    totalQty: optN(r.total_qty) ?? undefined,
+    totalOrderedQty: optN(r.total_ordered_qty) ?? undefined,
+  };
+}
+
+// ------------------------------------------------------------------ RFQ ---
+export function mapRFQSupplier(r: Row): import('./types').RFQSupplier {
+  return {
+    id: Number(r.id),
+    rfqId: Number(r.rfq_id),
+    supplierId: Number(r.supplier_id),
+    supplierName: optS(r.supplier_name),
+    supplierEmail: optS(r.supplier_email),
+    supplierPhone: optS(r.supplier_phone),
+    sentAt: optS(r.sent_at),
+    respondedAt: optS(r.responded_at),
+  };
+}
+
+export function mapRFQ(r: Row): import('./types').RFQ {
+  return {
+    id: Number(r.id),
+    rfqNo: s(r.rfq_no),
+    rfqDate: s(r.rfq_date),
+    prId: optN(r.pr_id),
+    prNo: optS(r.pr_no),
+    dueDate: optS(r.due_date),
+    status: (s(r.status) || 'Open') as import('./types').RFQStatus,
+    createdAt: s(r.created_at),
+    supplierCount: optN(r.supplier_count) ?? undefined,
+    responseCount: optN(r.response_count) ?? undefined,
+  };
+}
+
+// --------------------------------------------------- Supplier Quotation ---
+export function mapSQItem(r: Row): import('./types').SupplierQuotationItem {
+  const qty = n(r.qty);
+  const rate = n(r.rate);
+  return {
+    id: Number(r.id),
+    sqId: Number(r.sq_id),
+    prItemId: optN(r.pr_item_id),
+    item: s(r.item),
+    material: optS(r.material),
+    grade: optS(r.grade),
+    size: optS(r.size),
+    uom: s(r.uom) || 'KG',
+    qty,
+    rate,
+    amount: n(r.amount, qty * rate),
+  };
+}
+
+export function mapSupplierQuotation(r: Row): import('./types').SupplierQuotation {
+  return {
+    id: Number(r.id),
+    sqNo: s(r.sq_no),
+    sqDate: s(r.sq_date),
+    rfqId: optN(r.rfq_id),
+    rfqNo: optS(r.rfq_no),
+    prId: optN(r.pr_id),
+    prNo: optS(r.pr_no),
+    supplierId: Number(r.supplier_id),
+    supplierName: optS(r.supplier_name),
+    validTill: optS(r.valid_till),
+    paymentTerms: optS(r.payment_terms),
+    deliveryTerms: optS(r.delivery_terms),
+    leadDays: optN(r.lead_days),
+    attachmentPath: optS(r.attachment_path),
+    status: (s(r.status) || 'Received') as import('./types').SQStatus,
+    createdAt: s(r.created_at),
+    totalAmount: optN(r.total_amount) ?? undefined,
+    itemCount: optN(r.item_count) ?? undefined,
+  };
+}
+
+// --------------------------------------------------- Comparison Row ---
+export function mapSupplierComparisonRow(r: Row): import('./types').SupplierComparisonRow {
+  return {
+    prItemId: Number(r.pr_item_id),
+    prId: Number(r.pr_id),
+    item: s(r.item),
+    grade: optS(r.grade),
+    size: optS(r.size),
+    requiredQty: n(r.required_qty),
+    sqId: Number(r.sq_id),
+    sqNo: s(r.sq_no),
+    supplier: s(r.supplier),
+    rate: n(r.rate),
+    leadDays: optN(r.lead_days),
+    paymentTerms: optS(r.payment_terms),
+    rateRank: n(r.rate_rank, 1),
+  };
+}

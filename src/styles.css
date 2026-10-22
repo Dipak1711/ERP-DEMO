@@ -440,6 +440,12 @@ select.filter { height: 40px; border: 1px solid var(--border); border-radius: 12
 .tbl input:focus, .tbl select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-50); }
 .tbl.form-tbl td { padding: 10px 8px; vertical-align: middle; }
 .tbl.form-tbl th { padding: 12px 10px; font-size: 12px; }
+.tbl.form-tbl select { padding-right: 30px; text-overflow: ellipsis; }
+/* a size box with its unit dropdown beside it, inside a line-item table */
+.size-field { position: relative; min-width: 112px; max-width: 100%; }
+.tbl .size-field input { padding-right: 58px; }
+.size-field .unit { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12.5px; font-weight: 600; color: var(--text-2); pointer-events: none; }
+.tbl .size-field select { position: absolute; right: 0; top: 0; width: 58px; height: 100%; opacity: 0; cursor: pointer; padding: 0; border: 0; }
 .field textarea { height: 64px; padding: 10px 12px; resize: vertical; }
 .input:focus, .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-50); }
 .input[readonly], .input:disabled, .field input:disabled, .field select:disabled { background: var(--surface-3); color: var(--text-2); }
@@ -1050,6 +1056,7 @@ select.filter { padding-right: 36px; }
 
 /* full-page add / edit form (Sales & Orders) */
 .form-page { display: grid; gap: 22px; padding: 24px 26px 22px; }
+.form-page > * { min-width: 0; } /* a wide line-item table scrolls inside its box instead of stretching the whole page */
 .form-page .section-label { margin: 0 0 14px; }
 .form-page .section-label:first-child { margin-top: 0; }
 .form-page textarea { min-height: 110px; }
@@ -1067,3 +1074,61 @@ select.filter { padding-right: 36px; }
 
 /* the "Job work" tag next to a job number */
 .chip-jw { margin-left: 6px; padding: 1px 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; border-radius: 999px; background: var(--violet-bg, #ede9fe); color: var(--violet, #6d28d9); vertical-align: middle; white-space: nowrap; }
+
+/* purchase order detail: compact three-block summary */
+.po-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; padding: 12px 0; margin-bottom: 16px; }
+.po-summary > div { padding: 2px 20px; display: grid; gap: 3px; align-content: start; }
+.po-summary > div + div { border-left: 1px solid var(--border); }
+.po-k { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.po-v { font-size: 15px; font-weight: 600; color: var(--text); }
+.po-v.po-total { font-size: 18px; color: var(--primary); }
+.po-s { font-size: 12.5px; color: var(--text-2); }
+.po-s b { color: var(--text); font-weight: 600; }
+@media (max-width: 800px) { .po-summary { grid-template-columns: 1fr; gap: 12px; } .po-summary > div + div { border-left: 0; border-top: 1px solid var(--border); padding-top: 12px; } }
+
+/* small helpers the purchase pages use (they were missing, so those texts rendered at full size) */
+.text-xs { font-size: 12px; }
+.text-sm { font-size: 13px; }
+.text-center { text-align: center; }
+.center { text-align: center; }
+.uppercase { text-transform: uppercase; letter-spacing: .04em; }
+.font-normal { font-weight: 400; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 8px; }
+.ml-1 { margin-left: 4px; }
+.mt-0\.5 { margin-top: 2px; }
+.mt-1 { margin-top: 4px; }
+.mt-4 { margin-top: 16px; }
+.p-4 { padding: 16px; }
+.text-accent { color: var(--accent); }
+.text-amber { color: var(--warn); }
+.text-good, .text-green { color: var(--good); }
+.text-red { color: var(--crit); }
+.btn-xs { height: 28px; padding: 0 10px; font-size: 12px; border-radius: 8px; }
+.chip-subtle { background: var(--surface-2); color: var(--text-2); }
+.link-btn { background: none; border: 0; padding: 0; color: var(--primary); font: inherit; font-weight: 600; cursor: pointer; }
+.link-btn:hover { text-decoration: underline; }
+.progress-bar-wrap { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.progress-bar { height: 100%; border-radius: 999px; background: var(--primary); }
+.b-gray { background: var(--neutral-bg); color: var(--text-2); border-color: var(--border); }
+
+/* search bar + Filters button on one line, search taking the free width (same look as the sales lists) */
+.card-head:has(.table-search-row) { padding: 18px 22px; gap: 18px; flex-wrap: nowrap; }
+.table-search-row { display: flex; align-items: center; gap: 12px; flex: 1 1 auto; min-width: 0; }
+.table-search-row .search { flex: 1 1 320px; max-width: none; min-width: 0; }
+.table-search-row .search input, .table-search-row .fmenu-btn { height: 44px; }
+.table-search-row .search svg { top: 14px; }
+.table-search-row .fmenu-btn { flex: 0 0 auto; white-space: nowrap; }
+.card-head:has(.table-search-row) > .right { white-space: nowrap; flex: 0 0 auto; }
+.link-btn { font-size: inherit; }
+
+/* line-item rows: compact bars; a long name is cut with "…" instead of widening the bar */
+.tbl.form-tbl input:not([type="checkbox"]):not([type="radio"]), .tbl.form-tbl select { height: 34px; font-size: 13px; padding-left: 10px; padding-right: 8px; border-radius: 8px; }
+.tbl.form-tbl select { padding-right: 26px; }
+.tbl.form-tbl input[type="text"], .tbl.form-tbl input:not([type]) { text-overflow: ellipsis; }
+.tbl.form-tbl td { padding: 8px 6px; }
+.tbl .size-field input { padding-right: 52px; }

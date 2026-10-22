@@ -29,6 +29,10 @@ import { DieDetailsPage, DieMasterPage, DieRegisterPage } from './dies/pages';
 import { SupplierMasterPage } from './purchase/pages/SupplierMasterPage';
 import { PurchaseOrderRouter } from './purchase/pages/PurchaseOrderListPage';
 import { PurchaseDashboardPage } from './purchase/pages/PurchaseDashboardPage';
+import { PurchaseRequisitionPage } from './purchase/pages/PurchaseRequisitionPage';
+import { RFQPage } from './purchase/pages/RFQPage';
+import { SupplierQuotationPage } from './purchase/pages/SupplierQuotationPage';
+import { QuotationComparisonPage } from './purchase/pages/QuotationComparisonPage';
 import './dies/dies.css';
 
 /** Minimal hash router: #/route?query — survives refresh, no server config needed. */
@@ -82,11 +86,15 @@ function Page({ route, query, navigate }: { route: string; query: URLSearchParam
   if (route.startsWith('dieform/')) return <DieFormRoute />;
   if (route === 'settings') return canManageAccess ? <AccessPage /> : <NoAccess />;
   if (route === 'units') return canManageAccess ? <UnitsPage /> : <NoAccess />;
-  const resource = ROUTE_RESOURCE[route] ?? 'dashboard';
+  const resource = (route === 'quotation-comparison' ? 'supplier_quotations' : ROUTE_RESOURCE[route]) ?? 'dashboard';
   if (!canRead(resource)) return <NoAccess />;
   if (route === 'job-work') return <JobWorkPage />;
   if (route === 'sales-dashboard') return <SalesDashboard navigate={navigate} />;
   if (route === 'purchase-dashboard') return <PurchaseDashboardPage navigate={navigate} />;
+  if (route === 'purchase-requisitions') return <PurchaseRequisitionPage query={query} navigate={navigate} />;
+  if (route === 'rfqs') return <RFQPage query={query} navigate={navigate} />;
+  if (route === 'supplier-quotations') return <SupplierQuotationPage query={query} navigate={navigate} />;
+  if (route === 'quotation-comparison') return <QuotationComparisonPage query={query} navigate={navigate} />;
   if (route === 'purchase-orders') return <PurchaseOrderRouter query={query} navigate={navigate} />;
   if (route === 'suppliers') return <SupplierMasterPage />;
   if (SALES_PAGES.some((p) => p.route === route)) return <SalesListPage route={route} query={query} />;

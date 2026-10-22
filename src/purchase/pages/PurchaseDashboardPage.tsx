@@ -6,9 +6,11 @@ import {
   Clock,
   Eye,
   FileCheck,
+  FileText,
   Plus,
   Printer,
   RefreshCw,
+  Send,
   ShoppingBag,
   XCircle,
 } from 'lucide-react';
@@ -73,14 +75,33 @@ export function PurchaseDashboardPage({ navigate }: { navigate: (r: string) => v
       />
 
       {/* KPI Cards */}
-      <div className="kpis k4">
+      <div className="kpis">
         <Kpi
-          label="Pending Approvals"
+          label="PRs Pending Approval"
+          value={kpis.pendingPRs}
+          unit="requisitions"
+          hint={kpis.pendingPRs > 0 ? 'Review & approve PRs' : 'No PRs awaiting review'}
+          icon={FileText}
+          tone={kpis.pendingPRs > 0 ? 'amber' : 'blue'}
+          onClick={() => navigate('purchase-requisitions')}
+        />
+        <Kpi
+          label="Open RFQs"
+          value={kpis.openRFQs}
+          unit="RFQs"
+          hint={kpis.openRFQs > 0 ? 'Awaiting supplier quotes' : 'All RFQs responded/closed'}
+          icon={Send}
+          tone={kpis.openRFQs > 0 ? 'teal' : 'blue'}
+          onClick={() => navigate('rfqs')}
+        />
+        <Kpi
+          label="Pending PO Approvals"
           value={kpis.pendingApprovals}
           unit="orders"
           hint={kpis.pendingApprovals > 0 ? 'Requires management review' : 'All caught up'}
           icon={Clock}
           tone={kpis.pendingApprovals > 0 ? 'amber' : 'blue'}
+          onClick={() => navigate('purchase-orders')}
         />
         <Kpi
           label="Approved (Not Released)"
@@ -89,6 +110,7 @@ export function PurchaseDashboardPage({ navigate }: { navigate: (r: string) => v
           hint="Ready for release to vendor"
           icon={FileCheck}
           tone="blue"
+          onClick={() => navigate('purchase-orders')}
         />
         <Kpi
           label="Active Open Orders"
@@ -106,6 +128,7 @@ export function PurchaseDashboardPage({ navigate }: { navigate: (r: string) => v
           hint={kpis.overdue > 0 ? 'Passed promised delivery date' : 'No overdue orders'}
           icon={AlertCircle}
           tone={kpis.overdue > 0 ? 'red' : 'blue'}
+          onClick={() => navigate('purchase-orders')}
         />
       </div>
 
@@ -152,7 +175,7 @@ export function PurchaseDashboardPage({ navigate }: { navigate: (r: string) => v
                 <tbody>
                   {urgent.map((o) => (
                     <tr key={o.id}>
-                      <td className="mono strong">{o.poNo}</td>
+                      <td className="strong">{o.poNo}</td>
                       <td>
                         <Priority p={o.urgency} />
                       </td>
@@ -243,7 +266,7 @@ export function PurchaseDashboardPage({ navigate }: { navigate: (r: string) => v
                 <tbody>
                   {pendingApprovals.map((po) => (
                     <tr key={po.id}>
-                      <td className="mono strong">
+                      <td className="strong">
                         {po.poNo}
                         {po.revNo > 0 && <span className="chip text-xs ml-1">R{po.revNo}</span>}
                       </td>

@@ -29,6 +29,7 @@ import {
   Search,
   Tabs,
 } from '../../components/ui';
+import { SizeField } from '../components/SizeField';
 import { fmtDate, fmtNum, matches } from '../../components/format';
 import { useStore } from '../../store/StoreContext';
 import { usePurchaseOrders, useSuppliers } from '../hooks/usePurchase';
@@ -37,6 +38,8 @@ import {
   decidePO,
   fetchPODetail,
   getPOAttachmentUrl,
+  getPOPrefillFromPR,
+  getPOPrefillFromSQ,
   releasePO,
   savePO,
   submitPO,
@@ -67,9 +70,18 @@ export function PurchaseOrderRouter({
   const editId = Number(query.get('edit')) || undefined;
   const isNew = query.get('new') === '1';
   const detailId = Number(query.get('id')) || undefined;
+  const fromPRId = Number(query.get('from_pr')) || undefined;
+  const fromSQId = Number(query.get('from_sq')) || undefined;
 
-  if (isNew || editId) {
-    return <PurchaseOrderFormPage editId={editId} navigate={navigate} />;
+  if (isNew || editId || fromPRId || fromSQId) {
+    return (
+      <PurchaseOrderFormPage
+        editId={editId}
+        fromPRId={fromPRId}
+        fromSQId={fromSQId}
+        navigate={navigate}
+      />
+    );
   }
   if (detailId) {
     return <PurchaseOrderDetailPage id={detailId} navigate={navigate} />;
@@ -506,44 +518,60 @@ export function PurchaseOrderDetailPage({
         }
       />
 
-      {/* Summary Cards */}
-      <div className="grid-3" style={{ marginBottom: 16 }}>
-        <div className="card" style={{ padding: 14 }}>
-          <div className="text-xs uppercase muted font-semibold">Vendor / Supplier</div>
-          <div className="text-base font-bold mt-1">{showParty ? po.supplierName : '—'}</div>
-          {showParty && po.supplierEmail && <div className="text-xs muted">{po.supplierEmail}</div>}
-          <div className="text-xs muted mt-2">
+      {/* Summary strip: three compact blocks side by side */}
+      <div className="card po-summary">
+        <div>
+          <div className="po-k">Vendor / Supplier</div>
+          <div className="po-v">{showParty ? po.supplierName : '—'}</div>
+          {showParty && po.supplierEmail && <div className="po-s">{po.supplierEmail}</div>}
+          <div className="po-s">
             Priority: <Priority p={po.urgency} />
           </div>
         </div>
-
-        <div className="card" style={{ padding: 14 }}>
-          <div className="text-xs uppercase muted font-semibold">Dates & Fulfillment</div>
-          <div className="mt-1">
-            <span className="muted text-xs">PO Date: </span>
-            <span className="strong">{fmtDate(po.poDate)}</span>
+        <div>
+          <div className="po-k">Dates &amp; Fulfillment</div>
+          <div className="po-s">
+            PO date: <b>{fmtDate(po.poDate)}</b>
           </div>
-          <div>
-            <span className="muted text-xs">Delivery Due: </span>
-            <span className="strong">{po.deliveryDate ? fmtDate(po.deliveryDate) : 'Immediate'}</span>
+          <div className="po-s">
+            Delivery due: <b>{po.deliveryDate ? fmtDate(po.deliveryDate) : 'Immediate'}</b>
           </div>
-          <div>
-            <span className="muted text-xs">Payment Terms: </span>
-            <span>{po.paymentTerms || '30 Days'}</span>
+          <div className="po-s">
+            Payment terms: <b>{po.paymentTerms || '30 Days'}</b>
           </div>
         </div>
-
-        <div className="card" style={{ padding: 14 }}>
-          <div className="text-xs uppercase muted font-semibold">Order Valuation</div>
-          <div className="text-xl font-bold mt-1" style={{ color: '#259392' }}>
-            {showRates ? inr(po.totalAmount) : '—'}
-          </div>
-          <div className="text-xs muted mt-1">
-            Taxable: {showRates ? inr(po.taxableAmount) : '—'} | GST: {showRates ? inr(po.gstAmount) : '—'} (
-            {po.taxType === 'inter' ? 'IGST' : 'CGST+SGST'})
+        <div>
+          <div className="po-k">Order Valuation</div>
+          <div className="po-v po-total">{showRates ? inr(po.totalAmount) : '—'}</div>
+          <div className="po-s">
+            Taxable {showRates ? inr(po.taxableAmount) : '—'} · GST {showRates ? inr(po.gstAmount) : '—'} ({po.taxType === 'inter' ? 'IGST' : 'CGST+SGST'})
           </div>
         </div>
       </div>
+
+      {/* Linked Source Section if present */}
+      {(po.prId || po.sqId) && (
+        <div className="card" style={{ marginBottom: 16, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <FileText size={16} className="text-accent" />
+          <span className="text-xs font-semibold uppercase muted">Linked Upstream:</span>
+          {po.prId && (
+            <button
+              className="btn btn-xs btn-subtle"
+              onClick={() => navigate(`purchase-requisitions?id=${po.prId}`)}
+            >
+              View Linked Requisition (PR #{po.prId})
+            </button>
+          )}
+          {po.sqId && (
+            <button
+              className="btn btn-xs btn-subtle"
+              onClick={() => navigate(`supplier-quotations?id=${po.sqId}`)}
+            >
+              View Linked Quotation (SQ #{po.sqId})
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Attachments Section if present */}
       {po.attachments.length > 0 && (
@@ -688,7 +716,7 @@ export function PurchaseOrderDetailPage({
                   <tbody>
                     {po.revisions.map((rev) => (
                       <tr key={rev.id}>
-                        <td className="mono strong">Revision {rev.revNo}</td>
+                        <td className="strong">Revision {rev.revNo}</td>
                         <td className="strong">{rev.reason}</td>
                         <td>{rev.amendedBy || '—'}</td>
                         <td className="text-xs muted">{fmtDate(rev.amendedAt)}</td>
@@ -755,7 +783,7 @@ export function PurchaseOrderDetailPage({
         <p className="text-sm muted" style={{ marginTop: 0 }}>
           This will move the PO back to <b>Draft</b> status so the purchase team can correct quantities, items, or rates.
         </p>
-        <Field label="Rejection Note / Comments *" required>
+        <Field label="Rejection Note / Comments" required>
           <textarea
             rows={3}
             value={actionNote}
@@ -785,7 +813,7 @@ export function PurchaseOrderDetailPage({
           This will snapshot current version <b>R{po.revNo}</b> into the revision history, bump the revision to{' '}
           <b>R{po.revNo + 1}</b>, and reopen the PO as Draft. It must be re-approved and re-released before receiving.
         </p>
-        <Field label="Reason for Amendment *" required>
+        <Field label="Reason for Amendment" required>
           <textarea
             rows={3}
             value={actionNote}
@@ -803,6 +831,7 @@ export function PurchaseOrderDetailPage({
 // ---------------------------------------------------------------------------------------------
 interface FormItemRow {
   id?: number;
+  pr_item_id?: number | null;
   item: string;
   material: string;
   grade: string;
@@ -817,17 +846,26 @@ interface FormItemRow {
 
 export function PurchaseOrderFormPage({
   editId,
+  fromPRId,
+  fromSQId,
   navigate,
 }: {
   editId?: number;
+  fromPRId?: number;
+  fromSQId?: number;
   navigate: (r: string) => void;
 }) {
   const { suppliers } = useSuppliers();
   const { user } = useAccess();
   const { toast } = useStore();
 
-  const [loading, setLoading] = useState(!!editId);
+  const [loading, setLoading] = useState(!!editId || !!fromPRId || !!fromSQId);
   const [saving, setSaving] = useState(false);
+
+  // Upstream linkage
+  const [prId, setPrId] = useState<number | null>(fromPRId || null);
+  const [sqId, setSqId] = useState<number | null>(fromSQId || null);
+  const [sourceBanner, setSourceBanner] = useState<{ type: 'PR' | 'SQ'; docNo: string } | null>(null);
 
   // Header form
   const [supplierId, setSupplierId] = useState<number | ''>('');
@@ -869,6 +907,8 @@ export function PurchaseOrderFormPage({
           return;
         }
         setSupplierId(data.supplierId);
+        setPrId(data.prId || null);
+        setSqId(data.sqId || null);
         setUrgency(data.urgency);
         setDeliveryDate(data.deliveryDate || '');
         setPaymentTerms(data.paymentTerms || '');
@@ -880,6 +920,7 @@ export function PurchaseOrderFormPage({
           setItems(
             data.items.map((it) => ({
               id: it.id,
+              pr_item_id: it.prItemId,
               item: it.item,
               material: it.material || '',
               grade: it.grade || '',
@@ -901,6 +942,77 @@ export function PurchaseOrderFormPage({
       }
     })();
   }, [editId]);
+
+  // Load prefill from PR or SQ
+  useEffect(() => {
+    if (fromPRId) {
+      void (async () => {
+        try {
+          setLoading(true);
+          const data = await getPOPrefillFromPR(fromPRId);
+          setPrId(data.prId || fromPRId);
+          setSourceBanner({ type: 'PR', docNo: data.sourceDocNo });
+          if (data.urgency) setUrgency(data.urgency);
+          if (data.items.length > 0) {
+            setItems(
+              data.items.map((it) => ({
+                pr_item_id: it.prItemId,
+                item: it.item,
+                material: it.material || '',
+                grade: it.grade || '',
+                size: it.size || '',
+                hsn: '',
+                uom: it.uom,
+                qty: it.qty,
+                rate: it.rate,
+                gst_pct: it.gstPct,
+                delivery_date: '',
+              }))
+            );
+          }
+        } catch (e) {
+          toast({ kind: 'error', title: 'Could not load PR prefill', message: String(e) });
+        } finally {
+          setLoading(false);
+        }
+      })();
+    } else if (fromSQId) {
+      void (async () => {
+        try {
+          setLoading(true);
+          const data = await getPOPrefillFromSQ(fromSQId);
+          setSqId(data.sqId || fromSQId);
+          if (data.prId) setPrId(data.prId);
+          setSourceBanner({ type: 'SQ', docNo: data.sourceDocNo });
+          if (data.supplierId) setSupplierId(data.supplierId);
+          if (data.urgency) setUrgency(data.urgency);
+          if (data.paymentTerms) setPaymentTerms(data.paymentTerms);
+          if (data.deliveryTerms) setDeliveryTerms(data.deliveryTerms);
+          if (data.items.length > 0) {
+            setItems(
+              data.items.map((it) => ({
+                pr_item_id: it.prItemId,
+                item: it.item,
+                material: it.material || '',
+                grade: it.grade || '',
+                size: it.size || '',
+                hsn: '',
+                uom: it.uom,
+                qty: it.qty,
+                rate: it.rate,
+                gst_pct: it.gstPct,
+                delivery_date: '',
+              }))
+            );
+          }
+        } catch (e) {
+          toast({ kind: 'error', title: 'Could not load quotation prefill', message: String(e) });
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }
+  }, [fromPRId, fromSQId]);
 
   // Dynamic calculations
   const totals = useMemo(() => {
@@ -986,6 +1098,8 @@ export function PurchaseOrderFormPage({
       setSaving(true);
       const headerInput: SavePOHeaderInput = {
         supplier_id: Number(supplierId),
+        pr_id: prId,
+        sq_id: sqId,
         urgency,
         delivery_date: deliveryDate || null,
         payment_terms: paymentTerms,
@@ -996,6 +1110,7 @@ export function PurchaseOrderFormPage({
       };
 
       const itemsInput: SavePOItemInput[] = items.map((it) => ({
+        pr_item_id: it.pr_item_id || null,
         item: it.item.trim(),
         material: it.material.trim() || undefined,
         grade: it.grade.trim() || undefined,
@@ -1047,6 +1162,32 @@ export function PurchaseOrderFormPage({
           </>
         }
       />
+
+      {sourceBanner && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: '12px 18px',
+            background: 'var(--surface-2)',
+            border: '1px solid var(--border)',
+            borderLeft: '4px solid var(--accent)',
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <FileText size={18} className="text-accent" />
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>
+              Prefilled from {sourceBanner.type === 'PR' ? 'Purchase Requisition' : 'Supplier Quotation'} ({sourceBanner.docNo})
+            </div>
+            <div className="text-xs muted">
+              Items and parameters prefilled from upstream document. Quantities will remain tracked against PR requirements upon release.
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-body form-page" style={{ padding: '20px 24px' }}>
@@ -1138,19 +1279,19 @@ export function PurchaseOrderFormPage({
 
         <div className="card-body" style={{ padding: '0 22px 20px' }}>
           <div className="table-wrap" style={{ borderRadius: 8, border: '1px solid var(--border)' }}>
-            <table className="tbl form-tbl" style={{ minWidth: 1050 }}>
+            <table className="tbl form-tbl" style={{ minWidth: 1240 }}>
               <thead>
                 <tr>
                   <th style={{ width: 40, textAlign: 'center' }}>#</th>
-                  <th style={{ minWidth: 220 }}>Item Description *</th>
-                  <th style={{ width: 160 }}>Material / Grade</th>
-                  <th style={{ width: 130 }}>Size</th>
+                  <th style={{ minWidth: 200 }}>Item Description *</th>
+                  <th style={{ width: 150 }}>Material / Grade</th>
+                  <th style={{ width: 150 }}>Size</th>
                   <th style={{ width: 100 }}>HSN</th>
-                  <th style={{ width: 95 }}>UOM</th>
-                  <th style={{ width: 105 }} className="r">Qty *</th>
-                  <th style={{ width: 120 }} className="r">Rate (₹)</th>
-                  <th style={{ width: 95 }}>GST %</th>
-                  <th style={{ width: 130 }} className="r">Amount (₹)</th>
+                  <th style={{ width: 90 }}>UOM</th>
+                  <th style={{ width: 100 }} className="r">Qty *</th>
+                  <th style={{ width: 110 }} className="r">Rate (₹)</th>
+                  <th style={{ width: 90 }}>GST %</th>
+                  <th style={{ width: 120 }} className="r">Amount (₹)</th>
                   <th style={{ width: 48, textAlign: 'center' }}></th>
                 </tr>
               </thead>
@@ -1164,28 +1305,23 @@ export function PurchaseOrderFormPage({
                         <input
                           value={it.item}
                           onChange={(e) => updateItemRow(idx, { item: e.target.value })}
-                          placeholder="Item name / spec…"
+                          placeholder="Item description"
                         />
                       </td>
                       <td>
                         <input
                           value={it.grade}
                           onChange={(e) => updateItemRow(idx, { grade: e.target.value })}
-                          placeholder="e.g. EN8D / SAE 1045"
+                          placeholder="e.g. EN8D"
                         />
                       </td>
                       <td>
-                        <input
-                          value={it.size}
-                          onChange={(e) => updateItemRow(idx, { size: e.target.value })}
-                          placeholder="e.g. Ø50mm"
-                        />
+                        <SizeField value={it.size} onChange={(v) => updateItemRow(idx, { size: v })} />
                       </td>
                       <td>
                         <input
                           value={it.hsn}
                           onChange={(e) => updateItemRow(idx, { hsn: e.target.value })}
-                          placeholder="7228"
                         />
                       </td>
                       <td>
@@ -1207,7 +1343,6 @@ export function PurchaseOrderFormPage({
                           step="any"
                           value={it.qty || ''}
                           onChange={(e) => updateItemRow(idx, { qty: Number(e.target.value) })}
-                          placeholder="0"
                           style={{ textAlign: 'right' }}
                         />
                       </td>
@@ -1218,7 +1353,6 @@ export function PurchaseOrderFormPage({
                           step="any"
                           value={it.rate || ''}
                           onChange={(e) => updateItemRow(idx, { rate: Number(e.target.value) })}
-                          placeholder="0.00"
                           style={{ textAlign: 'right' }}
                         />
                       </td>
