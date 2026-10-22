@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   CheckCircle,
   ExternalLink,
+  Download,
   Eye,
   FileCheck,
   FileText,
@@ -30,14 +31,18 @@ import {
   Tabs,
 } from '../../components/ui';
 import { SizeField } from '../components/SizeField';
-import { fmtDate, fmtNum, matches } from '../../components/format';
+import { SendPoModal } from '../components/SendPoModal';
+import { fetchPOBalance } from '../services/invoiceService';
+import { fmtDate, fmtDateTime, fmtNum, matches } from '../../components/format';
 import { useStore } from '../../store/StoreContext';
 import { usePurchaseOrders, useSuppliers } from '../hooks/usePurchase';
 import {
   amendPO,
+  canSendPO,
   decidePO,
   fetchPODetail,
   getPOAttachmentUrl,
+  getPOPdfUrl,
   getPOPrefillFromPR,
   getPOPrefillFromSQ,
   releasePO,
@@ -48,6 +53,8 @@ import {
 import { printPurchaseOrder } from '../print';
 import { fetchPOReceipts } from '../services/receiptService';
 import type {
+  POBalance,
+  POEmailLog,
   POReceipt,
   PODetail,
   POAttachment,
@@ -317,6 +324,12 @@ export function PurchaseOrderListPage({ navigate }: { navigate: (r: string) => v
   );
 }
 
+/** A send that was reserved ("Queued") but never reported back within this time is shown as unknown, not as sent. */
+const STALE_SEND_MS = 2 * 60 * 1000;
+const UNKNOWN_SEND = 'Unknown — check and retry';
+const emailLogLabel = (em: POEmailLog): string =>
+  em.deliveryStatus === 'Queued' && Date.now() - new Date(em.sentAt).getTime() > STALE_SEND_MS ? UNKNOWN_SEND : em.deliveryStatus;
+
 // ---------------------------------------------------------------------------------------------
 // 2. Purchase Order Detail Page (Header, Items, Receipt Progress, Approvals, Revisions, Email Log)
 // ---------------------------------------------------------------------------------------------
@@ -332,6 +345,10 @@ export function PurchaseOrderDetailPage({
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'items' | 'receipts' | 'approvals' | 'revisions' | 'emails'>('items');
   const [receipts, setReceipts] = useState<POReceipt[]>([]);
+  const [canSend, setCanSend] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [balance, setBalance] = useState<POBalance | null>(null);
 
   // Modals & Action states
   const [rejectModal, setRejectModal] = useState(false);
@@ -352,6 +369,9 @@ export function PurchaseOrderDetailPage({
       setError(null);
       // lots received against this PO; the list simply stays empty if it cannot be read
       fetchPOReceipts(id).then(setReceipts).catch(() => setReceipts([]));
+      // may this person send / download the PDF, and what has been invoiced and paid (both stay empty if not available)
+      canSendPO(id).then(setCanSend).catch(() => setCanSend(false));
+      fetchPOBalance(id).then(setBalance).catch(() => setBalance(null));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -364,6 +384,17 @@ export function PurchaseOrderDetailPage({
   });
 
   const userName = user?.name || user?.email || 'User';
+
+  const downloadPdf = async () => {
+    try {
+      setPdfBusy(true);
+      window.open(await getPOPdfUrl(id), '_blank', 'noopener');
+    } catch (e) {
+      toast({ kind: 'error', title: 'Could not create the PDF', message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setPdfBusy(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!po) return;
@@ -484,6 +515,16 @@ export function PurchaseOrderDetailPage({
             <button className="btn btn-subtle" onClick={() => printPurchaseOrder(po)}>
               <Printer size={15} /> Print
             </button>
+            {canSend && ['Released', 'Sent to Supplier'].includes(po.status) && (
+              <>
+                <button className="btn btn-subtle" onClick={downloadPdf} disabled={pdfBusy}>
+                  <Download size={15} /> {pdfBusy ? 'Preparing…' : 'Download PDF'}
+                </button>
+                <button className="btn btn-primary" onClick={() => setSendOpen(true)}>
+                  <Send size={15} /> {po.emailLogs.some((l) => l.deliveryStatus === 'Sent') ? 'Send again' : 'Send to Supplier'}
+                </button>
+              </>
+            )}
 
             {/* Action Bar driven by status */}
             {po.status === 'Draft' && canManagePO && (
@@ -551,6 +592,11 @@ export function PurchaseOrderDetailPage({
           <div className="po-s">
             Taxable {showRates ? inr(po.taxableAmount) : '—'} · GST {showRates ? inr(po.gstAmount) : '—'} ({po.taxType === 'inter' ? 'IGST' : 'CGST+SGST'})
           </div>
+          {showRates && balance && (
+            <div className="po-s">
+              Invoiced <b>{inr(balance.invoiced)}</b> · Paid <b>{inr(balance.paid)}</b> · Payable <b>{inr(balance.payable)}</b>
+            </div>
+          )}
         </div>
       </div>
 
@@ -788,30 +834,37 @@ export function PurchaseOrderDetailPage({
 
           {activeTab === 'emails' && (
             po.emailLogs.length === 0 ? (
-              <Empty title="No automated emails recorded for this PO." />
+              <Empty title="This PO has not been e-mailed yet." text={canSend && ['Released', 'Sent to Supplier'].includes(po.status) ? 'Use Send to Supplier above.' : undefined} />
             ) : (
               <div className="table-wrap">
                 <table className="tbl">
                   <thead>
                     <tr>
-                      <th style={{ width: 80 }}>Rev</th>
+                      <th style={{ width: 90 }}>Revision</th>
                       <th>Recipient</th>
-                      <th>Sender</th>
-                      <th>Delivery Status</th>
-                      <th style={{ width: 160 }}>Timestamp</th>
+                      <th>Sent By</th>
+                      <th>Status</th>
+                      <th style={{ width: 170 }}>Date &amp; Time</th>
                     </tr>
                   </thead>
                   <tbody>
                     {po.emailLogs.map((em) => (
                       <tr key={em.id}>
-                        <td className="mono">R{em.revNo}</td>
-                        <td className="strong">{em.sentTo}</td>
+                        <td className="mono">
+                          R{em.revNo}
+                          {em.revNo === po.revNo && <span className="chip chip-subtle text-xs ml-1">current</span>}
+                        </td>
+                        <td className="strong">
+                          {em.sentTo}
+                          {em.cc && <div className="text-xs muted">CC: {em.cc}</div>}
+                        </td>
                         <td>{em.sentBy || 'System'}</td>
                         <td>
-                          <Badge status={em.deliveryStatus} />
+                          <Badge status={emailLogLabel(em)} />
                           {em.error && <div className="text-xs text-red mt-0.5">{em.error}</div>}
+                          {emailLogLabel(em) === UNKNOWN_SEND && <div className="text-xs muted mt-0.5">No result was recorded. Check the supplier's inbox, then send again if needed.</div>}
                         </td>
-                        <td className="text-xs muted">{fmtDate(em.sentAt)}</td>
+                        <td className="text-xs muted nowrap">{fmtDateTime(em.sentAt)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -821,6 +874,17 @@ export function PurchaseOrderDetailPage({
           )}
         </div>
       </div>
+
+      {sendOpen && (
+        <SendPoModal
+          po={po}
+          onClose={() => setSendOpen(false)}
+          onDone={(sent) => {
+            void loadData();
+            if (sent) setSendOpen(false);
+          }}
+        />
+      )}
 
       {/* Reject Modal */}
       <Modal

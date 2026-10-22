@@ -440,7 +440,7 @@ select.filter { height: 40px; border: 1px solid var(--border); border-radius: 12
 .tbl input:focus, .tbl select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-50); }
 .tbl.form-tbl td { padding: 10px 8px; vertical-align: middle; }
 .tbl.form-tbl th { padding: 12px 10px; font-size: 12px; }
-.tbl.form-tbl select { padding-right: 30px; text-overflow: ellipsis; }
+.tbl.form-tbl select { min-width: 84px; padding: 0 26px 0 10px; text-overflow: clip; }
 /* a size box with its unit dropdown beside it, inside a line-item table */
 .size-field { position: relative; min-width: 112px; max-width: 100%; }
 .tbl .size-field input { padding-right: 58px; }
@@ -1128,7 +1128,7 @@ select.filter { padding-right: 36px; }
 
 /* line-item rows: compact bars; a long name is cut with "…" instead of widening the bar */
 .tbl.form-tbl input:not([type="checkbox"]):not([type="radio"]), .tbl.form-tbl select { height: 34px; font-size: 13px; padding-left: 10px; padding-right: 8px; border-radius: 8px; }
-.tbl.form-tbl select { padding-right: 26px; }
+.tbl.form-tbl select { min-width: 84px; padding: 0 26px 0 10px; text-overflow: clip; }
 .tbl.form-tbl input[type="text"], .tbl.form-tbl input:not([type]) { text-overflow: ellipsis; }
 .tbl.form-tbl td { padding: 8px 6px; }
 .tbl .size-field input { padding-right: 52px; }

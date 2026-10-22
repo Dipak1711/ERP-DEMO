@@ -7,6 +7,10 @@ dist
 .env.*
 !.env.example
 
+# local secrets for testing Edge Functions
+supabase/functions/.env
+supabase/.temp
+
 # demo-only data and logins (kept locally, never committed)
 supabase/seed_demo.sql
 supabase/DEMO_GUIDE.md

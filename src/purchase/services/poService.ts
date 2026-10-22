@@ -11,6 +11,7 @@ import type {
   PurchaseOrder,
   SavePOHeaderInput,
   SavePOItemInput,
+  SendPOResult,
 } from '../types';
 
 export async function fetchPORegister(): Promise<PurchaseOrder[]> {
@@ -306,4 +307,54 @@ export async function getPOPrefillFromSQ(sqId: number): Promise<POPrefillData> {
     deliveryTerms: sq.delivery_terms || undefined,
     items,
   };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Send to supplier / PDF (Edge Functions send-po and po-pdf; the e-mail key lives only in their secrets)
+// ---------------------------------------------------------------------------------------------
+/**
+ * The message to show for a failed Edge Function call. Order of preference: the text the function itself returned; then a plain-words reason
+ * for the common failures (function not deployed, browser could not reach it, server error); then the fallback.
+ */
+async function functionError(error: unknown, fallback: string, fn: string): Promise<string> {
+  const err = error as { name?: string; context?: unknown } | null;
+  const ctx = err?.context as Response | undefined;
+  if (ctx && typeof ctx.json === 'function') {
+    try {
+      const body = await ctx.clone().json();
+      if (body?.error) return String(body.error);
+      if (body?.message && ctx.status !== 404) return String(body.message);
+    } catch {
+      /* not JSON */
+    }
+    if (ctx.status === 404) return `The ${fn} function is not deployed on this Supabase project yet. Deploy it (see supabase/functions/README.md) and try again.`;
+    if (ctx.status === 401) return 'Your sign-in has expired. Sign in again and retry.';
+    if (ctx.status >= 500) return `The ${fn} function failed on the server (error ${ctx.status}). Check its logs in Supabase → Edge Functions → ${fn} → Logs.`;
+  }
+  // the request never got an answer: a function that is not deployed (or whose CORS answer is missing) looks exactly like this in the browser
+  if (err?.name === 'FunctionsFetchError' || err?.name === 'FunctionsRelayError') {
+    return `Could not reach the ${fn} function. It is probably not deployed yet (Supabase → Edge Functions should list it), or its secrets are missing.`;
+  }
+  return fallback;
+}
+
+/** true when the signed-in user may send / download this PO (Write on Purchase Orders or Approvals, PO Released or Sent). */
+export async function canSendPO(poId: number): Promise<boolean> {
+  const { data, error } = await supabase.rpc('can_send_po', { p_po_id: poId });
+  return !error && data === true;
+}
+
+export async function sendPO(poId: number, opts: { to?: string; cc?: string; note?: string }): Promise<SendPOResult> {
+  const { data, error } = await supabase.functions.invoke('send-po', { body: { poId, to: opts.to || undefined, cc: opts.cc || undefined, note: opts.note || undefined } });
+  if (error) throw new Error(await functionError(error, 'The purchase order could not be sent. Please try again.', 'send-po'));
+  if (!data?.ok) throw new Error(String(data?.error ?? 'The purchase order could not be sent.'));
+  return data as SendPOResult;
+}
+
+/** A short-lived link to the final PDF (nothing is e-mailed). */
+export async function getPOPdfUrl(poId: number): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('po-pdf', { body: { poId } });
+  if (error) throw new Error(await functionError(error, 'The PDF could not be created. Please try again.', 'po-pdf'));
+  if (!data?.ok || !data?.url) throw new Error(String(data?.error ?? 'The PDF could not be created.'));
+  return String(data.url);
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -12,13 +12,15 @@ import {
   RefreshCw,
   Send,
   ShoppingBag,
+  Wallet,
   XCircle,
 } from 'lucide-react';
-import { Conf, Write, useAccess } from '../../auth/access';
+import { Conf, Write, canSee, useAccess } from '../../auth/access';
 import { Badge, Kpi, PageHeader, Priority } from '../../components/ui';
 import { fmtDate, fmtNum } from '../../components/format';
 import { useStore } from '../../store/StoreContext';
 import { usePurchaseDashboard } from '../hooks/usePurchase';
+import { fetchPayablesKpi } from '../services/invoiceService';
 import { decidePO, fetchPODetail } from '../services/poService';
 import { printPurchaseOrder } from '../print';
 import { daysSince } from '../reports/config';
@@ -28,6 +30,12 @@ const inr = (v: number) => `₹ ${v.toLocaleString('en-IN')}`;
 export function PurchaseDashboardPage({ navigate }: { navigate: (r: string) => void }) {
   const { orders, urgent, kpis, loading, reload } = usePurchaseDashboard();
   const { user, canWrite, canRead } = useAccess();
+  // payables figures; stay empty (and the tiles hidden) when invoices are not available to this person or not installed yet
+  const [payables, setPayables] = useState<{ outstanding: number; openInvoices: number; overdueInvoices: number; overdueAmount: number } | null>(null);
+  useEffect(() => {
+    if (!canRead('purchase_invoices')) return;
+    fetchPayablesKpi().then(setPayables).catch(() => setPayables(null));
+  }, [canRead]);
   const { toast } = useStore();
   const [acting, setActing] = useState(false);
 
@@ -138,6 +146,28 @@ export function PurchaseDashboardPage({ navigate }: { navigate: (r: string) => v
           tone={kpis.overdue > 0 ? 'red' : 'blue'}
           onClick={() => navigate('purchase-orders')}
         />
+        {payables && (
+          <>
+            <Kpi
+              label="Payables Outstanding"
+              value={payables.openInvoices}
+              unit="invoices"
+              hint={canSee('purchase_rates') ? `₹ ${payables.outstanding.toLocaleString('en-IN', { maximumFractionDigits: 0 })} still to pay` : 'Posted invoices not fully paid'}
+              icon={Wallet}
+              tone={payables.openInvoices > 0 ? 'amber' : 'blue'}
+              onClick={() => navigate('supplier-payables')}
+            />
+            <Kpi
+              label="Invoices Overdue"
+              value={payables.overdueInvoices}
+              unit="invoices"
+              hint={payables.overdueInvoices > 0 ? (canSee('purchase_rates') ? `₹ ${payables.overdueAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })} past due date` : 'Past their due date') : 'Nothing past its due date'}
+              icon={AlertCircle}
+              tone={payables.overdueInvoices > 0 ? 'red' : 'blue'}
+              onClick={() => navigate('purchase-invoices')}
+            />
+          </>
+        )}
       </div>
 
       {alertCount > 0 && (

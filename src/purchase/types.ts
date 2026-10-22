@@ -85,6 +85,10 @@ export interface POEmailLog {
   sentAt: string;
   deliveryStatus: 'Queued' | 'Sent' | 'Failed';
   error?: string;
+  cc?: string;
+  note?: string;
+  /** po-pdfs path of the PDF that was attached (po/<po no>/rev<n>.pdf) */
+  pdfPath?: string;
 }
 
 export interface PurchaseOrder {
@@ -446,4 +450,135 @@ export interface ReceivablePOItem {
   qty: number;
   receivedQty: number;
   rate: number;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Phase 4: purchase invoices, payments, payables, PO e-mail
+// ---------------------------------------------------------------------------------------------
+/** UI hint only: how far an invoice rate may differ from the PO rate before a variance note is needed. The database decides (invoice_rate_tolerance_pct(), migration 33). */
+export const INVOICE_RATE_TOLERANCE_PCT = 2;
+
+export type InvoiceStatus = 'Draft' | 'Posted' | 'Cancelled';
+export type PayStatus = 'Unpaid' | 'Partially Paid' | 'Paid';
+
+/** One row of v_purchase_invoice_register. */
+export interface PurchaseInvoice {
+  invoiceId: number;
+  pinvNo: string;
+  supplierInvNo: string;
+  invDate: string;
+  dueDate?: string | null;
+  supplierId: number;
+  supplierName: string;
+  poId?: number | null;
+  poNo?: string;
+  status: InvoiceStatus;
+  payStatus: PayStatus;
+  taxableAmount: number;
+  gstAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  balance: number;
+  isOverdue: boolean;
+  daysOverdue: number;
+  varianceNote?: string;
+  createdBy?: string;
+  postedBy?: string;
+  postedAt?: string;
+}
+
+export interface InvoiceLine {
+  id: number;
+  lineNo: number;
+  poItemId: number;
+  item: string;
+  qty: number;
+  rate: number;
+  gstPct: number;
+  amount: number;
+}
+
+/** A PO line with its three-way match figures (ordered / received / accepted / invoiced). */
+export interface POInvoiceLine {
+  poItemId: number;
+  lineNo: number;
+  item: string;
+  uom: string;
+  ordered: number;
+  received: number;
+  accepted: number;
+  /** on POSTED invoices */
+  invoiced: number;
+  poRate: number;
+  gstPct: number;
+  /** true when incoming QC has been recorded on the line (then the accepted quantity is the basis) */
+  qcRecorded: boolean;
+  /** what can still be invoiced: basis (accepted if QC recorded, else received; ordered for non-KG lines) less what is invoiced */
+  billable: number;
+}
+
+export interface PurchasePayment {
+  paymentId: number;
+  payNo: string;
+  payDate: string;
+  amount: number;
+  mode: string;
+  reference?: string;
+  notes?: string;
+  createdBy?: string;
+  invoiceId: number;
+  pinvNo: string;
+  supplierInvNo: string;
+  supplierName: string;
+  poNo?: string;
+}
+
+export interface InvoiceDetail extends PurchaseInvoice {
+  taxType: TaxType;
+  items: InvoiceLine[];
+  payments: PurchasePayment[];
+  match: POInvoiceLine[];
+  cancelReason?: string;
+}
+
+export interface SupplierPayable {
+  supplierId: number;
+  supplierName: string;
+  supplierCode: string;
+  openInvoices: number;
+  totalInvoiced: number;
+  totalPaid: number;
+  outstanding: number;
+  overdueAmount: number;
+  b0to30: number;
+  b31to60: number;
+  b61to90: number;
+  b90plus: number;
+}
+
+export interface POBalance {
+  poId: number;
+  totalAmount: number;
+  invoiced: number;
+  paid: number;
+  balanceToInvoice: number;
+  payable: number;
+}
+
+export interface InvoiceablePO {
+  id: number;
+  poNo: string;
+  supplierId: number;
+  supplierName: string;
+  status: string;
+  paymentTerms?: string;
+}
+
+export interface SendPOResult {
+  ok: boolean;
+  status?: string;
+  sentTo?: string;
+  sentAt?: string;
+  logId?: number;
+  pdfPath?: string;
 }

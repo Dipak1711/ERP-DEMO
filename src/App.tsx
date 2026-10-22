@@ -34,6 +34,9 @@ import { RFQPage } from './purchase/pages/RFQPage';
 import { SupplierQuotationPage } from './purchase/pages/SupplierQuotationPage';
 import { QuotationComparisonPage } from './purchase/pages/QuotationComparisonPage';
 import { SupplierPerformancePage } from './purchase/pages/SupplierPerformancePage';
+import { PurchaseInvoicePage } from './purchase/pages/PurchaseInvoicePage';
+import { PurchasePaymentsPage } from './purchase/pages/PurchasePaymentsPage';
+import { SupplierPayablesPage } from './purchase/pages/SupplierPayablesPage';
 import { PurchaseReportsPage } from './purchase/pages/PurchaseReportsPage';
 import './dies/dies.css';
 
@@ -97,6 +100,9 @@ function Page({ route, query, navigate }: { route: string; query: URLSearchParam
   if (route === 'rfqs') return <RFQPage query={query} navigate={navigate} />;
   if (route === 'supplier-quotations') return <SupplierQuotationPage query={query} navigate={navigate} />;
   if (route === 'quotation-comparison') return <QuotationComparisonPage query={query} navigate={navigate} />;
+  if (route === 'purchase-invoices') return <PurchaseInvoicePage query={query} navigate={navigate} />;
+  if (route === 'purchase-payments') return <PurchasePaymentsPage navigate={navigate} />;
+  if (route === 'supplier-payables') return <SupplierPayablesPage navigate={navigate} />;
   if (route === 'supplier-performance') return <SupplierPerformancePage navigate={navigate} />;
   if (route === 'purchase-reports') return <PurchaseReportsPage query={query} navigate={navigate} />;
   if (route === 'purchase-orders') return <PurchaseOrderRouter query={query} navigate={navigate} />;

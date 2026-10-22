@@ -103,6 +103,9 @@ export function mapPOEmailLog(r: Row): POEmailLog {
     sentAt: s(r.sent_at),
     deliveryStatus: (s(r.delivery_status) || 'Queued') as POEmailLog['deliveryStatus'],
     error: optS(r.error),
+    cc: optS(r.cc),
+    note: optS(r.note),
+    pdfPath: optS(r.pdf_path),
   };
 }
 

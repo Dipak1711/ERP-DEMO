@@ -90,6 +90,14 @@ const TONE: Record<string, string> = {
   'Due soon': 'b-amber',
   'On track': 'b-green',
   Partial: 'b-orange',
+  // invoices, payments, e-mail log
+  Posted: 'b-blue',
+  Unpaid: 'b-red',
+  'Partially Paid': 'b-amber',
+  Paid: 'b-green',
+  Queued: 'b-neutral',
+  Failed: 'b-red',
+  'Unknown — check and retry': 'b-amber',
 };
 export function Badge({ status }: { status: string }) {
   return <span className={`badge ${TONE[status] ?? 'b-neutral'}`}>{status}</span>;
