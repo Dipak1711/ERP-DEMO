@@ -11,3 +11,5 @@ dist
 supabase/seed_demo.sql
 supabase/DEMO_GUIDE.md
 supabase/seed_demo_sales.sql
+supabase/seed_demo_purchase.sql
+supabase/seed_demo_purchase_remove.sql

@@ -1,14 +1,16 @@
 import * as api from '../db/api';
 import { Conf, searchable, useAccess, canSee, Write, searchableCol } from '../auth/access';
 import { useMemo, useState } from 'react';
-import { ArrowDownToLine, Boxes, Eye, Layers, PackagePlus, Pencil, Send, Trash2 } from 'lucide-react';
+import { ArrowDownToLine, Boxes, Eye, Layers, PackagePlus, Pencil, Send, ShieldCheck, Trash2 } from 'lucide-react';
 import type { RawMaterialLot } from '../store/types';
 import { lotDeleteReason } from '../store/deletable';
 import { useStore } from '../store/StoreContext';
-import { lotAvailableWeight, lotStatus, materialKey } from '../store/engine';
+import { lotAvailableWeight, lotIssuedQty, lotStatus, materialKey } from '../store/engine';
 import { findMaterial, MATERIAL_FAMILIES, MATERIAL_MASTER, pieceWeightKg, STANDARD_OD_MM } from '../store/materials';
 import { Badge, Empty, Field, JobLink, Modal, NumInput, PageHeader, rowTone, Search, SummaryLine, Tabs, FilterMenu, Confirm } from '../components/ui';
 import { fmtDate, fmtDateTime, fmtKg, fmtNum, matches, todayISO } from '../components/format';
+import { InwardPoSection } from '../purchase/components/InwardPoSection';
+import { LotQcModal } from './LotQcModal';
 
 type View = 'stock' | 'inward' | 'issues';
 
@@ -16,8 +18,13 @@ export function RawInventoryPage() {
   const { state, openAction, run } = useStore();
   const [viewing, setViewing] = useState<RawMaterialLot | null>(null);
   const [deleting, setDeleting] = useState<RawMaterialLot | null>(null);
-  const [view, setView] = useState<View>('stock');
-  const [q, setQ] = useState('');
+  const [qcLot, setQcLot] = useState<RawMaterialLot | null>(null);
+  const { canWrite } = useAccess();
+  const canQc = canWrite('raw_inventory') || canWrite('qc');
+  // #/raw-inventory?lot=RM-2026-001 opens the inward register filtered to that lot
+  const lotParam = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('lot') ?? '';
+  const [view, setView] = useState<View>(lotParam ? 'inward' : 'stock');
+  const [q, setQ] = useState(lotParam);
   const [matF, setMatF] = useState('');
   const [statF, setStatF] = useState('');
   const [inMatF, setInMatF] = useState('');
@@ -208,18 +215,29 @@ export function RawInventoryPage() {
                         <span className="qty-cell" style={{ fontSize: 15 }}>
                           {fmtNum(l.availableQty)}
                         </span>
-                        {l.availableQty < l.inwardQty && <div className="sub loss">−{fmtNum(l.inwardQty - l.availableQty)} issued</div>}
+                        {lotIssuedQty(l) > 0 && <div className="sub loss">−{fmtNum(lotIssuedQty(l))} issued</div>}
+                        {(l.blockedQty ?? 0) > 0 && <div className="sub loss">−{fmtNum(l.blockedQty ?? 0)} rejected at QC</div>}
                       </td>
                       <td className="r num nowrap">{fmtKg(lotAvailableWeight(l))}</td>
                       <td>{l.unit}</td>
                       <td>
                         <Badge status={lotStatus(l)} />
+                        {l.qcStatus && (
+                          <div style={{ marginTop: 4 }}>
+                            <Badge status={l.qcStatus === 'Pending' ? 'QC Pending' : l.qcStatus} />
+                          </div>
+                        )}
                       </td>
                       <td className="r nowrap">
                         <div className="icon-actions">
                           <button className="icon-btn" title="View" aria-label={`View ${l.id}`} onClick={() => setViewing(l)}>
                             <Eye size={16} />
                           </button>
+                          {canQc && l.qcStatus !== undefined && (
+                            <button className="icon-btn" title="Record incoming QC" aria-label={`Incoming QC ${l.id}`} onClick={() => setQcLot(l)}>
+                              <ShieldCheck size={16} />
+                            </button>
+                          )}
                           <Write res="raw_inventory">
                             <button className="icon-btn" title="Edit" aria-label={`Edit ${l.id}`} onClick={() => openAction({ kind: 'inward', id: l.id })}>
                               <Pencil size={16} />
@@ -288,6 +306,11 @@ export function RawInventoryPage() {
                               <button className="icon-btn" title="View" aria-label={`View ${lot.id}`} onClick={() => setViewing(lot)}>
                                 <Eye size={16} />
                               </button>
+                              {canQc && lot.qcStatus !== undefined && (
+                                <button className="icon-btn" title="Record incoming QC" aria-label={`Incoming QC ${lot.id}`} onClick={() => setQcLot(lot)}>
+                                  <ShieldCheck size={16} />
+                                </button>
+                              )}
                               <Write res="raw_inventory">
                                 <button className="icon-btn" title="Edit" aria-label={`Edit ${lot.id}`} onClick={() => openAction({ kind: 'inward', id: lot.id })}>
                                   <Pencil size={16} />
@@ -347,6 +370,7 @@ export function RawInventoryPage() {
           ))}
       </div>
       {viewing && <LotView lot={viewing} onClose={() => setViewing(null)} />}
+      {qcLot && <LotQcModal lot={qcLot} onClose={() => setQcLot(null)} />}
       <Confirm
         open={!!deleting}
         title="Delete raw material inward"
@@ -362,7 +386,7 @@ export function RawInventoryPage() {
 
 /** Read-only details of one inward lot. */
 function LotView({ lot, onClose }: { lot: RawMaterialLot; onClose: () => void }) {
-  const issued = lot.inwardQty - lot.availableQty;
+  const issued = lotIssuedQty(lot);
   return (
     <Modal
       open
@@ -431,6 +455,21 @@ function LotView({ lot, onClose }: { lot: RawMaterialLot; onClose: () => void })
           <span>Issued to production</span>
           <b>{fmtNum(issued)} PCS</b>
         </div>
+        {lot.qcStatus !== undefined && (
+          <div className="kv">
+            <span>Incoming QC</span>
+            <b>
+              <Badge status={lot.qcStatus === 'Pending' ? 'QC Pending' : lot.qcStatus} />
+              {(lot.blockedQty ?? 0) > 0 && <span className="muted" style={{ marginLeft: 8, fontWeight: 400 }}>{fmtNum(lot.blockedQty ?? 0)} PCS rejected ({fmtKg(lot.rejectedWeight ?? 0)})</span>}
+            </b>
+          </div>
+        )}
+        {lot.poNo && (
+          <div className="kv">
+            <span>Purchase Order</span>
+            <b>{lot.poNo}</b>
+          </div>
+        )}
         <div className="kv">
           <span>Status</span>
           <b>
@@ -446,7 +485,8 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
   const { state, run, masters } = useStore();
   // editing an existing inward: every field can be corrected; what is already issued to production limits quantity, material and size
   const lot = preset?.id ? state.rawMaterials.find((l) => l.id === preset.id) : undefined;
-  const issued = lot ? lot.inwardQty - lot.availableQty : 0;
+  const issued = lot ? lotIssuedQty(lot) : 0;
+  const blocked = lot?.blockedQty ?? 0;
   const first = findMaterial(lot?.material ?? preset?.material ?? '') ?? MATERIAL_MASTER[0];
   const [material, setMaterial] = useState(first.material);
   const [od, setOd] = useState(String(lot?.od ?? preset?.od ?? first.defaultOd));
@@ -459,6 +499,11 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
   const [qty, setQty] = useState(lot ? String(lot.inwardQty) : '');
   const [pieceLength, setPieceLength] = useState('');
   const [weightOverride, setWeightOverride] = useState<string | null>(lot ? String(lot.inwardWeight) : null);
+  // booking the receipt against a purchase order line (optional)
+  const [poId, setPoId] = useState<number | null>(null);
+  const [poItemId, setPoItemId] = useState<number | null>(null);
+  const [unlinked, setUnlinked] = useState(false);
+  const linkedPoNo = lot?.poId && !unlinked ? lot.poNo ?? 'a purchase order' : undefined;
 
   const spec = findMaterial(material) ?? first;
   const qN = Number(qty);
@@ -469,9 +514,9 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
   const weight = weightOverride ?? (theoretical ? String(theoretical) : '');
   const wN = Number(weight);
 
-  const errQty = qty !== '' && (!(qN > 0) || !Number.isInteger(qN)) ? 'Enter a whole number of pieces' : qty !== '' && qN < issued ? `At least ${fmtNum(issued)} PCS — that much is already issued to production` : null;
+  const errQty = qty !== '' && (!(qN > 0) || !Number.isInteger(qN)) ? 'Enter a whole number of pieces' : qty !== '' && qN < issued + blocked ? `At least ${fmtNum(issued + blocked)} PCS — ${fmtNum(issued)} are issued to production${blocked ? ` and ${fmtNum(blocked)} were rejected at QC` : ''}` : null;
   // roles that cannot see supplier names type it write-only; when correcting a lot they may leave it empty (the stored name is kept)
-  const valid = (!!supplier || (!!lot && !can('party_names'))) && !errQty && odN > 0 && qN > 0 && Number.isInteger(qN) && wN > 0;
+  const valid = (!!supplier || !!poItemId || !!linkedPoNo || (!!lot && !can('party_names'))) && !errQty && odN > 0 && qN > 0 && Number.isInteger(qN) && wN > 0;
 
   const pickMaterial = (m: string) => {
     setMaterial(m);
@@ -480,13 +525,20 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
     setWeightOverride(null);
   };
 
+  // PO fields sent with the receipt. New lot: only when a line is chosen. Editing: untouched unless the link is changed; null removes it.
+  const poFields = (): { poId?: number | null; poItemId?: number | null } => {
+    if (poItemId) return { poId, poItemId };
+    if (lot && lot.poId !== undefined) return unlinked ? { poId: null, poItemId: null } : { poId: lot.poId, poItemId: lot.poItemId ?? null };
+    return {};
+  };
+
   const submit = async () => {
     if (lot) {
-      if (await run((ts) => api.updateInward(lot.id, { material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: can('invoices') ? invoice : '', purchaseRate: can('purchase_rates') && Number(rate) > 0 ? Number(rate) : undefined }, ts), { title: 'Inward updated', message: `${lot.id} · ${qN} PCS (${wN} KG) of ${material} OD ${od} mm.` })) onClose();
+      if (await run((ts) => api.updateInward(lot.id, { material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: can('invoices') ? invoice : '', purchaseRate: can('purchase_rates') && Number(rate) > 0 ? Number(rate) : undefined, ...poFields() }, ts), { title: 'Inward updated', message: `${lot.id} · ${qN} PCS (${wN} KG) of ${material} OD ${od} mm.` })) onClose();
       return;
     }
     if (
-      await run((ts) => api.addInward({ material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: can('invoices') ? invoice : '', purchaseRate: can('purchase_rates') && Number(rate) > 0 ? Number(rate) : undefined }, ts), {
+      await run((ts) => api.addInward({ material, materialType: spec.grade, od: odN, supplier, inwardDate: date, qty: qN, weight: wN, heatNo, invoiceNo: can('invoices') ? invoice : '', purchaseRate: can('purchase_rates') && Number(rate) > 0 ? Number(rate) : undefined, ...poFields() }, ts), {
         title: 'Raw material received',
         message: `${qN} PCS (${wN} KG) of ${material} OD ${od} mm added to stock.`,
       })
@@ -581,6 +633,28 @@ export function InwardModal({ preset, onClose }: { preset?: { material?: string;
           <input className="input mono" value={heatNo} onChange={(e) => setHeatNo(e.target.value)} placeholder="As per mill test certificate" />
         </Field>
       </div>
+
+      <InwardPoSection
+        poId={poId}
+        itemId={poItemId}
+        supplier={supplier}
+        canSeeParty={can('party_names')}
+        weight={wN}
+        linkedPoNo={linkedPoNo}
+        onUnlink={() => setUnlinked(true)}
+        onPick={(po, item) => {
+          setPoId(po?.id ?? null);
+          setPoItemId(item?.id ?? null);
+          if (!po) return;
+          if (can('party_names')) setSupplier(po.supplierName);
+          if (!item) return;
+          const m = item.material ? findMaterial(item.material) : undefined;
+          if (m && m.material !== material) pickMaterial(m.material);
+          const d = Number((item.size ?? '').match(/\d+(\.\d+)?/)?.[0]);
+          if (d > 0 && STANDARD_OD_MM.includes(d)) setOd(String(d));
+          if (can('purchase_rates') && item.rate > 0 && !rate) setRate(String(item.rate));
+        }}
+      />
 
       <div className="section-label">Quantity &amp; weight</div>
       <div className="form-grid three">

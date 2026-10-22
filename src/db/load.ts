@@ -114,6 +114,14 @@ const toLot = (r: Row): RawMaterialLot => ({
   availableQty: num0(r.available_qty),
   purchaseRate: num(r.purchase_rate),
   unit: 'PCS',
+  // purchase-order link and incoming QC (migration 32): absent until it is installed
+  blockedQty: r.blocked_qty == null ? undefined : num0(r.blocked_qty),
+  qcStatus: r.qc_status ?? undefined,
+  acceptedWeight: r.accepted_weight == null ? null : num0(r.accepted_weight),
+  rejectedWeight: r.rejected_weight == null ? null : num0(r.rejected_weight),
+  poId: r.po_id === undefined ? undefined : r.po_id == null ? null : num0(r.po_id),
+  poItemId: r.po_item_id == null ? null : num0(r.po_item_id),
+  poNo: r.po_no ?? undefined,
 });
 
 const toInward = (r: Row): RawInward => ({

@@ -46,7 +46,9 @@ import {
   uploadPOAttachment,
 } from '../services/poService';
 import { printPurchaseOrder } from '../print';
+import { fetchPOReceipts } from '../services/receiptService';
 import type {
+  POReceipt,
   PODetail,
   POAttachment,
   SavePOHeaderInput,
@@ -328,7 +330,8 @@ export function PurchaseOrderDetailPage({
   const [po, setPo] = useState<PODetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'items' | 'approvals' | 'revisions' | 'emails'>('items');
+  const [activeTab, setActiveTab] = useState<'items' | 'receipts' | 'approvals' | 'revisions' | 'emails'>('items');
+  const [receipts, setReceipts] = useState<POReceipt[]>([]);
 
   // Modals & Action states
   const [rejectModal, setRejectModal] = useState(false);
@@ -347,6 +350,8 @@ export function PurchaseOrderDetailPage({
       const data = await fetchPODetail(id);
       setPo(data);
       setError(null);
+      // lots received against this PO; the list simply stays empty if it cannot be read
+      fetchPOReceipts(id).then(setReceipts).catch(() => setReceipts([]));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -606,6 +611,7 @@ export function PurchaseOrderDetailPage({
           onChange={(t) => setActiveTab(t as typeof activeTab)}
           items={[
             { value: 'items', label: 'Items & Receipt Progress', count: po.items.length },
+            { value: 'receipts', label: 'Receipts', count: receipts.length },
             { value: 'approvals', label: 'Approval Trail', count: po.approvals.length },
             { value: 'revisions', label: 'Revision History', count: po.revisions.length },
             { value: 'emails', label: 'Email Logs', count: po.emailLogs.length },
@@ -667,6 +673,58 @@ export function PurchaseOrderDetailPage({
               </table>
             </div>
           )}
+
+          {activeTab === 'receipts' &&
+            (receipts.length === 0 ? (
+              <Empty title="No material received against this PO yet." text="Book a raw-material inward against this order from Raw Inventory → Add Inward → Against Purchase Order." />
+            ) : (
+              <div className="table-wrap">
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      <th>Lot</th>
+                      <th>Date</th>
+                      <th>Material</th>
+                      <th>Heat No.</th>
+                      <Conf g="invoices">
+                        <th>Invoice No.</th>
+                      </Conf>
+                      <th className="r">Qty (PCS)</th>
+                      <th className="r">Weight</th>
+                      <th>Incoming QC</th>
+                      <th className="r">Accepted</th>
+                      <th className="r">Rejected</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receipts.map((r) => (
+                      <tr key={r.lotId}>
+                        <td className="strong">
+                          <button className="link-btn" onClick={() => navigate(`raw-inventory?lot=${r.lotId}`)}>
+                            {r.lotId}
+                          </button>
+                        </td>
+                        <td className="nowrap">{fmtDate(r.inwardDate)}</td>
+                        <td>
+                          {[r.material, r.grade, r.od ? `OD ${r.od} mm` : ''].filter(Boolean).join(' · ') || '—'}
+                        </td>
+                        <td className="mono text-xs">{r.heatNo || '—'}</td>
+                        <Conf g="invoices">
+                          <td className="mono text-xs">{r.invoiceNo || '—'}</td>
+                        </Conf>
+                        <td className="r num">{fmtNum(r.inwardQty)}</td>
+                        <td className="r num">{fmtNum(r.inwardWeight)} KG</td>
+                        <td>
+                          <Badge status={r.qcStatus === 'Pending' ? 'QC Pending' : r.qcStatus} />
+                        </td>
+                        <td className="r num text-green">{r.acceptedWeight == null ? '—' : fmtNum(r.acceptedWeight)}</td>
+                        <td className="r num text-red">{r.rejectedWeight == null ? '—' : fmtNum(r.rejectedWeight)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
 
           {activeTab === 'approvals' && (
             po.approvals.length === 0 ? (

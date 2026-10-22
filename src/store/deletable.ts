@@ -3,7 +3,10 @@
 import type { Dispatch, ERPState, RawMaterialLot } from './types';
 
 /** an inward lot can go only while none of it has been issued to production */
-export const lotDeleteReason = (l: RawMaterialLot): string | null => (l.availableQty < l.inwardQty ? `${l.inwardQty - l.availableQty} PCS of this lot are already issued to production` : null);
+export const lotDeleteReason = (l: RawMaterialLot): string | null => {
+  const issued = l.inwardQty - l.availableQty - (l.blockedQty ?? 0);
+  return issued > 0 ? `${issued} PCS of this lot are already issued to production` : null;
+};
 
 /** a job card can go only while it is still waiting at Cutting: nothing issued, nothing entered, no hardness report on it */
 export function jobDeleteReason(s: ERPState, jobNo: string): string | null {

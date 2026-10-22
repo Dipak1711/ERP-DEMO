@@ -5,6 +5,8 @@ import {
   Bell,
   Briefcase,
   Building2,
+  FileBarChart,
+  Gauge,
   Handshake,
   ReceiptText,
   Ruler,
@@ -58,6 +60,8 @@ const PURCHASE_NAV: NavItem[] = [
   { route: 'supplier-quotations', label: 'Supplier Quotations', icon: FileSpreadsheet },
   { route: 'purchase-orders', label: 'Purchase Orders', icon: ReceiptText },
   { route: 'suppliers', label: 'Supplier Master', icon: Building2 },
+  { route: 'supplier-performance', label: 'Supplier Performance', icon: Gauge },
+  { route: 'purchase-reports', label: 'Purchase Reports', icon: FileBarChart },
 ];
 const REPORT_NAV: NavItem[] = [
   { route: 'traceability', label: 'Job Traceability', icon: Waypoints },

@@ -21,16 +21,24 @@ import { useStore } from '../../store/StoreContext';
 import { usePurchaseDashboard } from '../hooks/usePurchase';
 import { decidePO, fetchPODetail } from '../services/poService';
 import { printPurchaseOrder } from '../print';
+import { daysSince } from '../reports/config';
 
 const inr = (v: number) => `₹ ${v.toLocaleString('en-IN')}`;
 
 export function PurchaseDashboardPage({ navigate }: { navigate: (r: string) => void }) {
   const { orders, urgent, kpis, loading, reload } = usePurchaseDashboard();
-  const { user, canWrite } = useAccess();
+  const { user, canWrite, canRead } = useAccess();
   const { toast } = useStore();
   const [acting, setActing] = useState(false);
 
   const pendingApprovals = orders.filter((o) => o.status === 'Approval Pending');
+  // late deliveries, worst first; and the urgent / critical orders that are late or due within 3 days (the in-app alert)
+  const overdueOrders = orders
+    .filter((o) => o.isOverdue)
+    .map((o) => ({ o, late: daysSince(o.deliveryDate) }))
+    .sort((a, b) => b.late - a.late);
+  const dueSoon = (o: { deliveryDate?: string | null; isOverdue?: boolean }) => !o.isOverdue && !!o.deliveryDate && daysSince(o.deliveryDate) >= -3 && daysSince(o.deliveryDate) <= 0;
+  const alertCount = urgent.filter((o) => o.isOverdue || dueSoon(o)).length;
   const canApprove = canWrite('purchase_approvals');
 
   const quickDecide = async (id: number, approve: boolean, poNo: string) => {
@@ -132,6 +140,82 @@ export function PurchaseDashboardPage({ navigate }: { navigate: (r: string) => v
         />
       </div>
 
+      {alertCount > 0 && (
+        <div className="callout warn" style={{ marginTop: 0, marginBottom: 16 }}>
+          <AlertTriangle size={16} />
+          <div>
+            <b>{alertCount} urgent or critical {alertCount === 1 ? 'order is' : 'orders are'}</b> late or due within 3 days. See the list below.
+          </div>
+        </div>
+      )}
+
+      {/* Overdue deliveries: the five latest orders first */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card-head">
+          <div className="card-title-group">
+            <AlertCircle size={18} className={overdueOrders.length > 0 ? 'text-red' : 'muted'} />
+            <h3 style={{ margin: 0 }}>Overdue Deliveries</h3>
+            {overdueOrders.length > 0 && <span className="badge b-red">{overdueOrders.length} late</span>}
+          </div>
+          <div className="right">
+            {canRead('purchase_reports') && (
+              <button className="btn btn-sm btn-subtle" onClick={() => navigate('purchase-reports?r=overdue-po')}>
+                Overdue report
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="card-body" style={{ padding: overdueOrders.length === 0 ? '0 22px 14px' : '0 22px 20px' }}>
+          {overdueOrders.length === 0 ? (
+            <div className="card-center-msg">No order has passed its delivery date.</div>
+          ) : (
+            <div className="table-wrap" style={{ borderRadius: 8, border: '1px solid var(--border)' }}>
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th style={{ width: 130 }}>PO Number</th>
+                    <Conf g="party_names">
+                      <th>Supplier</th>
+                    </Conf>
+                    <th style={{ width: 120 }}>Delivery Date</th>
+                    <th style={{ width: 110 }} className="r">Days Late</th>
+                    <th style={{ width: 95 }} className="r">Pending</th>
+                    <th style={{ width: 90 }}>Priority</th>
+                    <th className="act">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {overdueOrders.slice(0, 5).map(({ o, late }) => (
+                    <tr key={o.id}>
+                      <td className="strong nowrap">{o.poNo}</td>
+                      <Conf g="party_names">
+                        <td>{o.supplierName || '—'}</td>
+                      </Conf>
+                      <td className="nowrap">{o.deliveryDate ? fmtDate(o.deliveryDate) : '—'}</td>
+                      <td className="r">
+                        <span className="badge b-red">{late} {late === 1 ? 'day' : 'days'}</span>
+                      </td>
+                      <td className="r num text-amber font-medium">{fmtNum(o.pendingQty || 0)}</td>
+                      <td>
+                        <Priority p={o.urgency} />
+                      </td>
+                      <td className="act nowrap">
+                        <div className="icon-actions">
+                          <button className="icon-btn" title="View PO Details" aria-label={`View PO ${o.poNo}`} onClick={() => navigate(`purchase-orders?id=${o.id}`)}>
+                            <Eye size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {overdueOrders.length > 5 && <div className="text-xs muted" style={{ padding: '8px 12px' }}>Showing the 5 latest of {overdueOrders.length}. The rest are in the Overdue report.</div>}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Urgent / Critical Open POs Panel */}
       <div className="card" style={{ marginBottom: 20, borderLeft: urgent.length > 0 ? '4px solid #ef4444' : undefined }}>
         <div className="card-head">
@@ -184,7 +268,10 @@ export function PurchaseDashboardPage({ navigate }: { navigate: (r: string) => v
                       </Conf>
                       <td className="nowrap">
                         {o.deliveryDate ? fmtDate(o.deliveryDate) : '—'}
-                        {o.isOverdue && <span className="badge b-red text-xs ml-1">Overdue</span>}
+                        {o.isOverdue && <span className="badge b-red text-xs ml-1">Overdue {daysSince(o.deliveryDate)}d</span>}
+                        {dueSoon(o) && (
+                          <span className="badge b-amber text-xs ml-1">{daysSince(o.deliveryDate) === 0 ? 'Due today' : `Due in ${-daysSince(o.deliveryDate)}d`}</span>
+                        )}
                       </td>
                       <td className="r num">{fmtNum(o.orderedQty || 0)}</td>
                       <td className="r num text-amber font-medium">{fmtNum(o.pendingQty || 0)}</td>

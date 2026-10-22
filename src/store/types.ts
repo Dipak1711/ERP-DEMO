@@ -68,6 +68,15 @@ export interface RawMaterialLot {
   availableQty: number; // PCS — reduces as material is issued to Cutting
   purchaseRate?: number; // CONFIDENTIAL — ₹ per KG
   unit: 'PCS';
+  /** PCS rejected at incoming QC: not usable, and not counted as issued (database migration 32; undefined before it is installed) */
+  blockedQty?: number;
+  qcStatus?: 'Pending' | 'Accepted' | 'Rejected' | 'Partial';
+  acceptedWeight?: number | null;
+  rejectedWeight?: number | null;
+  /** the purchase order line this lot was received against; null = received without a PO, undefined = PO link not installed yet */
+  poId?: number | null;
+  poItemId?: number | null;
+  poNo?: string;
 }
 
 export interface RawInward {

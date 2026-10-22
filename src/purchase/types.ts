@@ -383,3 +383,67 @@ export interface ComparisonMatrix {
     quotes: Record<number, { rate: number; sqId: number; isLowest: boolean }>;
   }[];
 }
+
+// ---------------------------------------------------------------------------------------------
+// Phase 3: goods receipt, supplier performance and reports
+// ---------------------------------------------------------------------------------------------
+/** One raw-material inward lot booked against a PO line (view v_po_receipts). */
+export interface POReceipt {
+  poId: number;
+  poItemId: number;
+  lotId: string;
+  inwardDate: string;
+  heatNo?: string;
+  invoiceNo?: string;
+  material?: string;
+  grade?: string;
+  od?: number;
+  inwardQty: number;
+  inwardWeight: number;
+  qcStatus: 'Pending' | 'Accepted' | 'Rejected' | 'Partial';
+  acceptedWeight: number | null;
+  rejectedWeight: number | null;
+}
+
+/** One supplier's scorecard (view v_supplier_performance). A null percentage means there is nothing to judge yet. */
+export interface SupplierPerformance {
+  supplierId: number;
+  name: string;
+  code: string;
+  poCount: number;
+  totalPurchaseValue: number;
+  onTimePct: number | null;
+  onTimeCount: number;
+  lateCount: number;
+  qualityPct: number | null;
+  rejectionPct: number | null;
+  priceIndex: number | null;
+  shortage: number;
+  shortageBase: number;
+  avgResponseHrs: number | null;
+  paymentTerms?: string;
+}
+
+/** A PO that can still receive material, for the inward form's "Against Purchase Order" picker. */
+export interface ReceivablePO {
+  id: number;
+  poNo: string;
+  supplierId: number;
+  supplierName: string;
+  status: string;
+  deliveryDate?: string | null;
+  items: ReceivablePOItem[];
+}
+
+export interface ReceivablePOItem {
+  id: number;
+  lineNo: number;
+  item: string;
+  material?: string;
+  grade?: string;
+  size?: string;
+  uom: string;
+  qty: number;
+  receivedQty: number;
+  rate: number;
+}

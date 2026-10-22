@@ -77,6 +77,19 @@ const TONE: Record<string, string> = {
   Cancelled: 'b-red',
   Done: 'b-green',
   Delivered: 'b-teal',
+  // purchase
+  'Approval Pending': 'b-amber',
+  Released: 'b-violet',
+  'Sent to Supplier': 'b-blue',
+  'Partially Received': 'b-orange',
+  'Fully Received': 'b-green',
+  'Partially Ordered': 'b-orange',
+  Shortlisted: 'b-violet',
+  Selected: 'b-green',
+  Overdue: 'b-red',
+  'Due soon': 'b-amber',
+  'On track': 'b-green',
+  Partial: 'b-orange',
 };
 export function Badge({ status }: { status: string }) {
   return <span className={`badge ${TONE[status] ?? 'b-neutral'}`}>{status}</span>;

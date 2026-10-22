@@ -33,6 +33,8 @@ import { PurchaseRequisitionPage } from './purchase/pages/PurchaseRequisitionPag
 import { RFQPage } from './purchase/pages/RFQPage';
 import { SupplierQuotationPage } from './purchase/pages/SupplierQuotationPage';
 import { QuotationComparisonPage } from './purchase/pages/QuotationComparisonPage';
+import { SupplierPerformancePage } from './purchase/pages/SupplierPerformancePage';
+import { PurchaseReportsPage } from './purchase/pages/PurchaseReportsPage';
 import './dies/dies.css';
 
 /** Minimal hash router: #/route?query — survives refresh, no server config needed. */
@@ -95,6 +97,8 @@ function Page({ route, query, navigate }: { route: string; query: URLSearchParam
   if (route === 'rfqs') return <RFQPage query={query} navigate={navigate} />;
   if (route === 'supplier-quotations') return <SupplierQuotationPage query={query} navigate={navigate} />;
   if (route === 'quotation-comparison') return <QuotationComparisonPage query={query} navigate={navigate} />;
+  if (route === 'supplier-performance') return <SupplierPerformancePage navigate={navigate} />;
+  if (route === 'purchase-reports') return <PurchaseReportsPage query={query} navigate={navigate} />;
   if (route === 'purchase-orders') return <PurchaseOrderRouter query={query} navigate={navigate} />;
   if (route === 'suppliers') return <SupplierMasterPage />;
   if (SALES_PAGES.some((p) => p.route === route)) return <SalesListPage route={route} query={query} />;

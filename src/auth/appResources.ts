@@ -185,6 +185,24 @@ export const APP_RESOURCES: AppResourceDefinition[] = [
     writable: true,
     defaultLevels: { accounts: 'write', operator: 'hidden', qc: 'read' },
   },
+  {
+    key: 'purchase_reports',
+    route: 'purchase-reports',
+    label: 'Purchase Reports',
+    section: 'Purchase & Procurement',
+    sort: 26,
+    writable: false,
+    defaultLevels: { accounts: 'read', operator: 'hidden', qc: 'read' },
+  },
+  {
+    key: 'supplier_performance',
+    route: 'supplier-performance',
+    label: 'Supplier Performance',
+    section: 'Purchase & Procurement',
+    sort: 27,
+    writable: false,
+    defaultLevels: { accounts: 'read', operator: 'hidden', qc: 'read' },
+  },
 
   // ---------------------------------------------------------- Workflow ---
   {
@@ -338,9 +356,9 @@ export const APP_RESOURCES: AppResourceDefinition[] = [
 ];
 
 /** Route → Resource Key map (e.g. 'purchase-dashboard' → 'purchase_dashboard') */
-export const ROUTE_RESOURCE: Record<string, string> = Object.fromEntries(
-  APP_RESOURCES.map((r) => [r.route, r.key])
-);
+export const ROUTE_RESOURCE: Record<string, string> = {
+  ...Object.fromEntries(APP_RESOURCES.map((r) => [r.route, r.key])),
+};
 
 /** Resource Key → Route map */
 export const RESOURCE_ROUTE: Record<string, string> = Object.fromEntries(

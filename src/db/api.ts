@@ -38,6 +38,8 @@ export const addInward = (i: InwardInput, ts?: string) =>
     p_invoice_no: emptyToNull(i.invoiceNo),
     p_purchase_rate: i.purchaseRate ?? null,
     p_ts: ts,
+    // only sent when a PO line is chosen, so receiving without a PO keeps working before migration 32 is installed
+    ...(i.poItemId ? { p_po_id: i.poId, p_po_item_id: i.poItemId } : {}),
   });
 
 export const createJob = (i: JobInput, ts?: string) => {
@@ -283,7 +285,13 @@ export const updateInward = (lotId: string, i: InwardInput, ts?: string) =>
     p_invoice_no: emptyToNull(i.invoiceNo),
     p_purchase_rate: i.purchaseRate ?? null,
     p_ts: ts,
+    // undefined = the PO link is not installed (or untouched); null = unlink; a number = book against that PO line
+    ...(i.poId !== undefined ? { p_po_id: i.poId, p_po_item_id: i.poItemId ?? null } : {}),
   });
+
+/** Incoming QC on an inward lot (migration 32). Rejected bars are blocked from production stock by the database. */
+export const setLotQc = (lotId: string, status: 'Pending' | 'Accepted' | 'Rejected' | 'Partial', accepted: number | null, rejected: number | null, user: string) =>
+  call<null>('set_lot_qc', { p_lot_id: lotId, p_status: status, p_accepted_weight: accepted, p_rejected_weight: rejected, p_user: user });
 
 // ------------------------------------------------------------ deletes ---
 // Each is one database function that checks the page's Write level and refuses anything already part of the flow

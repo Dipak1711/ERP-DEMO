@@ -1132,3 +1132,9 @@ select.filter { padding-right: 36px; }
 .tbl.form-tbl input[type="text"], .tbl.form-tbl input:not([type]) { text-overflow: ellipsis; }
 .tbl.form-tbl td { padding: 8px 6px; }
 .tbl .size-field input { padding-right: 52px; }
+.tbl .total-row td { border-top: 2px solid var(--border-strong); background: var(--surface-2); }
+
+/* purchase reports: report buttons under the group tabs, and the date range */
+.rp-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+.rp-dates { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; }
+.rp-dates .field { width: 190px; }

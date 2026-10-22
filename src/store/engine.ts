@@ -117,7 +117,11 @@ export function fifoLots(s: ERPState, key: string): RawMaterialLot[] {
 }
 export const availableFor = (s: ERPState, key: string) => fifoLots(s, key).reduce((t, l) => t + l.availableQty, 0);
 
-export function lotStatus(lot: RawMaterialLot): 'Available' | 'Low Stock' | 'Consumed' {
+/** PCS of a lot that production has taken (not the ones rejected at incoming QC) */
+export const lotIssuedQty = (lot: RawMaterialLot) => lot.inwardQty - lot.availableQty - (lot.blockedQty ?? 0);
+
+export function lotStatus(lot: RawMaterialLot): 'Available' | 'Low Stock' | 'Consumed' | 'Rejected' {
+  if (lot.availableQty === 0 && (lot.blockedQty ?? 0) >= lot.inwardQty) return 'Rejected';
   if (lot.availableQty === 0) return 'Consumed';
   if (lot.availableQty < lot.inwardQty * 0.2) return 'Low Stock';
   return 'Available';
@@ -135,6 +139,9 @@ export interface InwardInput {
   heatNo?: string;
   invoiceNo?: string;
   purchaseRate?: number; // ₹ per KG — confidential
+  /** book the receipt against a purchase order line (optional; database migration 32). null on an edit = unlink. */
+  poId?: number | null;
+  poItemId?: number | null;
 }
 
 export function addInward(s: ERPState, input: InwardInput, ts: string): string {
