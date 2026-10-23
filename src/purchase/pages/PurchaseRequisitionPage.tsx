@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   CheckCircle,
+  ClipboardCheck,
   Eye,
   Pencil,
   Plus,
@@ -23,6 +24,7 @@ import {
   Search,
 } from '../../components/ui';
 import { SizeField } from '../components/SizeField';
+import { Brief } from '../../components/Brief';
 import { fmtDate, fmtNum, matches } from '../../components/format';
 import { useStore } from '../../store/StoreContext';
 import { usePRDetail, usePurchaseRequisitions } from '../hooks/usePurchase';
@@ -74,6 +76,7 @@ export function PurchaseRequisitionPage({
   const isNewParam = query?.get('new') === '1';
 
   const [selectedPRId, setSelectedPRId] = useState<number | null>(detailIdParam);
+  const [autoApprove, setAutoApprove] = useState(false);
   const [formOpen, setFormOpen] = useState(isNewParam);
   const [editId, setEditId] = useState<number | null>(null);
 
@@ -165,8 +168,10 @@ export function PurchaseRequisitionPage({
     return (
       <PRDetailView
         id={selectedPRId}
+        autoApprove={autoApprove}
         onBack={() => {
           setSelectedPRId(null);
+          setAutoApprove(false);
           navigate('purchase-requisitions');
           void reload();
         }}
@@ -330,6 +335,16 @@ export function PurchaseRequisitionPage({
                               </button>
                             </Write>
                           )}
+                          {r.status === 'Approval Pending' && (
+                            <Write res="purchase_approvals">
+                              <button className="icon-btn" title="Review and approve" aria-label={`Decide ${r.prNo}`} onClick={() => { setAutoApprove(true); setSelectedPRId(r.id); }}><ClipboardCheck size={16} /></button>
+                            </Write>
+                          )}
+                          {(r.status === 'Approved' || r.status === 'Partially Ordered') && (
+                            <Write res="procurement_po">
+                              <button className="icon-btn" title="Create RFQ / PO" aria-label={`Next step ${r.prNo}`} onClick={() => setSelectedPRId(r.id)}><ClipboardCheck size={16} /></button>
+                            </Write>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -353,11 +368,13 @@ function PRDetailView({
   onBack,
   onEdit,
   navigate,
+  autoApprove = false,
 }: {
   id: number;
   onBack: () => void;
   onEdit: (id: number) => void;
   navigate: (r: string) => void;
+  autoApprove?: boolean;
 }) {
   const { pr, loading, error, reload } = usePRDetail(id);
   const { user, canWrite } = useAccess();
@@ -365,6 +382,7 @@ function PRDetailView({
   const [acting, setActing] = useState(false);
   const [cancelModal, setCancelModal] = useState(false);
   const [rejectModal, setRejectModal] = useState(false);
+  const [approveModal, setApproveModal] = useState(autoApprove);
   const [note, setNote] = useState('');
 
   const userName = user?.name || user?.email || 'User';
@@ -417,6 +435,8 @@ function PRDetailView({
         title: 'Requisition Approved',
         message: `${pr.prNo} is approved and ready for RFQ or PO creation.`,
       });
+      setApproveModal(false);
+      setNote('');
       void reload();
     } catch (e) {
       toast({ kind: 'error', title: 'Approval failed', message: String(e) });
@@ -499,10 +519,10 @@ function PRDetailView({
 
             {pr.status === 'Approval Pending' && canApprove && (
               <Write res="purchase_approvals">
-                <button className="btn btn-subtle text-red" onClick={() => setRejectModal(true)} disabled={acting}>
+                <button className="btn btn-danger" onClick={() => setRejectModal(true)} disabled={acting}>
                   <XCircle size={14} /> Reject
                 </button>
-                <button className="btn btn-primary" onClick={handleApprove} disabled={acting}>
+                <button className="btn btn-primary" onClick={() => setApproveModal(true)} disabled={acting}>
                   <CheckCircle size={14} /> Approve Requisition
                 </button>
               </Write>
@@ -537,7 +557,7 @@ function PRDetailView({
 
             {['Draft', 'Approval Pending', 'Approved'].includes(pr.status) && (
               <Write res="purchase_requisitions">
-                <button className="btn btn-subtle text-red" onClick={() => setCancelModal(true)} disabled={acting}>
+                <button className="btn btn-danger" onClick={() => setCancelModal(true)} disabled={acting}>
                   Cancel PR
                 </button>
               </Write>
@@ -654,6 +674,36 @@ function PRDetailView({
         </div>
       </div>
 
+      {/* Approve Modal */}
+      <Modal
+        dialog
+        open={approveModal}
+        title="Approve purchase requisition"
+        onClose={() => setApproveModal(false)}
+        footer={
+          <>
+            <button className="btn btn-subtle" onClick={() => setApproveModal(false)} disabled={acting}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleApprove} disabled={acting}>Approve Requisition</button>
+          </>
+        }
+      >
+        <div style={{ display: 'grid', gap: 14 }}>
+          <Brief
+            rows={[
+              ['Requisition', pr.prNo],
+              ['Department', pr.department || '—'],
+              ['Requested by', pr.requestedBy || '—'],
+              ['Urgency', pr.urgency],
+              ['Items', String(pr.items.length)],
+              ['Total quantity', fmtNum(pr.totalQty || 0)],
+            ]}
+          />
+          <Field label="Note (optional)">
+            <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+          </Field>
+        </div>
+      </Modal>
+
       {/* Reject Modal */}
       <Modal
         dialog
@@ -665,7 +715,7 @@ function PRDetailView({
             <button className="btn btn-subtle" onClick={() => setRejectModal(false)} disabled={acting}>
               Cancel
             </button>
-            <button className="btn btn-primary text-red" onClick={handleReject} disabled={acting}>
+            <button className="btn btn-danger" onClick={handleReject} disabled={acting}>
               Confirm Rejection
             </button>
           </>
@@ -695,7 +745,7 @@ function PRDetailView({
             <button className="btn btn-subtle" onClick={() => setCancelModal(false)} disabled={acting}>
               Keep Requisition
             </button>
-            <button className="btn btn-primary text-red" onClick={handleCancel} disabled={acting}>
+            <button className="btn btn-danger" onClick={handleCancel} disabled={acting}>
               Confirm Cancellation
             </button>
           </>

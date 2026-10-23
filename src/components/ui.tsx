@@ -44,7 +44,7 @@ export const FLOW_STEPS: { key: string; label: string; short: string; icon: Icon
 // ---------------------------------------------------------------- Badge ---
 const TONE: Record<string, string> = {
   Pending: 'b-red',
-  'In Progress': 'b-blue b-progress',
+  'In Progress': 'b-purple b-progress',
   Completed: 'b-green',
   'QC Pending': 'b-amber',
   Approved: 'b-green',
@@ -76,12 +76,12 @@ const TONE: Record<string, string> = {
   Expired: 'b-amber',
   Received: 'b-blue',
   Confirmed: 'b-violet',
-  'In Production': 'b-blue b-progress',
+  'In Production': 'b-amber',
   Cancelled: 'b-red',
   Done: 'b-green',
-  Delivered: 'b-teal',
+  Delivered: 'b-green',
   // purchase
-  'Approval Pending': 'b-amber',
+  'Approval Pending': 'b-pink',
   Released: 'b-violet',
   'Sent to Supplier': 'b-blue',
   'Partially Received': 'b-orange',
@@ -101,6 +101,10 @@ const TONE: Record<string, string> = {
   Queued: 'b-neutral',
   Failed: 'b-red',
   'Unknown — check and retry': 'b-amber',
+  // sales quotations
+  'Pending Approval': 'b-pink',
+  'Revision Required': 'b-orange',
+  Won: 'b-green',
 };
 export function Badge({ status }: { status: string }) {
   return <span className={`badge ${TONE[status] ?? 'b-neutral'}`}>{status}</span>;

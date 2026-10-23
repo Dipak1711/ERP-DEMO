@@ -345,6 +345,10 @@ button.kpi:hover { border-color: var(--primary-100); box-shadow: var(--shadow); 
 .b-red { background: var(--crit-bg); color: var(--crit); border-color: var(--crit-bd); }
 .b-violet { background: var(--violet-bg); color: var(--violet); border-color: var(--violet-bd); }
 .b-teal { background: var(--teal-bg); color: var(--teal); border-color: var(--teal-bd); }
+.b-purple { background: rgba(124, 58, 237, 0.10); color: #7c3aed; border-color: rgba(124, 58, 237, 0.28); }
+.b-pink { background: rgba(219, 39, 119, 0.09); color: #db2777; border-color: rgba(219, 39, 119, 0.28); }
+:root[data-theme="dark"] .b-purple, [data-theme="dark"] .b-purple { color: #c4b5fd; background: rgba(139, 92, 246, 0.16); border-color: rgba(139, 92, 246, 0.35); }
+:root[data-theme="dark"] .b-pink, [data-theme="dark"] .b-pink { color: #f9a8d4; background: rgba(236, 72, 153, 0.15); border-color: rgba(236, 72, 153, 0.35); }
 .b-progress::before { animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.25; } }
 .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 7px; font-size: 12px; font-weight: 600; background: var(--neutral-bg); color: var(--text-2); white-space: nowrap; }
@@ -409,7 +413,8 @@ select.filter { height: 40px; border: 1px solid var(--border); border-radius: 12
 .inline-q svg { color: var(--text-3); }
 
 /* ================================================================= modal */
-.overlay { position: fixed; inset: 0; background: var(--overlay); backdrop-filter: blur(3px); z-index: 100; display: flex; align-items: flex-start; justify-content: center; padding: 5vh 16px 16px; overflow-y: auto; animation: fade 0.15s ease; }
+.overlay { position: fixed; inset: 0; background: var(--overlay); backdrop-filter: blur(3px); z-index: 100; display: flex; align-items: flex-start; justify-content: center; padding: 16px; overflow-y: auto; animation: fade 0.15s ease; }
+.overlay > .modal { margin: auto; } /* pop-ups sit in the middle of the screen (and scroll if they are taller than it) */
 @keyframes fade { from { opacity: 0; } }
 .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow-lg); width: 100%; max-width: 640px; animation: rise 0.18s ease; }
 .modal.lg { max-width: 860px; }
@@ -1028,6 +1033,15 @@ select.filter { padding-right: 36px; }
 .icon-actions { display: inline-flex; flex-wrap: nowrap; gap: 2px; align-items: center; justify-content: flex-end; white-space: nowrap; }
 .tbl td.nowrap:has(> .icon-actions) { min-width: 168px; }
 .icon-btn.danger:hover { background: var(--crit-bg); color: var(--crit-ink); }
+/* action icons in tables carry the same colour everywhere: green = do the next step, mustard = edit, red = delete / cancel */
+.tbl .icon-btn:has(.lucide-clipboard-check) { color: var(--good); }
+.tbl .icon-btn:has(.lucide-clipboard-check):hover { background: var(--good-bg); color: var(--good-ink); }
+.tbl .icon-btn:has(.lucide-pencil) { color: #f59e0b; }
+.tbl .icon-btn:has(.lucide-eye) { color: var(--info); }
+.tbl .icon-btn:has(.lucide-eye):hover { background: var(--info-bg); color: var(--info); }
+.tbl .icon-btn:has(.lucide-pencil):hover { background: rgba(245, 158, 11, 0.14); color: #d97706; }
+.tbl .icon-btn:has(.lucide-trash-2) { color: var(--crit); }
+.tbl .icon-btn:has(.lucide-trash-2):hover { background: var(--crit-bg); color: var(--crit-ink); }
 
 /* quantity box with a unit picker (Settings → Units) */
 .input-suffix .unit-pick { position: absolute; right: 5px; top: 5px; height: 34px; width: 84px; border: 0; border-radius: 9px; background: var(--surface-3); color: var(--text-2); font-size: 12.5px; font-weight: 700; padding: 0 6px; cursor: pointer; }

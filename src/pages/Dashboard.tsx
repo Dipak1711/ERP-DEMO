@@ -24,6 +24,8 @@ import { fgAvailable, isToday, jobSummary, lotAvailableWeight, materialKey, PROC
 import type { Activity } from '../store/types';
 import { Badge, Empty, FLOW_STEPS, go, JobLink, Kpi, PageHeader, Priority, rowTone, Stepper } from '../components/ui';
 import { nextStep, pendingSteps } from '../components/workflow';
+import { useFollowups } from '../followups/useFollowups';
+import { BellRing } from 'lucide-react';
 import { AnimatedNum } from '../components/motion';
 import { fmtKg, fmtNum, plural, timeAgo } from '../components/format';
 
@@ -42,6 +44,7 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
   const { state, openTrace, openAction } = useStore();
   const [showAll, setShowAll] = useState(false);
   const waiting = pendingSteps(state).length;
+  const { due: followDue, loading: followLoading } = useFollowups();
 
   const d = useMemo(() => {
     const s = state;
@@ -149,10 +152,11 @@ export function Dashboard({ navigate }: { navigate: (r: string) => void }) {
         }
       />
 
-      <div className="kpis k4">
+      <div className="kpis k5">
         <Kpi label="Raw Material Stock" value={d.rawQty} unit="PCS" hint={fmtKg(Math.round(d.rawKg * 10) / 10)} icon={Boxes} tone="blue" onClick={() => navigate('raw-inventory')} />
         <Kpi label="Active Production Jobs" value={d.active.length} unit="jobs" hint={`${fmtNum(d.active.reduce((t, j) => t + jobSummary(state, j.jobNo).currentQty, 0))} PCS in process · ${plural(state.jobs.length, 'job')} total`} icon={Factory} tone="violet" trend={waiting ? <span className="chip chip-high">{waiting} need action</span> : undefined} onClick={() => navigate('traceability')} />
         <Kpi label="Finished Goods" value={d.fgAvail} unit="PCS" hint={`${fmtNum(d.fgReserved)} more packed for dispatch`} icon={PackageCheck} tone="green" onClick={() => navigate('finished-goods')} />
+        <Kpi label="Follow-ups Due" value={followLoading ? 0 : followDue.length} icon={BellRing} tone={followDue.some((f) => f.due && f.due < new Date().toISOString().slice(0, 10)) ? 'red' : 'violet'} hint="tomorrow, today or overdue" onClick={() => navigate('follow-ups')} />
         <Kpi label="Today's Dispatch" value={d.todayQty} unit="PCS" hint={`${d.todayCount} dispatch${d.todayCount === 1 ? '' : 'es'} today`} icon={Truck} tone="teal" onClick={() => navigate('dispatch')} />
       </div>
       <div className="kpis k5">

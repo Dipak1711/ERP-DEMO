@@ -46,6 +46,15 @@ export const APP_RESOURCES: AppResourceDefinition[] = [
     sort: 10,
     writable: false,
   },
+  {
+    key: 'followups',
+    route: 'follow-ups',
+    label: 'Follow-ups',
+    section: 'Main Menu',
+    sort: 11,
+    writable: false,
+    defaultLevels: { qc: 'hidden', operator: 'hidden' },
+  },
 
   // ---------------------------------------------------- Sales & Orders ---
   {
@@ -65,6 +74,24 @@ export const APP_RESOURCES: AppResourceDefinition[] = [
     sort: 12,
     writable: true,
     defaultLevels: { accounts: 'write', operator: 'hidden', qc: 'read' },
+  },
+  {
+    key: 'quotation_approvals',
+    route: 'quotation-approvals',
+    label: 'Quotation Approvals',
+    section: 'Sales & Orders',
+    sort: 14,
+    writable: true,
+    defaultLevels: { plant_head: 'read', accounts: 'read', viewer: 'read', qc: 'hidden', operator: 'hidden' },
+  },
+  {
+    key: 'sales_reports',
+    route: 'sales-reports',
+    label: 'Sales Reports',
+    section: 'Sales & Orders',
+    sort: 19,
+    writable: false,
+    defaultLevels: { accounts: 'read', operator: 'hidden', qc: 'hidden' },
   },
   {
     key: 'leads',
@@ -99,15 +126,6 @@ export const APP_RESOURCES: AppResourceDefinition[] = [
     label: 'Sales Orders',
     section: 'Sales & Orders',
     sort: 16,
-    writable: true,
-    defaultLevels: { accounts: 'write', operator: 'hidden', qc: 'read' },
-  },
-  {
-    key: 'final_orders',
-    route: 'final-order',
-    label: 'Production / Final Orders',
-    section: 'Sales & Orders',
-    sort: 17,
     writable: true,
     defaultLevels: { accounts: 'write', operator: 'hidden', qc: 'read' },
   },

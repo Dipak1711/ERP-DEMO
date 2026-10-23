@@ -1,3 +1,5 @@
+import { ClipboardCheck } from 'lucide-react';
+import { Brief } from '../../components/Brief';
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -93,7 +95,7 @@ export function PurchaseOrderRouter({
     );
   }
   if (detailId) {
-    return <PurchaseOrderDetailPage id={detailId} navigate={navigate} />;
+    return <PurchaseOrderDetailPage id={detailId} navigate={navigate} autoApprove={query.get('step') === 'approve'} />;
   }
   return <PurchaseOrderListPage navigate={navigate} />;
 }
@@ -309,6 +311,16 @@ export function PurchaseOrderListPage({ navigate }: { navigate: (r: string) => v
                                 </button>
                               </Write>
                             )}
+                            {o.status === 'Approval Pending' && (
+                              <Write res="purchase_approvals">
+                                <button className="icon-btn" title="Review and approve" aria-label={`Decide PO ${o.poNo}`} onClick={() => navigate(`purchase-orders?id=${o.id}&step=approve`)}><ClipboardCheck size={16} /></button>
+                              </Write>
+                            )}
+                            {o.status === 'Approved' && (
+                              <Write res="procurement_po">
+                                <button className="icon-btn" title="Release / send" aria-label={`Next step PO ${o.poNo}`} onClick={() => navigate(`purchase-orders?id=${o.id}`)}><ClipboardCheck size={16} /></button>
+                              </Write>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -336,9 +348,11 @@ const emailLogLabel = (em: POEmailLog): string =>
 export function PurchaseOrderDetailPage({
   id,
   navigate,
+  autoApprove = false,
 }: {
   id: number;
   navigate: (r: string) => void;
+  autoApprove?: boolean;
 }) {
   const [po, setPo] = useState<PODetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -352,6 +366,7 @@ export function PurchaseOrderDetailPage({
 
   // Modals & Action states
   const [rejectModal, setRejectModal] = useState(false);
+  const [approveModal, setApproveModal] = useState(autoApprove);
   const [amendModal, setAmendModal] = useState(false);
   const [actionNote, setActionNote] = useState('');
   const [acting, setActing] = useState(false);
@@ -416,6 +431,7 @@ export function PurchaseOrderDetailPage({
       setActing(true);
       await decidePO(po.id, true, actionNote || 'Approved', userName);
       toast({ kind: 'success', title: 'PO Approved', message: `${po.poNo} approved successfully.` });
+      setApproveModal(false);
       void loadData();
     } catch (e) {
       toast({ kind: 'error', title: 'Approval failed', message: e instanceof Error ? e.message : String(e) });
@@ -540,10 +556,10 @@ export function PurchaseOrderDetailPage({
 
             {po.status === 'Approval Pending' && canApprove && (
               <>
-                <button className="btn btn-subtle text-red" onClick={() => setRejectModal(true)} disabled={acting}>
+                <button className="btn btn-danger" onClick={() => setRejectModal(true)} disabled={acting}>
                   <XCircle size={15} /> Reject to Draft
                 </button>
-                <button className="btn btn-primary" onClick={handleApprove} disabled={acting}>
+                <button className="btn btn-primary" onClick={() => setApproveModal(true)} disabled={acting}>
                   <CheckCircle size={15} /> Approve PO
                 </button>
               </>
@@ -886,6 +902,36 @@ export function PurchaseOrderDetailPage({
         />
       )}
 
+      {/* Approve Modal */}
+      <Modal
+        dialog
+        open={approveModal}
+        title="Approve purchase order"
+        onClose={() => setApproveModal(false)}
+        footer={
+          <>
+            <button className="btn btn-subtle" onClick={() => setApproveModal(false)} disabled={acting}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleApprove} disabled={acting}>Approve PO</button>
+          </>
+        }
+      >
+        <div style={{ display: 'grid', gap: 14 }}>
+          <Brief
+            rows={[
+              ['Purchase order', po.poNo],
+              ...(canSee('party_names') ? ([['Supplier', po.supplierName || '—']] as [string, React.ReactNode][]) : []),
+              ['Items', String(po.items.length)],
+              ...(showRates ? ([['Total (incl. GST)', `₹ ${po.totalAmount.toLocaleString('en-IN')}`]] as [string, React.ReactNode][]) : []),
+              ['Delivery date', fmtDate(po.deliveryDate || undefined)],
+              ['Urgency', po.urgency],
+            ]}
+          />
+          <Field label="Note (optional)">
+            <textarea rows={2} value={actionNote} onChange={(e) => setActionNote(e.target.value)} />
+          </Field>
+        </div>
+      </Modal>
+
       {/* Reject Modal */}
       <Modal
         dialog
@@ -897,7 +943,7 @@ export function PurchaseOrderDetailPage({
             <button className="btn btn-subtle" onClick={() => setRejectModal(false)} disabled={acting}>
               Cancel
             </button>
-            <button className="btn btn-primary text-red" onClick={handleReject} disabled={acting}>
+            <button className="btn btn-danger" onClick={handleReject} disabled={acting}>
               {acting ? 'Rejecting…' : 'Confirm Rejection'}
             </button>
           </>

@@ -11,7 +11,7 @@ import { DIE_STATUSES, KIND_LABEL, METALS, type Die, type DieKind, type DieStatu
 // ------------------------------------------------------------- small bits ---
 const DIE_TONE: Record<string, string> = {
   Available: 'b-green',
-  'In Production': 'b-blue b-progress',
+  'In Production': 'b-amber',
   'Under Maintenance': 'b-amber',
   Damaged: 'b-red',
   Retired: 'b-neutral',

@@ -1,3 +1,4 @@
+import { ClipboardCheck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
@@ -293,6 +294,11 @@ export function SupplierQuotationPage({
                             <FileCheck size={16} />
                           </button>
                         </Write>
+                        {(s.status === 'Received' || s.status === 'Shortlisted') && (
+                          <Write res="supplier_quotations">
+                            <button className="icon-btn" title="Open to shortlist or select" aria-label={`Next step ${s.id}`} onClick={() => setSelectedSQId(s.id)}><ClipboardCheck size={16} /></button>
+                          </Write>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -413,7 +419,7 @@ function SQDetailView({
               )}
               {quotation.status !== 'Rejected' && (
                 <button
-                  className="btn btn-subtle text-red"
+                  className="btn btn-danger"
                   onClick={() => handleStatusChange('Rejected')}
                   disabled={acting}
                 >

@@ -316,7 +316,7 @@ export async function getPOPrefillFromSQ(sqId: number): Promise<POPrefillData> {
  * The message to show for a failed Edge Function call. Order of preference: the text the function itself returned; then a plain-words reason
  * for the common failures (function not deployed, browser could not reach it, server error); then the fallback.
  */
-async function functionError(error: unknown, fallback: string, fn: string): Promise<string> {
+export async function functionError(error: unknown, fallback: string, fn: string): Promise<string> {
   const err = error as { name?: string; context?: unknown } | null;
   const ctx = err?.context as Response | undefined;
   if (ctx && typeof ctx.json === 'function') {

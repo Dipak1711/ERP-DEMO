@@ -6,7 +6,7 @@ import { fmtDate, fmtNum, matches } from '../../components/format';
 import { useStore } from '../../store/StoreContext';
 import { fetchReportRows } from '../services/receiptService';
 import { REPORT_BY_ID, REPORT_GROUPS, REPORTS, type ReportCol, type ReportDef } from '../reports/config';
-import { downloadCsv, toCsv } from '../reports/csv';
+import { downloadXlsx } from '../../export/xlsx';
 import { printReport } from '../reports/print';
 
 type Row = Record<string, unknown>;
@@ -126,9 +126,9 @@ export function PurchaseReportsPage({ query, navigate }: { query?: URLSearchPara
     def.urgencyKey && { label: 'Urgency', value: urgency, onChange: setUrgency, options: [{ value: '', label: 'All urgencies' }, ...['Normal', 'Urgent', 'Critical'].map((v) => ({ value: v, label: v }))] },
   ].filter(Boolean) as Parameters<typeof FilterMenu>[0]['groups'];
 
-  const exportCsv = () => {
+  const exportExcel = () => {
     if (result.length === 0) return toast({ kind: 'info', title: 'Nothing to export', message: 'This report has no rows for the current filters.' });
-    downloadCsv(`${def.id}-${new Date().toISOString().slice(0, 10)}`, toCsv(cols, result, totals));
+    void downloadXlsx(`${def.id}-${new Date().toISOString().slice(0, 10)}`, def.title ?? def.id, cols, result, totals);
   };
 
   const print = () => {
@@ -169,8 +169,8 @@ export function PurchaseReportsPage({ query, navigate }: { query?: URLSearchPara
             <button className="btn btn-subtle" onClick={print} disabled={loading}>
               <Printer size={14} /> Print
             </button>
-            <button className="btn btn-primary" onClick={exportCsv} disabled={loading}>
-              <Download size={14} /> Export CSV
+            <button className="btn btn-primary" onClick={exportExcel} disabled={loading}>
+              <Download size={14} /> Export Excel
             </button>
           </>
         }

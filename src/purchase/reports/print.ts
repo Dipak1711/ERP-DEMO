@@ -42,6 +42,8 @@ export interface ReportPrint {
   filters: [string, string][];
   printedBy: string;
   note?: string;
+  /** the box at the top right, e.g. SALES REPORT (default PURCHASE REPORT) */
+  heading?: string;
 }
 
 export function printReport(p: ReportPrint) {
@@ -70,7 +72,7 @@ export function printReport(p: ReportPrint) {
       </td>
       <td style="width: 32%; text-align: right;">
         <div class="po-meta-card">
-          <div class="po-meta-title">PURCHASE REPORT</div>
+          <div class="po-meta-title">${esc(p.heading ?? 'PURCHASE REPORT')}</div>
           <table class="po-meta-table">
             <tr><td class="po-meta-label">Printed</td><td class="po-meta-val">${esc(when)}</td></tr>
             <tr><td class="po-meta-label">By</td><td class="po-meta-val">${esc(p.printedBy)}</td></tr>

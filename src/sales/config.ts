@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileText, Inbox, ListChecks, ShoppingCart, UserPlus } from 'lucide-react';
+import { Inbox, ListChecks, UserPlus } from 'lucide-react';
 import type { Icon } from '../components/ui';
 
 export type SalesKind = 'lead' | 'inquiry' | 'quotation' | 'purchase_order' | 'sales_order' | 'final_order' | 'task';
@@ -63,23 +63,9 @@ export const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
 const party = (label = 'Customer / Company'): FieldDef => ({ key: 'party', label, required: true, placeholder: 'e.g. Sigma Valves' });
 const product = (required = false): FieldDef => ({ key: 'product', label: 'Product', required, placeholder: 'e.g. Brass Bush' });
 const qty: FieldDef = { key: 'qty', label: 'Quantity', required: true };
-const rate: FieldDef = { key: 'rate', label: 'Rate' };
 const remarks: FieldDef = { key: 'remarks', label: 'Remarks' };
 
 export const SALES_KINDS: KindCfg[] = [
-  {
-    kind: 'quotation',
-    route: 'sales-quotation',
-    resource: 'sales_quotation',
-    label: 'Sales Quotation',
-    singular: 'Quotation',
-    icon: FileText,
-    statuses: ['Draft', 'Sent', 'Accepted', 'Rejected', 'Expired'],
-    openStatuses: ['Draft', 'Sent'],
-    printable: true,
-    fields: [party(), { key: 'refNo', label: 'Inquiry no.', placeholder: 'e.g. INQ-2026-0001' }, product(true), qty, rate, { key: 'dueDate', label: 'Valid until' }, remarks],
-    cols: ['docNo', 'docDate', 'party', 'product', 'qty', 'rate', 'amount', 'dueDate', 'status'],
-  },
   {
     kind: 'lead',
     route: 'leads',
@@ -113,32 +99,6 @@ export const SALES_KINDS: KindCfg[] = [
     printable: true,
     fields: [party(), { key: 'contact', label: 'Contact person' }, { key: 'phone', label: 'Phone' }, { key: 'refNo', label: 'Lead no.', placeholder: 'e.g. LD-2026-0001' }, product(), { ...qty, required: false }, { key: 'dueDate', label: 'Required by' }, remarks],
     cols: ['docNo', 'docDate', 'party', 'product', 'qty', 'dueDate', 'refNo', 'status'],
-  },
-  {
-    kind: 'sales_order',
-    route: 'sales-order',
-    resource: 'sales_orders',
-    label: 'Sales Order',
-    singular: 'Sales Order',
-    icon: ShoppingCart,
-    statuses: ['Draft', 'Confirmed', 'Delivered', 'Cancelled'],
-    openStatuses: ['Draft', 'Confirmed'],
-    printable: true,
-    fields: [{ key: 'extRef', label: 'Customer PO no.', placeholder: 'The number on their order' }, party(), { key: 'refNo', label: 'Quotation no.', placeholder: 'e.g. QT-2026-0001' }, product(true), qty, rate, { key: 'dueDate', label: 'Delivery date' }, remarks],
-    cols: ['docNo', 'extRef', 'docDate', 'party', 'product', 'qty', 'rate', 'amount', 'dueDate', 'status'],
-  },
-  {
-    kind: 'final_order',
-    route: 'final-order',
-    resource: 'final_orders',
-    label: 'Final Order',
-    singular: 'Final Order',
-    icon: ClipboardCheck,
-    statuses: ['Confirmed', 'In Production', 'Completed', 'Cancelled'],
-    openStatuses: ['Confirmed', 'In Production'],
-    printable: true,
-    fields: [party(), { key: 'refNo', label: 'PO no.', placeholder: 'e.g. PO-2026-0001' }, product(true), qty, rate, { key: 'dueDate', label: 'Delivery date' }, remarks],
-    cols: ['docNo', 'docDate', 'party', 'product', 'qty', 'rate', 'amount', 'dueDate', 'refNo', 'status'],
   },
   {
     kind: 'task',

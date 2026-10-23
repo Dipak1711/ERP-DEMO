@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeft, Ban, CheckCircle, Eye, FileCheck, Pencil, Plus, RefreshCw, Wallet } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Ban, CheckCircle, ClipboardCheck, Eye, FileCheck, Pencil, Plus, RefreshCw, Wallet } from 'lucide-react';
 import { Conf, Write, canSee, useAccess } from '../../auth/access';
 import { Badge, Empty, Field, FilterMenu, Modal, PageFormCtx, PageHeader, Search, Tabs } from '../../components/ui';
 import { fmtDate, fmtNum, matches, todayISO } from '../../components/format';
@@ -16,7 +16,7 @@ export function PurchaseInvoicePage({ query, navigate }: { query?: URLSearchPara
   const editId = Number(query?.get('edit')) || null;
   const isNew = query?.get('new') === '1';
   if (isNew || editId) return <InvoiceForm editId={editId} initialPoId={Number(query?.get('po_id')) || null} navigate={navigate} />;
-  if (id) return <InvoiceDetailView id={id} navigate={navigate} />;
+  if (id) return <InvoiceDetailView id={id} navigate={navigate} autoPay={query?.get('step') === 'pay'} />;
   return <InvoiceList navigate={navigate} supplierParam={Number(query?.get('supplier')) || null} openOnly={query?.get('open') === '1'} />;
 }
 
@@ -173,6 +173,18 @@ function InvoiceList({ navigate, supplierParam, openOnly }: { navigate: (r: stri
                         <button className="icon-btn" title="View" aria-label={`View ${r.pinvNo}`} onClick={() => navigate(`purchase-invoices?id=${r.invoiceId}`)}>
                           <Eye size={16} />
                         </button>
+                        {r.status === 'Draft' && (
+                          <Write res="purchase_invoices">
+                            <button className="icon-btn" title="Edit draft invoice" aria-label={`Edit ${r.pinvNo}`} onClick={() => navigate(`purchase-invoices?edit=${r.invoiceId}`)}>
+                              <Pencil size={16} />
+                            </button>
+                          </Write>
+                        )}
+                        {r.status === 'Posted' && r.balance > 0.004 && (
+                          <Write res="purchase_payments">
+                            <button className="icon-btn" title="Record payment" aria-label={`Pay ${r.pinvNo}`} onClick={() => navigate(`purchase-invoices?id=${r.invoiceId}&step=pay`)}><ClipboardCheck size={16} /></button>
+                          </Write>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -189,14 +201,14 @@ function InvoiceList({ navigate, supplierParam, openOnly }: { navigate: (r: stri
 // ---------------------------------------------------------------------------------------------
 // Detail
 // ---------------------------------------------------------------------------------------------
-function InvoiceDetailView({ id, navigate }: { id: number; navigate: (r: string) => void }) {
+function InvoiceDetailView({ id, navigate, autoPay = false }: { id: number; navigate: (r: string) => void; autoPay?: boolean }) {
   const { user, canWrite } = useAccess();
   const { toast } = useStore();
   const [inv, setInv] = useState<InvoiceDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<'lines' | 'payments'>('lines');
-  const [payOpen, setPayOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState(autoPay);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [acting, setActing] = useState(false);
@@ -273,7 +285,7 @@ function InvoiceDetailView({ id, navigate }: { id: number; navigate: (r: string)
               </button>
             )}
             {inv.status !== 'Cancelled' && canInvoice && (
-              <button className="btn btn-subtle text-red" onClick={() => setCancelOpen(true)} disabled={acting || inv.payments.length > 0} title={inv.payments.length > 0 ? 'Payments are recorded against this invoice' : undefined}>
+              <button className="btn btn-danger" onClick={() => setCancelOpen(true)} disabled={acting || inv.payments.length > 0} title={inv.payments.length > 0 ? 'Payments are recorded against this invoice' : undefined}>
                 <Ban size={15} /> Cancel
               </button>
             )}
@@ -466,7 +478,7 @@ function InvoiceDetailView({ id, navigate }: { id: number; navigate: (r: string)
                 Keep Invoice
               </button>
               <button
-                className="btn btn-primary text-red"
+                className="btn btn-danger"
                 disabled={acting || !reason.trim()}
                 onClick={async () => {
                   await act(() => cancelInvoice(inv.invoiceId, reason.trim(), who), { title: 'Invoice cancelled', message: inv.status === 'Posted' ? 'The invoiced quantity is available again.' : undefined });

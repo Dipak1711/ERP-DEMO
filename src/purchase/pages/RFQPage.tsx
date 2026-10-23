@@ -1,3 +1,4 @@
+import { ClipboardCheck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
@@ -248,6 +249,11 @@ export function RFQPage({
                         >
                           <FileCheck size={16} />
                         </button>
+                        {(r.status === 'Open' || r.status === 'Quotes Received') && (
+                          <Write res="rfq">
+                            <button className="icon-btn" title="Open to update this RFQ" aria-label={`Next step ${r.rfqNo}`} onClick={() => setSelectedRFQId(r.id)}><ClipboardCheck size={16} /></button>
+                          </Write>
+                        )}
                       </div>
                     </td>
                   </tr>

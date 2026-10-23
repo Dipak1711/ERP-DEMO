@@ -4,12 +4,16 @@
 | --------- | ------------ |
 | `send-po` | E-mails a **Released** purchase order to the supplier with the final PDF attached, and records the send (date, time, user, supplier e-mail). The PO becomes **Sent to Supplier**. |
 | `po-pdf`  | Builds the same PDF and returns a short-lived download link. Nothing is e-mailed. |
+| `send-quotation` | E-mails an **Approved** sales quotation to the customer with the PDF attached and records the send (date, time, user, customer e-mail). An Approved quotation becomes **Sent** and the first follow-up date is saved. |
+| `quotation-pdf`  | Builds the customer's PDF of an approved quotation (no cost, no margin) and returns a short-lived download link. Nothing is e-mailed. |
 
-Shared code is in `_shared/` (PDF builder, mail adapter, helpers, logo). Both functions check the caller first with the database function `can_send_po(poId)` **using the caller's own login**: only people with **Write** on *Purchase Orders* or *Purchase Approvals* can send or download, and only for a PO that is *Released* or *Sent to Supplier*.
+Shared code is in `_shared/` (PDF builders, mail adapter, helpers, logo). `send-po` / `po-pdf` check the caller first with the database function `can_send_po(poId)` **using the caller's own login**: only people with **Write** on *Purchase Orders* or *Purchase Approvals* can send or download, and only for a PO that is *Released* or *Sent to Supplier*.
+
+The quotation functions (`send-quotation`, `quotation-pdf`) work the same way: they first ask the database function `can_send_quotation(id)` **using the caller's own login** (Write on *Sales Quotation* with access to customer names and prices, and the quotation must be *Approved* or *Sent*). They use the same three mail secrets below, so nothing more to set once e-mail is switched on for purchase orders. **Until the mail secrets exist, a send fails with "E-mail is not set up yet" and the quotation stays Approved** (use *I send it another way* in the Send popup for WhatsApp / print).
 
 ## Before you deploy: database
 
-Run the SQL migrations in order up to `33_invoice_payment_pdf.sql` (it creates the `po-pdfs` storage bucket, the `company_settings` table, `can_send_po`, `queue_po_send` and the new `mark_po_sent`).
+Run the SQL migrations in order up to `33_invoice_payment_pdf.sql` and, for the quotation functions, also `34_sales_module.sql`, `35_followups.sql` and `36_quotation_send.sql` (36 creates the `quotation-pdfs` bucket, the e-mail log, `can_send_quotation`, `queue_quotation_send` and `mark_quotation_sent`). Migration 33 creates the `po-pdfs` storage bucket, the `company_settings` table, `can_send_po`, `queue_po_send` and the new `mark_po_sent`).
 
 ## Secrets to set (never put these in the repo, in `.env`, or in the web app)
 
@@ -39,6 +43,8 @@ From the project folder (the `supabase` CLI is run through `npx`, no global inst
 ```
 npx supabase functions deploy send-po
 npx supabase functions deploy po-pdf
+npx supabase functions deploy send-quotation
+npx supabase functions deploy quotation-pdf
 ```
 
 JWT verification stays **on** (the default): only signed-in users can call the functions.

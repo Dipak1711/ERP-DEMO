@@ -26,7 +26,7 @@ export const ROLES: { value: Role; label: string; hint: string; editable: boolea
 ];
 
 export type Level = 'hidden' | 'read' | 'write';
-export type FieldGroup = 'party_names' | 'invoices' | 'purchase_rates' | 'sales_rates' | 'die_cost';
+export type FieldGroup = 'party_names' | 'invoices' | 'purchase_rates' | 'sales_rates' | 'die_cost' | 'margins';
 
 export {
   APP_RESOURCES,
@@ -93,7 +93,7 @@ interface AccessValue {
 const Ctx = createContext<AccessValue | null>(null);
 
 type Meta = { full_name?: string };
-const ALL_FIELDS: FieldGroup[] = ['party_names', 'invoices', 'purchase_rates', 'sales_rates', 'die_cost'];
+const ALL_FIELDS: FieldGroup[] = ['party_names', 'invoices', 'purchase_rates', 'sales_rates', 'die_cost', 'margins'];
 
 /** Reads who the database says this user is and what they may see / do. null = no active profile. */
 async function loadSession(): Promise<Session | null> {

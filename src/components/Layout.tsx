@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   BarChart3,
   Bell,
+  BellRing,
   Briefcase,
   Building2,
   FileBarChart,
@@ -43,6 +44,8 @@ import { jobSummary, STAGE_LABEL } from '../store/engine';
 import { Badge, FLOW_STEPS, go, type Icon } from './ui';
 import { pendingSteps } from './workflow';
 import { SALES_PAGES } from '../pages/SalesPages';
+import { useFollowups } from '../followups/useFollowups';
+import { dueText } from '../followups/types';
 
 export interface NavItem {
   route: string;
@@ -83,7 +86,7 @@ const DIE_NAV: NavItem[] = [
 export const ALL_NAV: NavItem[] = [{ route: 'dashboard', label: 'Dashboard', icon: LayoutGrid }, ...WORKFLOW_NAV, ...REPORT_NAV];
 
 const SECTIONS: { id: string; title: string; icon: Icon; items: NavItem[] }[] = [
-  { id: 'main', title: 'Main Menu', icon: LayoutGrid, items: [ALL_NAV[0]] },
+  { id: 'main', title: 'Main Menu', icon: LayoutGrid, items: [ALL_NAV[0], { route: 'follow-ups', label: 'Follow-ups', icon: BellRing }] },
   { id: 'sales', title: 'Sales & Orders', icon: Briefcase, items: SALES_NAV },
   { id: 'purchase', title: 'Purchase & Procurement', icon: ShoppingBag, items: PURCHASE_NAV },
   { id: 'flow', title: 'Workflow', icon: Workflow, items: WORKFLOW_NAV },
@@ -245,20 +248,39 @@ function ActionBell() {
   const ref = useRef<HTMLDivElement>(null);
   useOutside(ref, open, () => setOpen(false));
   const steps = useMemo(() => pendingSteps(state), [state]);
+  const { due } = useFollowups();
+  const total = steps.length + due.length;
 
   return (
     <div className="rel" ref={ref}>
       <button className="round-btn" onClick={() => setOpen((o) => !o)} aria-label="Pending actions" title="Pending actions">
         <Bell size={18} />
-        {steps.length > 0 && <span className="ping">{steps.length}</span>}
+        {total > 0 && <span className="ping">{total}</span>}
       </button>
       {open && (
         <div className="pop">
           <div className="pop-head">
             <b>Pending actions</b>
-            <div>{steps.length ? `${steps.length === 1 ? '1 job is' : `${steps.length} jobs are`} waiting for the next step` : 'All jobs are up to date'}</div>
+            <div>{total ? [steps.length ? `${steps.length === 1 ? '1 job is' : `${steps.length} jobs are`} waiting for the next step` : '', due.length ? `${due.length} follow-up${due.length === 1 ? '' : 's'} due` : ''].filter(Boolean).join(' · ') : 'All jobs are up to date'}</div>
           </div>
           <div className="pop-list">
+            {due.slice(0, 6).map((f) => (
+              <button key={f.key} className="pop-item" onClick={() => { setOpen(false); go(f.route); }}>
+                <span className="ic"><BellRing size={17} /></span>
+                <span>
+                  <span className="tt"><span className="mono">{f.ref}</span> · {f.what}</span>
+                  <div className="ss">{f.party ? `${f.party} · ` : ''}{dueText(f.due)}</div>
+                </span>
+                <span className="go">Open →</span>
+              </button>
+            ))}
+            {due.length > 0 && (
+              <button className="pop-item" onClick={() => { setOpen(false); go('follow-ups'); }}>
+                <span className="ic"><ClipboardList size={17} /></span>
+                <span><span className="tt">See all follow-ups</span></span>
+                <span className="go">Open →</span>
+              </button>
+            )}
             {steps.map((n) => {
               const I = FLOW_STEPS.find((f) => f.key === n.stageKey)?.icon ?? ClipboardList;
               return (

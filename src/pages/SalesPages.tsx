@@ -1,12 +1,11 @@
 import * as api from '../db/api';
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Eye, Inbox, LayoutGrid, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
+import { ArrowLeft, BarChart3, CheckCircle, Eye, FileText, LayoutGrid, Pencil, Plus, Printer, ShoppingCart, Trash2 } from 'lucide-react';
 import { Conf, Write, canSee, searchable, useAccess } from '../auth/access';
 import { NoAccess } from './NoAccess';
 import { useStore } from '../store/StoreContext';
-import { AnimatedNum } from '../components/motion';
-import { Badge, Confirm, Empty, Field, go, Kpi, NumInput, PageHeader, Search, type Icon, FilterMenu } from '../components/ui';
-import { fmtDate, fmtNum, matches, timeAgo, todayISO } from '../components/format';
+import { Badge, Confirm, Empty, Field, go, NumInput, PageHeader, Search, type Icon, FilterMenu } from '../components/ui';
+import { fmtDate, fmtNum, matches, todayISO } from '../components/format';
 import { COL_LABEL, KIND_BY_ROUTE, SALES_KINDS, type ColKey, type FieldDef, type FieldKey, type KindCfg, type SalesRecord } from '../sales/config';
 import { useSalesRecords } from '../sales/useSales';
 import { printSalesRecord } from '../sales/print';
@@ -22,7 +21,12 @@ export interface SalesPageDef {
 /** The Sales & Orders pages, in menu order. */
 export const SALES_PAGES: SalesPageDef[] = [
   { route: 'sales-dashboard', resource: 'sales_dashboard', label: 'Sales Dashboard', icon: LayoutGrid },
-  ...SALES_KINDS.map((k) => ({ route: k.route, resource: k.resource, label: k.label, icon: k.icon })),
+  ...SALES_KINDS.filter((k) => k.kind === 'lead' || k.kind === 'inquiry').map((k) => ({ route: k.route, resource: k.resource, label: k.label, icon: k.icon })),
+  { route: 'sales-quotation', resource: 'sales_quotation', label: 'Sales Quotation', icon: FileText },
+  { route: 'quotation-approvals', resource: 'quotation_approvals', label: 'Quotation Approvals', icon: CheckCircle },
+  { route: 'sales-order', resource: 'sales_orders', label: 'Sales Order', icon: ShoppingCart },
+  ...SALES_KINDS.filter((k) => k.kind === 'task').map((k) => ({ route: k.route, resource: k.resource, label: k.label, icon: k.icon })),
+  { route: 'sales-reports', resource: 'sales_reports', label: 'Sales Reports', icon: BarChart3 },
 ];
 
 const inr = (v: number) => `₹ ${v.toLocaleString('en-IN')}`;
@@ -366,93 +370,5 @@ function SalesFormBody({ cfg, rec, onDone, viewOnly }: { cfg: KindCfg; rec?: Sal
         </div>
       </Body>
     </div>
-  );
-}
-
-// ------------------------------------------------------------- dashboard ---
-const FLOW_ORDER = ['leads', 'inquiry', 'sales-quotation', 'sales-order', 'final-order', 'task-assignment'];
-
-export function SalesDashboard({ navigate }: { navigate: (r: string) => void }) {
-  const { rows, loading, error } = useSalesRecords();
-  const stats = SALES_KINDS.map((k) => {
-    const mine = rows.filter((r) => r.kind === k.kind);
-    return { cfg: k, total: mine.length, open: mine.filter((r) => k.openStatuses.includes(r.status)).length };
-  });
-  const flow = FLOW_ORDER.map((route) => stats.find((s) => s.cfg.route === route)!);
-  const recent = rows.slice(0, 6);
-  const cfgOf = (kind: string) => SALES_KINDS.find((k) => k.kind === kind)!;
-
-  return (
-    <>
-      <PageHeader eyebrow="Sales & Orders" title="Sales Dashboard" />
-      {error && (
-        <div className="card mb-lg">
-          <Empty icon={LayoutGrid} title="Could not load" text={error} />
-        </div>
-      )}
-
-      <div className="kpis">
-        {flow.map(({ cfg, total, open }) => (
-          <Kpi key={cfg.route} label={cfg.label} value={loading ? 0 : open} unit="open" hint={`${fmtNum(total)} in total`} icon={cfg.icon} tone={cfg.kind === 'final_order' ? 'green' : cfg.kind === 'task' ? 'amber' : 'violet'} onClick={() => navigate(cfg.route)} />
-        ))}
-      </div>
-
-      <div className="card mb-lg">
-        <div className="card-head">
-          <div>
-            <h3>Sales Flow — Lead to Order</h3>
-          </div>
-        </div>
-        <div className="flow">
-          {flow.map(({ cfg, total, open }, i) => (
-            <button key={cfg.route} className={`flow-node ${open > 0 ? 'has' : ''} ${i === flow.length - 1 ? 'end' : ''}`} onClick={() => go(cfg.route)} title={`Open ${cfg.label}`}>
-              <div className="flow-ic">
-                <cfg.icon size={24} />
-                {open > 0 && <span className="badge-n">{open}</span>}
-              </div>
-              <div className="flow-name">{cfg.label}</div>
-              <div className="flow-qty">
-                <AnimatedNum value={total} />
-              </div>
-              <div className="flow-sub">{open} open</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-head">
-          <div>
-            <h3>Recent Activity</h3>
-          </div>
-        </div>
-        {recent.length === 0 ? (
-          <Empty icon={Inbox} title="No sales activity yet" text="Leads, inquiries, quotations and orders will appear here." />
-        ) : (
-          <ul className="feed">
-            {recent.map((r) => {
-              const c = cfgOf(r.kind);
-              return (
-                <li key={r.id}>
-                  <span className="feed-ic start">
-                    <c.icon size={15} />
-                  </span>
-                  <div>
-                    <div className="tx">
-                      <button className="btn-link mono" style={{ fontSize: 12.5 }} onClick={() => go(c.route)}>
-                        {r.docNo}
-                      </button>{' '}
-                      {c.singular} · {r.status}
-                      {r.party ? ` · ${r.party}` : r.title ? ` · ${r.title}` : ''}
-                    </div>
-                    <div className="tm">{timeAgo(r.createdAt)}</div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </>
   );
 }

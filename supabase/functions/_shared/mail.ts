@@ -79,6 +79,33 @@ ${o.note ? `<p>${esc(o.note).replace(/\n/g, '<br/>')}</p>` : ''}
   return { subject, text, html };
 }
 
+/** Plain, professional body for a quotation: number, validity, request for the customer's answer. */
+export function quotationEmail(o: { company: string; qtNo: string; customer: string; validUntil?: string | null; note?: string; sender: string }) {
+  const valid = o.validUntil ? dmy(o.validUntil) : '';
+  const subject = `Quotation ${o.qtNo} – ${o.company}`;
+  const lines = [
+    `Dear ${o.customer || 'Sir / Madam'},`,
+    '',
+    `Thank you for your enquiry. Please find attached our Quotation ${o.qtNo}.`,
+    valid ? `This quotation is valid until ${valid}.` : '',
+    '',
+    ...(o.note ? [o.note, ''] : []),
+    'Kindly let us know your decision, or reply to this e-mail if you need any change. We look forward to your order.',
+    '',
+    'Regards,',
+    o.sender,
+    o.company,
+  ].filter((l, i, a) => !(l === '' && a[i - 1] === ''));
+  const text = lines.join('\n');
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1e293b;line-height:1.5">
+<p>Dear ${esc(o.customer || 'Sir / Madam')},</p>
+<p>Thank you for your enquiry. Please find attached our Quotation <b>${esc(o.qtNo)}</b>.${valid ? `<br/>This quotation is valid until <b>${esc(valid)}</b>.` : ''}</p>
+${o.note ? `<p>${esc(o.note).replace(/\n/g, '<br/>')}</p>` : ''}
+<p>Kindly let us know your decision, or reply to this e-mail if you need any change. We look forward to your order.</p>
+<p>Regards,<br/>${esc(o.sender)}<br/>${esc(o.company)}</p></div>`;
+  return { subject, text, html };
+}
+
 /** Uint8Array → base64 without blowing the call stack on large files */
 export function toBase64(bytes: Uint8Array): string {
   let s = '';
