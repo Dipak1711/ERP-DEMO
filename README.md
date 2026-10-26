@@ -2,7 +2,7 @@
 
 A web ERP for the full production flow, backed by **Supabase** (Postgres + Auth + Storage):
 
-**Raw Inventory → Cutting → Forging → Trimming → Heat Treatment → QC → Finished Goods → Dispatch**
+**Raw Inventory → Cutting → Forging → Trimming → Heat Treatment → QC → Finished Goods → Dispatch*
 
 It tracks quantities stage by stage, records loss and rejection, and keeps one job number from raw material through to dispatch.
 Every business rule runs inside the database (`supabase/migrations`), and who may see party names, rates and invoices is enforced there too (Director, Plant Head and Accounts see them; everyone else gets them withheld).
