@@ -66,9 +66,9 @@ export function FollowupsPage({ navigate }: { navigate: (r: string) => void }) {
             <table className="tbl">
               <thead>
                 <tr>
+                  <th>Reference</th>
                   <th>Due</th>
                   <th>Type</th>
-                  <th>Reference</th>
                   <th>Customer / Supplier</th>
                   <th>What to do</th>
                   <th className="right">Amount</th>
@@ -80,12 +80,12 @@ export function FollowupsPage({ navigate }: { navigate: (r: string) => void }) {
                   const st = dueState(i.due);
                   return (
                     <tr key={i.key}>
+                      <td className="strong mono nowrap"><button className="link-btn" style={{ fontWeight: 600 }} onClick={() => navigate(i.route)}>{i.ref}</button></td>
                       <td className="nowrap">
                         <span className={`badge ${TONE[st]}`}>{dueText(i.due)}</span>
                         {i.due && <div className="text-xs muted" style={{ marginTop: 3 }}>{fmtDate(i.due)}</div>}
                       </td>
                       <td className="muted nowrap">{KIND_LABEL[i.kind]}</td>
-                      <td className="strong mono nowrap"><button className="link-btn" style={{ fontWeight: 600 }} onClick={() => navigate(i.route)}>{i.ref}</button></td>
                       <td className="strong">{i.party || '—'}</td>
                       <td>
                         <div className="strong">{i.what}</div>

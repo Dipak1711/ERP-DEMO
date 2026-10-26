@@ -359,7 +359,7 @@ function RFQDetailView({
 
       {/* Meta Grid */}
       <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, padding: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 20, padding: 20 }}>
           <div>
             <div className="text-xs muted">Status</div>
             <div style={{ marginTop: 6 }}>
@@ -617,7 +617,7 @@ function CreateRFQModal({
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 14 }}>
           <Field label="Approved Purchase Requisition" required>
             <select
               value={prId}

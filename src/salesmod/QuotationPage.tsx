@@ -351,7 +351,7 @@ function QuotationForm({ editId, onClose, onSaved }: { editId: number | null; on
               <b>Sent back for revision:</b> {revisionNote}
             </div>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(210px, 100%), 1fr))', gap: 14 }}>
             <Field label="Customer" required><input value={h.customer} onChange={(e) => set({ customer: e.target.value })} placeholder="Customer / company" /></Field>
             <Field label="Contact person"><input value={h.contact} onChange={(e) => set({ contact: e.target.value })} /></Field>
             <Field label="Phone"><input value={h.phone} onChange={(e) => set({ phone: e.target.value })} /></Field>
@@ -426,7 +426,7 @@ function QuotationForm({ editId, onClose, onSaved }: { editId: number | null; on
           </div>
 
           <div className="card" style={{ padding: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 16 }}>
               <div><div className="text-xs muted">Quotation value</div><div className="strong mono" style={{ fontSize: 18 }}>{inr(totals.amount)}</div></div>
               <div><div className="text-xs muted">Discount given</div><div className="mono">{inr(totals.discount)}</div></div>
               <div><div className="text-xs muted">Total cost</div><div className="mono">{inr(totals.cost)}</div></div>
@@ -611,7 +611,7 @@ export function QuotationDetail({ id, onBack, onEdit, navigate, initialStep = nu
       )}
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 18, padding: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(190px, 100%), 1fr))', gap: 18, padding: 20 }}>
           <Info label="Status"><Badge status={q.displayStatus} /></Info>
           <Info label="Customer">{q.customer || '—'}</Info>
           <Info label="Contact">{[q.contact, q.phone].filter(Boolean).join(' · ') || '—'}</Info>
@@ -682,7 +682,7 @@ export function QuotationDetail({ id, onBack, onEdit, navigate, initialStep = nu
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', gap: 20 }}>
         <div className="card">
           <div className="card-head"><h3>Approval trail</h3></div>
           <ul className="feed">

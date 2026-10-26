@@ -1177,3 +1177,110 @@ select.filter { padding-right: 36px; }
 .ro-form input:disabled, .ro-form select:disabled, .ro-form textarea:disabled, .view-fieldset input:disabled, .view-fieldset select:disabled, .view-fieldset textarea:disabled { opacity: 1; -webkit-text-fill-color: var(--text); color: var(--text); background: var(--surface-3); cursor: default; }
 .ro-form button:disabled, .ro-form .btn:disabled, .view-fieldset button:disabled { opacity: 0.55; cursor: default; }
 .view-note { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-3); padding: 8px 12px; border: 1px dashed var(--border-strong); border-radius: 10px; width: fit-content; }
+
+/* ====================================================================== responsive: phone, tablet, desktop
+   Last in the file on purpose: earlier rules set fixed heights and no-wrap on tabs and search rows, which made them overlap what is
+   below them on a small screen. Everything here only applies at or below the stated width, so the desktop layout is unchanged. */
+
+/* nothing may push the page wider than the screen */
+.main, .content { min-width: 0; }
+.content { overflow-x: clip; }
+.card, .card-body, .card-head > * { min-width: 0; max-width: 100%; }
+
+/* ---- tablet and below ---- */
+@media (max-width: 960px) {
+  /* tabs: one row that scrolls sideways (a fixed height + wrapping used to make them overlap the content below) */
+  .tabs { display: flex; height: auto; max-width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: 0 0 auto; }
+  .card-head { flex-wrap: wrap; }
+  .card-head:has(.table-search-row) { flex-wrap: wrap; }
+  .card-head:has(.table-search-row) > .right { white-space: normal; flex: 1 1 100%; margin-left: 0; }
+  .search { min-width: 0; }
+}
+
+/* ---- phone and small tablet: search rows, headers, chips ---- */
+@media (max-width: 760px) {
+  .card-head { padding: 16px 16px 12px; }
+  .card-head:has(.table-search-row) { padding: 14px 16px; gap: 12px; }
+  .table-search-row { flex-wrap: wrap; width: 100%; flex: 1 1 100%; }
+  .table-search-row .search { flex: 1 1 100%; max-width: none; min-width: 0; }
+  .table-search-row .fmenu-btn { flex: 1 1 auto; justify-content: center; }
+  .toolbar { padding: 14px 16px; }
+  .rp-dates { padding-left: 0; padding-right: 0; }
+  .sumline { gap: 6px; }
+  .sum { white-space: normal; max-width: 100%; }
+  .acc-sum { row-gap: 6px; }
+}
+
+/* ---- phone ---- */
+@media (max-width: 640px) {
+  .page-head { gap: 14px; margin-bottom: 18px; }
+  .page-head .ph-text { flex-basis: 100%; }
+  .page-actions { width: 100%; margin-left: 0; gap: 8px; }
+  .page-actions > * + *, .page-actions .btn + .btn { margin-left: 0; }
+  .page-actions .btn { flex: 1 1 calc(50% - 8px); justify-content: center; height: 40px; }
+  .page-actions .btn-primary { flex-basis: 100%; }
+  .card-head h3 { font-size: 16px; }
+  .rp-dates { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  .rp-dates .field { min-width: 0; width: auto; }
+  .rp-dates input { width: 100%; min-width: 0; }
+  .rp-pills { gap: 8px; }
+  .stock-cards { grid-auto-columns: minmax(170px, 78%); }
+  .modal { max-width: 100%; border-radius: 16px; }
+  .modal-head { padding: 18px 18px 14px; }
+  .modal-body { padding: 18px; }
+  .modal-foot { padding: 14px 18px; }
+  .modal-foot .btn { flex: 1 1 auto; justify-content: center; }
+  .form-actions { flex-wrap: wrap; }
+  .form-actions .btn { flex: 1 1 auto; justify-content: center; }
+
+  /* every table becomes a stack of cards: value on the right, its column heading on the left (labels are added by useResponsiveTables) */
+  .table-wrap { overflow-x: visible; }
+  table.tbl[data-cards], table.tbl[data-cards] tbody { display: block; width: 100%; min-width: 0 !important; }
+  table.tbl[data-cards] thead { display: none; }
+  table.tbl[data-cards] tbody { padding: 2px 12px 14px; }
+  table.tbl[data-cards] tr {
+    display: block; margin-top: 16px; padding: 0 16px 6px; overflow: hidden; background: var(--surface);
+    border: 1px solid var(--border-strong); border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 18px -12px rgba(15, 23, 42, 0.3);
+  }
+  /* the cells never carry their own stripes or hover colour inside a card (they made one record look like two) */
+  table.tbl[data-cards] tbody tr td, table.tbl[data-cards] tbody tr:hover td, table.tbl[data-cards] tbody tr:nth-child(even) td { background: transparent !important; box-shadow: none; }
+  /* the first cell (number / name of the record) is a teal header band, so every record is clearly one card; the row's status colour is its left edge */
+  table.tbl[data-cards] tbody tr td:first-child {
+    margin: 0 -16px 4px; padding: 12px 16px; border-bottom: 1px solid var(--teal-bd);
+    background: var(--teal-bg) !important; box-shadow: inset 4px 0 0 var(--row-tone) !important;
+  }
+  table.tbl[data-cards] tbody tr td:first-child::before { color: var(--teal); }
+  table.tbl[data-cards] td {
+    display: block; width: auto !important; min-width: 0 !important; padding: 9px 0; border: 0; border-bottom: 1px dashed var(--border);
+    text-align: right !important; overflow-wrap: anywhere; white-space: normal;
+  }
+  table.tbl[data-cards] td:last-child { border-bottom: 0; }
+  table.tbl[data-cards] td::after { content: ''; display: table; clear: both; }
+  table.tbl[data-cards] td::before {
+    content: attr(data-label); float: left; width: 38%; max-width: 44%; margin-right: 10px; text-align: left; padding-top: 2px;
+    font-family: var(--font); font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  table.tbl[data-cards] td[data-label=""]::before { display: none; }
+  table.tbl[data-cards] td[data-label=""] { text-align: center !important; }
+  table.tbl[data-cards] td > * { max-width: 100%; }
+  /* long names wrap inside the card instead of being cut off */
+  table.tbl[data-cards] td *:not(svg):not(.badge):not(.job-link):not(.icon-btn) { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; overflow-wrap: anywhere; }
+  table.tbl[data-cards] td.act, table.tbl[data-cards] td:has(> .icon-actions) { text-align: right !important; }
+  table.tbl[data-cards] td.nowrap:has(> .icon-actions) { min-width: 0 !important; }
+  table.tbl[data-cards] .icon-actions { flex-wrap: wrap; justify-content: flex-end; }
+  table.tbl[data-cards] td > .icon-btn { margin: 0 0 0 auto !important; }
+  table.tbl[data-cards] td[data-decor] { display: none; } /* a lone arrow between two columns (ledger From → To) */
+  .table-wrap:has(> table.tbl[data-cards]) { border: 0 !important; background: transparent !important; box-shadow: none !important; }
+  .card-body:has(> .table-wrap > table.tbl[data-cards]) { padding-left: 10px; padding-right: 10px; }
+  table.tbl[data-cards] tr.total-row { background: var(--surface-2); }
+
+  /* a table the person types into: the heading sits above each field instead of beside it */
+  table.tbl[data-cards].form-tbl td { display: block; text-align: left !important; }
+  table.tbl[data-cards].form-tbl td::before { display: block; float: none; width: auto; max-width: none; margin: 0 0 4px; padding-top: 0; }
+  table.tbl[data-cards].form-tbl td[data-label=""] { text-align: right !important; }
+  table.tbl[data-cards].form-tbl td input, table.tbl[data-cards].form-tbl td select, table.tbl[data-cards].form-tbl td textarea { width: 100%; }
+  table.tbl[data-cards].form-tbl .table-wrap, .table-wrap:has(> table.form-tbl) { border: 0 !important; }
+}

@@ -45,6 +45,7 @@ import { Badge, FLOW_STEPS, go, type Icon } from './ui';
 import { pendingSteps } from './workflow';
 import { SALES_PAGES } from '../pages/SalesPages';
 import { useFollowups } from '../followups/useFollowups';
+import { useResponsiveTables } from './responsiveTables';
 import { dueText } from '../followups/types';
 
 export interface NavItem {
@@ -125,6 +126,7 @@ export function Layout({ route, children }: { route: string; children: ReactNode
   const { state } = useStore();
   const { canRead, level, canManageAccess } = useAccess();
   const [mobileOpen, setMobileOpen] = useState(false);
+  useResponsiveTables();
   const [mini, setMini] = useState(() => readLS('forgeflow.sidebar') === 'mini');
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') ?? 'light');

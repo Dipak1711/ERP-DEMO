@@ -78,7 +78,7 @@ export function FinishedGoodsPage(_props: { navigate: (r: string) => void }) {
           {byProduct.length === 0 ? (
             <Empty title="No finished goods yet" text="QC-approved quantity will appear here." />
           ) : (
-            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px, 100%), 1fr))' }}>
               {byProduct.map(({ p, a, r, kg, lots }) => (
                 <div key={p.id} className="kpi" style={{ boxShadow: 'none' }}>
                   <div className="kpi-top">

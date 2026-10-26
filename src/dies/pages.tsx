@@ -46,7 +46,7 @@ function useCounts() {
 function SummaryCards() {
   const c = useCounts();
   return (
-    <div className="grid mb" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
+    <div className="grid mb" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(190px, 100%), 1fr))' }}>
       <Kpi label="Total Main Dies" value={c.mains} icon={Layers} tone="blue" />
       <Kpi label="Total Forging Dies" value={c.forging} icon={Hammer} tone="amber" />
       <Kpi label="Total Trimming Dies" value={c.trimming} icon={Scissors} tone="violet" />

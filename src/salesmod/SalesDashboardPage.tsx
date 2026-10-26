@@ -100,7 +100,7 @@ export function SalesDashboardPage({ navigate }: { navigate: (r: string) => void
         <Kpi label="Quotation → Order" value={pct(st.conversion == null ? null : Math.round(st.conversion * 10) / 10)} icon={Percent} tone="teal" hint={`${st.won.length} won of ${st.submitted.length} submitted`} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(360px, 100%), 1fr))', gap: 20 }}>
         <div className="card">
           <div className="card-head"><h3>Pending Approval</h3><div className="right text-xs muted">{st.pendingApproval.length} waiting</div></div>
           <ListWidget rows={st.pendingApproval} empty="Nothing is waiting for approval" showCustomer={cust} onOpen={open}

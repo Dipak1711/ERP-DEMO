@@ -188,7 +188,7 @@ function OrderForm({ editId, onClose, onSaved }: { editId: number | null; onClos
       {loading ? <div className="card-center-msg">Loading…</div> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {!allowed && <div className="callout warn">A sales order holds customer names and prices. Ask the Director for access to Party names and Sales rates.</div>}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(210px, 100%), 1fr))', gap: 14 }}>
             <Field label="Customer" required><input value={h.customer} onChange={(e) => set({ customer: e.target.value })} /></Field>
             <Field label="Contact person"><input value={h.contact} onChange={(e) => set({ contact: e.target.value })} /></Field>
             <Field label="Phone"><input value={h.phone} onChange={(e) => set({ phone: e.target.value })} /></Field>
@@ -280,7 +280,7 @@ function OrderDetail({ id, onBack, onEdit, navigate, initialStep = null }: { id:
         }
       />
       <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 18, padding: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(190px, 100%), 1fr))', gap: 18, padding: 20 }}>
           <Cell label="Status"><Badge status={o.status} /></Cell>
           <Cell label="Customer">{o.customer || '—'}</Cell>
           <Cell label="Contact">{[o.contact, o.phone].filter(Boolean).join(' · ') || '—'}</Cell>
