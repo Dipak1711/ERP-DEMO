@@ -11,6 +11,7 @@ import { Badge, Empty, Field, JobLink, Modal, PageHeader, rowTone, Search, Summa
 import { tsFor } from '../components/NewJobModal';
 import { printRouteCard } from '../components/routeCard';
 import { fmtDate, fmtKg, fmtNum, matches, todayISO } from '../components/format';
+import { printPage } from '../native/native';
 
 type Filter = 'all' | 'Ready for Dispatch' | 'Dispatched' | 'today';
 
@@ -365,7 +366,7 @@ function PackingList({ d, onClose }: { d: Dispatch; onClose: () => void }) {
           <button className="btn" onClick={() => printRouteCard(state, d.jobNo)}>
             <ClipboardList size={15} /> Print Route Card
           </button>
-          <button className="btn" onClick={() => window.print()}>
+          <button className="btn" onClick={() => void printPage()}>
             <Printer size={15} /> Print Packing List
           </button>
         </>

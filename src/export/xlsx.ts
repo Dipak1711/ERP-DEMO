@@ -1,5 +1,6 @@
 // Real .xlsx export (write-excel-file). Numbers stay numbers so a sheet can add them up.
 import writeExcelFile from 'write-excel-file/browser';
+import { isNative, saveFile } from '../native/native';
 
 export interface XlsxCol {
   key: string;
@@ -29,5 +30,9 @@ export async function downloadXlsx(filename: string, sheet: string, cols: XlsxCo
     data.push(cols.map((c, i) => (i === 0 ? { value: 'Total', type: String, fontWeight: 'bold' } : c.total ? { ...body(totals[c.key], c.kind), fontWeight: 'bold' } as Cell : null)));
   }
   const columns = cols.map((c) => ({ width: Math.max(12, Math.min(34, c.label.length + 4)) }));
-  await writeExcelFile(data as never, { columns, sheet: sheet.slice(0, 31), stickyRowsCount: 1 } as never).toFile(filename.endsWith('.xlsx') ? filename : filename + '.xlsx');
+  const name = filename.endsWith('.xlsx') ? filename : filename + '.xlsx';
+  const file = writeExcelFile(data as never, { columns, sheet: sheet.slice(0, 31), stickyRowsCount: 1 } as never);
+  // the app cannot start a download by itself: the file is saved on the phone and the share sheet opens
+  if (isNative()) await saveFile(name, await file.toBlob());
+  else await file.toFile(name);
 }

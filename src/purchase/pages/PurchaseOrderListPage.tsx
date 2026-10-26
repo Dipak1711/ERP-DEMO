@@ -1,4 +1,5 @@
 import { ClipboardCheck } from 'lucide-react';
+import { openUrl } from '../../native/native';
 import { Brief } from '../../components/Brief';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -403,7 +404,7 @@ export function PurchaseOrderDetailPage({
   const downloadPdf = async () => {
     try {
       setPdfBusy(true);
-      window.open(await getPOPdfUrl(id), '_blank', 'noopener');
+      await openUrl(await getPOPdfUrl(id));
     } catch (e) {
       toast({ kind: 'error', title: 'Could not create the PDF', message: e instanceof Error ? e.message : String(e) });
     } finally {
@@ -653,7 +654,7 @@ export function PurchaseOrderDetailPage({
                 onClick={async () => {
                   try {
                     const url = await getPOAttachmentUrl(a.path);
-                    window.open(url, '_blank');
+                    await openUrl(url);
                   } catch (e) {
                     toast({ kind: 'error', title: 'Could not open attachment', message: String(e) });
                   }

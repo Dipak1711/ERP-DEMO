@@ -1,5 +1,6 @@
 import { dbMessage, supabase } from '../db/client';
 import { functionError } from '../purchase/services/poService';
+import { openUrl } from '../native/native';
 import type { ItemRow, OrderLine, OrderRow, PriceHistoryRow, QuotationAction, QuotationEmail, QuotationFollowup, QuotationHeader, QuotationLine, QuotationRow } from './types';
 
 type R = Record<string, any>;
@@ -156,5 +157,5 @@ export async function openQuotationPdf(id: number): Promise<void> {
   const { data, error } = await supabase.functions.invoke('quotation-pdf', { body: { quotationId: id } });
   if (error) throw new Error(await functionError(error, 'The PDF could not be created. Please try again.', 'quotation-pdf'));
   if (!data?.ok || !data?.url) throw new Error(String(data?.error ?? 'The PDF could not be created.'));
-  window.open(String(data.url), '_blank', 'noopener');
+  await openUrl(String(data.url));
 }

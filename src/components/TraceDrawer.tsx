@@ -7,6 +7,7 @@ import type { ProcessStage, StageRecord } from '../store/types';
 import { Badge, FLOW_STEPS, go, OverlayHost, QtyFlow } from './ui';
 import { nextStep } from './workflow';
 import { fmtDate, fmtDateTime, fmtKg, fmtNum, heatTempText } from './format';
+import { printPage } from '../native/native';
 
 type NodeState = 'done' | 'current' | 'upcoming' | 'final';
 
@@ -124,7 +125,7 @@ export function TraceDrawer() {
                 <Conf g="party_names"> · {job.customer}</Conf>
               </div>
             </div>
-            <button className="icon-btn no-print" title="Print job card" onClick={() => window.print()}>
+            <button className="icon-btn no-print" title="Print job card" onClick={() => void printPage()}>
               <Printer size={18} />
             </button>
             <button className="icon-btn no-print" style={{ marginLeft: 0 }} onClick={() => openTrace(null)} aria-label="Close">

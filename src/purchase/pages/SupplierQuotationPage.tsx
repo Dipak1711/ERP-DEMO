@@ -1,4 +1,5 @@
 import { ClipboardCheck } from 'lucide-react';
+import { openUrl } from '../../native/native';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
@@ -375,7 +376,7 @@ function SQDetailView({
     try {
       setDownloading(true);
       const url = await getQuotationAttachmentUrl(path);
-      window.open(url, '_blank');
+      await openUrl(url);
     } catch (e) {
       toast({ kind: 'error', title: 'Could not open document', message: String(e) });
     } finally {

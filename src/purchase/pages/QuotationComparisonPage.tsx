@@ -20,6 +20,7 @@ import { useStore } from '../../store/StoreContext';
 import { useComparison, usePurchaseRequisitions, useRFQs } from '../hooks/usePurchase';
 import { setQuotationStatus } from '../services/quotationService';
 import type { SQStatus } from '../types';
+import { printPage } from '../../native/native';
 
 const inr = (v: number) => `₹ ${v.toLocaleString('en-IN')}`;
 
@@ -92,7 +93,7 @@ export function QuotationComparisonPage({
             </button>
             <button
               className="btn btn-subtle"
-              onClick={() => window.print()}
+              onClick={() => void printPage()}
               disabled={suppliers.length === 0}
             >
               <Printer size={14} /> Print Comparison

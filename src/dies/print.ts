@@ -1,4 +1,5 @@
 import { canSee, colOk } from '../auth/access';
+import { saveFile } from '../native/native';
 import { printHtml as printCommon } from '../components/printHtml';
 import { fmtDate } from '../components/format';
 import { KIND_LABEL, type Die, type DieData, type Dims, type MainDie } from './types';
@@ -51,12 +52,7 @@ export function printDieCard(main: MainDie, data: DieData, only?: Die) {
 }
 
 function download(name: string, text: string) {
-  const url = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  void saveFile(name, new Blob(['\ufeff' + text], { type: 'text/csv;charset=utf-8' }));
 }
 const csv = (rows: unknown[][]) => rows.map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
 

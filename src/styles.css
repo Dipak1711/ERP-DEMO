@@ -1291,3 +1291,14 @@ select.filter { padding-right: 36px; }
 .boot img { position: absolute; left: 50%; top: 50%; width: 96px; height: 96px; margin: -48px 0 0 -48px; }
 .boot-spin { position: absolute; left: 50%; top: calc(50% + 70px); width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; border: 3px solid rgba(5, 148, 148, 0.22); border-top-color: #059494; animation: boot-spin 0.8s linear infinite; }
 @keyframes boot-spin { to { transform: rotate(360deg); } }
+
+/* ---- sidebar: a light teal on hover (and while a finger is on it) instead of grey, and no blue tap box in the phone app ---- */
+* { -webkit-tap-highlight-color: transparent; }
+.nav-item:not(.active):active, .nav-head:active { background: var(--primary-50); color: var(--primary-ink, var(--primary)); }
+@media (hover: hover) {
+  .nav-item:not(.active):hover, .nav-head:hover { background: var(--primary-50); color: var(--primary-ink, var(--primary)); }
+  .nav-item:not(.active):hover::before { background: var(--primary); }
+  .nav-item:not(.active):hover svg, .nav-head:hover .t { color: var(--primary); }
+}
+:root[data-theme='dark'] .nav-item:not(.active):hover, :root[data-theme='dark'] .nav-head:hover,
+:root[data-theme='dark'] .nav-item:not(.active):active, :root[data-theme='dark'] .nav-head:active { color: var(--text); }
