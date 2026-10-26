@@ -156,12 +156,12 @@ function Page({ route, query, navigate }: { route: string; query: URLSearchParam
   }
 }
 
+/** the loading screen: the app icon with a small loader under it (same as the native splash and the page shown while the app starts) */
 function Splash({ text }: { text: string }) {
   return (
-    <div className="login-page">
-      <div className="login-card" style={{ gridTemplateColumns: '1fr', maxWidth: 420, padding: 34, textAlign: 'center' }}>
-        <h2 style={{ margin: 0 }}>{text}</h2>
-      </div>
+    <div className="boot" role="status" aria-label={text}>
+      <img src="/app-icon.png" alt="" width={96} height={96} />
+      <div className="boot-spin" />
     </div>
   );
 }
